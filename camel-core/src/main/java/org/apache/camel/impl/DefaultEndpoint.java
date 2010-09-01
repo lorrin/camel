@@ -19,7 +19,10 @@ package org.apache.camel.impl;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import com.sun.org.apache.xerces.internal.impl.xpath.regex.RegularExpression;
 import org.apache.camel.CamelContext;
 import org.apache.camel.CamelContextAware;
 import org.apache.camel.Component;
@@ -42,6 +45,7 @@ import org.apache.camel.util.ObjectHelper;
  * @version $Revision$
  */
 public abstract class DefaultEndpoint implements Endpoint, HasId, CamelContextAware {
+    private final Pattern secrets = Pattern.compile("([?&][^=]*(?:passphrase|password)[^=]*)=([^&]*)", Pattern.CASE_INSENSITIVE);
 
     private String endpointUri;
     private CamelContext camelContext;
@@ -82,9 +86,11 @@ public abstract class DefaultEndpoint implements Endpoint, HasId, CamelContextAw
         return false;
     }
 
+
     @Override
     public String toString() {
-        return "Endpoint[" + getEndpointUri() + "]";
+        String sanitizedUri = secrets.matcher(getEndpointUri()).replaceAll("$1=******");
+        return String.format("Endpoint[%s]", sanitizedUri);
     }
 
     /**
