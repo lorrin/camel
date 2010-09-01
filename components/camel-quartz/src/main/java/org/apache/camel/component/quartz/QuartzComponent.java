@@ -89,7 +89,6 @@ public class QuartzComponent extends DefaultComponent implements StartupListener
 
     @Override
     protected QuartzEndpoint createEndpoint(final String uri, final String remaining, final Map<String, Object> parameters) throws Exception {
-        QuartzEndpoint answer = new QuartzEndpoint(uri, this);
 
         // lets split the remaining into a group/name
         URI u = new URI(uri);
@@ -126,19 +125,20 @@ public class QuartzComponent extends DefaultComponent implements StartupListener
                 }
             }
         }
-        answer.setTrigger(trigger);
 
-        trigger.setName(name);
-        trigger.setGroup(group);
+        QuartzEndpoint answer = new QuartzEndpoint(uri, this);
+        setProperties(answer.getJobDetail(), jobParameters);
 
         setProperties(trigger, triggerParameters);
-        setProperties(answer.getJobDetail(), jobParameters);
+        trigger.setName(name);
+        trigger.setGroup(group);
+        answer.setTrigger(trigger);
 
         return answer;
     }
 
     protected CronTrigger createCronTrigger(String path) throws ParseException {
-        // replace + back to space so its a cron expression
+        // replace + back to space so it's a cron expression
         path = path.replaceAll("\\+", " ");
         CronTrigger cron = new CronTrigger();
         cron.setCronExpression(path);
@@ -194,16 +194,36 @@ public class QuartzComponent extends DefaultComponent implements StartupListener
     private void doAddJob(JobDetail job, Trigger trigger) throws SchedulerException {
         JOBS.incrementAndGet();
 
-        if (getScheduler().getTrigger(trigger.getName(), trigger.getGroup()) == null) {
+        Trigger existingTrigger = getScheduler().getTrigger(trigger.getName(), trigger.getGroup());
+        if (existingTrigger == null) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Adding job using trigger: " + trigger.getGroup() + "/" + trigger.getName());
             }
             getScheduler().scheduleJob(job, trigger);
+        } else if (hasTriggerChanged(existingTrigger, trigger)) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Trigger: " + trigger.getGroup() + "/" + trigger.getName() + " already exists and will be updated by Quartz.");
+            }
+            scheduler.addJob(job, true);
+            trigger.setJobName(job.getName());
+            scheduler.rescheduleJob(trigger.getName(), trigger.getGroup(), trigger);
         } else {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Resuming job using trigger: " + trigger.getGroup() + "/" + trigger.getName());
+                LOG.debug("Trigger: " + trigger.getGroup() + "/" + trigger.getName() + " already exists and will be resumed automatically by Quartz.");
             }
-            getScheduler().resumeTrigger(trigger.getName(), trigger.getGroup());
+            if (!isClustered()) {
+                scheduler.resumeTrigger(trigger.getName(), trigger.getGroup());
+            }
+        }
+    }
+
+    private boolean hasTriggerChanged(Trigger oldTrigger, Trigger newTrigger) {
+        if (oldTrigger instanceof CronTrigger && oldTrigger.equals(newTrigger)) {
+            CronTrigger oldCron = (CronTrigger) oldTrigger;
+            CronTrigger newCron = (CronTrigger) newTrigger;
+            return !oldCron.getCronExpression().equals(newCron.getCronExpression());
+        } else {
+            return !newTrigger.equals(oldTrigger);
         }
     }
 

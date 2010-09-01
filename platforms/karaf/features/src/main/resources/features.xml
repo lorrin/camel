@@ -241,8 +241,9 @@
     <bundle>mvn:org.apache.camel/camel-dozer/${pom.version}</bundle>
   </feature>
   <feature name='camel-flatpack' version='${pom.version}'>
-    <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.jdom/${jdom-bundle-version}</bundle>
     <feature version='${pom.version}'>camel-spring</feature>
+    <bundle>wrap:mvn:org.slf4j/slf4j-api/${slf4j-version}</bundle>
+    <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.jdom/${jdom-bundle-version}</bundle>
     <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.jexcelapi/${jexcelapi-bundle-version}</bundle>
     <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.flatpack/${flatpack-bundle-version}</bundle>
     <bundle>mvn:org.apache.camel/camel-flatpack/${pom.version}</bundle>
@@ -469,6 +470,12 @@
     <feature version='${pom.version}'>camel-core</feature>
     <bundle>mvn:org.apache.servicemix.specs/org.apache.servicemix.specs.scripting-api-1.0/${servicemix-specs-version}</bundle>
     <bundle>mvn:org.apache.camel/camel-script/${pom.version}</bundle>
+  </feature>
+  <feature name='camel-sip' version='${pom.version}'>
+    <feature version='${pom.version}'>camel-core</feature>
+    <bundle>wrap:mvn:http://repository.jboss.org/nexus/content/groups/public!javax.sip/jain-sip-api/${jain-api-version}</bundle>
+    <bundle>wrap:mvn:http://repository.jboss.org/nexus/content/groups/public!javax.sip/jain-sip-ri/${jain-sip-version}</bundle>
+    <bundle>mvn:org.apache.camel/camel-sip/${pom.version}</bundle>
   </feature>
   <feature name='camel-shiro' version='${pom.version}'>
     <feature version='${pom.version}'>camel-core</feature>

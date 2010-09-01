@@ -109,6 +109,7 @@ public class SmppProducerTest {
         expect(submitSm.getRegisteredDelivery())
             .andReturn(SMSCDeliveryReceipt.SUCCESS_FAILURE.value());
         expect(submitSm.getReplaceIfPresent()).andReturn((byte) 0);
+        expect(submitSm.getDataCoding()).andReturn((byte) 0);
         expect(submitSm.getShortMessage()).andReturn("Hello SMPP world!".getBytes("ISO-8859-1"));
     }
     
@@ -233,6 +234,70 @@ public class SmppProducerTest {
                         false,
                         MessageClass.CLASS1,
                         Alphabet.ALPHA_DEFAULT)),
+                eq((byte) 0),
+                aryEq("Hello SMPP world!".getBytes("ISO-8859-1"))))
+            .andReturn("1");
+        expect(exchange.getPattern()).andReturn(ExchangePattern.InOut);
+        expect(exchange.getOut()).andReturn(message);
+        message.setHeader(SmppBinding.ID, "1"); // expectation without return value
+        expect(exchange.getExchangeId()).andReturn("ID-muellerc-macbookpro/3690-1214458315718/2-0");
+        
+        replay(session, endpoint, binding, exchange, message, submitSm);
+        
+        producer.doStart();
+        producer.process(exchange);
+        
+        verify(session, endpoint, binding, exchange, message, submitSm);
+    }
+    
+    @Test
+    public void processInOutShouldHonorTheDataCoding() throws Exception {
+        configuration.setDataCoding((byte) 4);
+        
+        doStartExpectations();
+        SmppBinding binding = createMock(SmppBinding.class);
+        Exchange exchange = createMock(Exchange.class);
+        Message message = createMock(Message.class);
+        SubmitSm submitSm = createMock(SubmitSm.class);
+        expect(exchange.getExchangeId()).andReturn("ID-muellerc-macbookpro/3690-1214458315718/2-0");
+        expect(endpoint.getBinding()).andReturn(binding);
+        expect(binding.createSubmitSm(exchange)).andReturn(submitSm);
+        expect(submitSm.getServiceType()).andReturn("CMT");
+        expect(submitSm.getSourceAddrTon()).andReturn(TypeOfNumber.UNKNOWN.value());
+        expect(submitSm.getSourceAddrNpi()).andReturn(NumberingPlanIndicator.UNKNOWN.value());
+        expect(submitSm.getSourceAddr()).andReturn("1616");
+        expect(submitSm.getDestAddrTon()).andReturn(TypeOfNumber.UNKNOWN.value());
+        expect(submitSm.getDestAddrNpi()).andReturn(NumberingPlanIndicator.UNKNOWN.value());
+        expect(submitSm.getDestAddress()).andReturn("1717");
+        expect(submitSm.getProtocolId()).andReturn((byte) 0);
+        expect(submitSm.getPriorityFlag()).andReturn((byte) 1);
+        expect(submitSm.getScheduleDeliveryTime()).andReturn("090830230627004+");
+        expect(submitSm.getValidityPeriod()).andReturn("090831232000004+");
+        expect(submitSm.getRegisteredDelivery())
+            .andReturn(SMSCDeliveryReceipt.SUCCESS_FAILURE.value());
+        expect(submitSm.getReplaceIfPresent()).andReturn((byte) 0);
+        expect(submitSm.getDataCoding()).andReturn((byte) 4);
+        expect(submitSm.getShortMessage()).andReturn("Hello SMPP world!".getBytes("ISO-8859-1"));
+        expect(session.submitShortMessage(
+                eq("CMT"),
+                eq(TypeOfNumber.UNKNOWN),
+                eq(NumberingPlanIndicator.UNKNOWN),
+                eq("1616"),
+                eq(TypeOfNumber.UNKNOWN),
+                eq(NumberingPlanIndicator.UNKNOWN),
+                eq("1717"),
+                isA(ESMClass.class),
+                eq((byte) 0),
+                eq((byte) 1),
+                eq("090830230627004+"),
+                eq("090831232000004+"),
+                eq(new RegisteredDelivery(SMSCDeliveryReceipt.SUCCESS_FAILURE)),
+                eq((byte) 0),
+                eq(new GeneralDataCoding(
+                        false,
+                        false,
+                        MessageClass.CLASS1,
+                        Alphabet.ALPHA_8_BIT)),
                 eq((byte) 0),
                 aryEq("Hello SMPP world!".getBytes("ISO-8859-1"))))
             .andReturn("1");

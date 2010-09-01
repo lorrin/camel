@@ -18,7 +18,6 @@ package org.apache.camel.component.quartz;
 
 import org.apache.camel.Endpoint;
 import org.apache.camel.test.junit4.CamelTestSupport;
-
 import org.junit.Test;
 import org.quartz.CronTrigger;
 import org.quartz.SimpleTrigger;
@@ -35,6 +34,7 @@ public class QuartzEndpointConfigureTest extends CamelTestSupport {
         Trigger trigger = endpoint.getTrigger();
         assertEquals("getName()", "myName", trigger.getName());
         assertEquals("getGroup()", "myGroup", trigger.getGroup());
+        assertEquals("getJobName", "quartz-" + endpoint.getId(), endpoint.getJobName()); // default job name
 
         SimpleTrigger simpleTrigger = assertIsInstanceOf(SimpleTrigger.class, trigger);
         assertEquals("getRepeatCount()", 3, simpleTrigger.getRepeatCount());
@@ -46,6 +46,7 @@ public class QuartzEndpointConfigureTest extends CamelTestSupport {
         Trigger trigger = endpoint.getTrigger();
         assertEquals("getName()", "myName", trigger.getName());
         assertEquals("getGroup()", "Camel", trigger.getGroup());
+        assertEquals("getJobName", "quartz-" + endpoint.getId(), endpoint.getJobName()); // default job name
     }
 
     @Test
@@ -55,11 +56,40 @@ public class QuartzEndpointConfigureTest extends CamelTestSupport {
         assertEquals("getName()", "myTimerName", trigger.getName());
         assertEquals("getGroup()", "myGroup", trigger.getGroup());
         assertEquals("cron expression", "0 0/5 12-18 ? * MON-FRI", trigger.getCronExpression());
+        assertEquals("getJobName", "quartz-" + endpoint.getId(), endpoint.getJobName()); // default job name
     }
 
     @Test
     public void testConfigureAnotherCronExpression() throws Exception {
         QuartzEndpoint endpoint = resolveMandatoryEndpoint("quartz://myGroup/myTimerName?cron=0+0+*+*+*+?");
+        CronTrigger trigger = assertIsInstanceOf(CronTrigger.class, endpoint.getTrigger());
+        assertEquals("getName()", "myTimerName", trigger.getName());
+        assertEquals("getGroup()", "myGroup", trigger.getGroup());
+        assertEquals("cron expression", "0 0 * * * ?", trigger.getCronExpression());
+        assertEquals("getJobName", "quartz-" + endpoint.getId(), endpoint.getJobName()); // default job name
+    }
+
+    @Test
+    public void testConfigureJobName() throws Exception {
+        QuartzEndpoint endpoint = resolveMandatoryEndpoint("quartz://myGroup/myTimerName?job.name=hadrian&cron=0+0+*+*+*+?");
+        CronTrigger trigger = assertIsInstanceOf(CronTrigger.class, endpoint.getTrigger());
+        assertEquals("getName()", "myTimerName", trigger.getName());
+        assertEquals("getGroup()", "myGroup", trigger.getGroup());
+        assertEquals("cron expression", "0 0 * * * ?", trigger.getCronExpression());
+        assertEquals("getJobName", "hadrian", endpoint.getJobName());
+    }
+
+    @Test
+    public void testConfigureNoDoubleSlashNoCron() throws Exception {
+        QuartzEndpoint endpoint = resolveMandatoryEndpoint("quartz:myGroup/myTimerName");
+        Trigger trigger = endpoint.getTrigger();
+        assertEquals("getName()", "myTimerName", trigger.getName());
+        assertEquals("getGroup()", "myGroup", trigger.getGroup());
+    }
+
+    @Test
+    public void testConfigureNoDoubleSlashQuestionCron() throws Exception {
+        QuartzEndpoint endpoint = resolveMandatoryEndpoint("quartz:myGroup/myTimerName?cron=0+0+*+*+*+?");
         CronTrigger trigger = assertIsInstanceOf(CronTrigger.class, endpoint.getTrigger());
         assertEquals("getName()", "myTimerName", trigger.getName());
         assertEquals("getGroup()", "myGroup", trigger.getGroup());

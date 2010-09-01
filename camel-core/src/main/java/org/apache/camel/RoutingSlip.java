@@ -35,14 +35,14 @@ import java.lang.annotation.Target;
  * element is converted to an {@link Endpoint} or a {@link String}, or if it is not a collection/array then it is converted
  * to an {@link Endpoint} or {@link String}.
  *
- * Then for each endpoint or URI the message is forwarded a separate copy.
+ * Then for each endpoint or URI the message is routed in a pipes and filter fashion.
  *
+ * @see org.apache.camel.DynamicRouter
  * @version $Revision$
  */
-
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Target({ElementType.FIELD, ElementType.METHOD, ElementType.CONSTRUCTOR })
+@Target({ElementType.FIELD, ElementType.METHOD, ElementType.CONSTRUCTOR})
 public @interface RoutingSlip {
     String context() default "";
     String delimiter() default ",";
