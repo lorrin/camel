@@ -122,7 +122,7 @@ public class GenericFile<T>  {
             message.setHeader("CamelFileRelativePath", getRelativeFilePath());
             message.setHeader(Exchange.FILE_PARENT, getParent());
     
-            if (getFileLength() > 0) {
+            if (getFileLength() >= 0) {
                 message.setHeader("CamelFileLength", getFileLength());
             }
             if (getLastModified() > 0) {
