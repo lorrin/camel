@@ -22,10 +22,11 @@ import org.apache.camel.LanguageTestSupport;
  * @version $Revision$
  */
 public class GroovyLanguageTest extends LanguageTestSupport {
+
     public void testGroovyExpressions() throws Exception {
         assertExpression("exchange.in.headers.foo", "abc");
         assertExpression("request.headers.foo", "abc");
-        //assertExpression("headers.foo", "abc");
+        assertExpression("headers.foo", "abc");
     }
 
     protected String getLanguageName() {

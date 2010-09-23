@@ -17,6 +17,7 @@
 package org.apache.camel.spi;
 
 import org.apache.camel.CamelContext;
+import org.apache.camel.NoSuchLanguageException;
 
 /**
  * A pluggable strategy for resolving different languages in a loosely coupled manner
@@ -28,9 +29,10 @@ public interface LanguageResolver {
     /**
      * Resolves the given language.
      *
-     * @param name    the name of the langauge
+     * @param name    the name of the language
      * @param context the camel context
      * @return the resolved language
+     * @throws NoSuchLanguageException is thrown if language could not be resolved
      */
-    Language resolveLanguage(String name, CamelContext context);
+    Language resolveLanguage(String name, CamelContext context) throws NoSuchLanguageException;
 }
