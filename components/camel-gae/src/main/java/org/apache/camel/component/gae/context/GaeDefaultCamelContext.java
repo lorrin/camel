@@ -22,7 +22,8 @@ public class GaeDefaultCamelContext extends DefaultCamelContext {
 
     @Override
     protected void doStart() throws Exception {
-        disableJMX(); // JMX not allowed on GAE
+        // JMX not allowed on GAE
+        disableJMX();
         super.doStart();
     }
 

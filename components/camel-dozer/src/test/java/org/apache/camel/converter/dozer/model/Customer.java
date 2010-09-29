@@ -21,10 +21,9 @@ import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.apache.commons.lang.builder.ToStringBuilder;
 
 public class Customer {
+
     private String firstName;
-
     private String lastName;
-
     private Address address;
 
     public Customer() {
@@ -74,6 +73,5 @@ public class Customer {
     public String toString() {
         return ToStringBuilder.reflectionToString(this);
     }
-
 
 }

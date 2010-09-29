@@ -36,14 +36,6 @@ import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.workingDirectory
 public class GroovyTest extends OSGiIntegrationTestSupport {
     
     @Test
-    public void testSimpleLanguage() throws Exception {        
-        MockEndpoint result = getMockEndpoint("mock:result");
-        result.expectedBodiesReceived("Hello IS processed!");
-        template.sendBody("direct:simple", "Hello");
-        result.assertIsSatisfied();
-    }
-    
-    @Test
     public void testGroovyLanguage() throws Exception {
         MockEndpoint result = getMockEndpoint("mock:result");
         result.expectedBodiesReceived("Hello is processed!");
@@ -54,9 +46,6 @@ public class GroovyTest extends OSGiIntegrationTestSupport {
     protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
-                // Test the simple expression
-                from("direct:simple").setBody().simple("${body} IS processed!").to("mock:result");                        
-                // Test other language from other bundle
                 from("direct:groovy").setBody().groovy("request.body + ' is processed!'").to("mock:result");
             }
         };
@@ -72,7 +61,7 @@ public class GroovyTest extends OSGiIntegrationTestSupport {
             
             // using the features to install the camel components             
             scanFeatures(getCamelKarafFeatureUrl(),                         
-                          "camel-core", "camel-spring", "camel-test", "camel-groovy"),
+                          "camel-core", "camel-test", "camel-groovy"),
             
             workingDirectory("target/paxrunner/"),
 

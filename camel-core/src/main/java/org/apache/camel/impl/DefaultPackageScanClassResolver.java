@@ -53,6 +53,7 @@ public class DefaultPackageScanClassResolver implements PackageScanClassResolver
     protected final transient Log log = LogFactory.getLog(getClass());
     private Set<ClassLoader> classLoaders;
     private Set<PackageScanFilter> scanFilters;
+    private String[] acceptableSchemes = {};
 
     public void addClassLoader(ClassLoader classLoader) {
         try {
@@ -74,6 +75,23 @@ public class DefaultPackageScanClassResolver implements PackageScanClassResolver
         if (scanFilters != null) {
             scanFilters.remove(filter);
         }
+    }
+    
+    public void setAcceptableSchemes(String schemes) {
+        if (schemes != null) {
+            acceptableSchemes = schemes.split(";");
+        }
+    }
+    
+    public boolean isAcceptableScheme(String urlPath) {
+        if (urlPath != null) {
+            for (String scheme : acceptableSchemes) {
+                if (urlPath.startsWith(scheme)) {
+                    return true;
+                }
+            }
+        } 
+        return false;
     }
 
     public Set<ClassLoader> getClassLoaders() {
@@ -266,11 +284,12 @@ public class DefaultPackageScanClassResolver implements PackageScanClassResolver
                 } else {
                     InputStream stream;
                     if (urlPath.startsWith("http:") || urlPath.startsWith("https:")
-                            || urlPath.startsWith("sonicfs:")) {
-                        // load resources using http/https
+                            || urlPath.startsWith("sonicfs:")
+                            || isAcceptableScheme(urlPath)) {                        
+                        // load resources using http/https, sonicfs and other acceptable scheme
                         // sonic ESB requires to be loaded using a regular URLConnection
                         if (log.isTraceEnabled()) {
-                            log.trace("Loading from jar using http/https: " + urlPath);
+                            log.trace("Loading from jar using url: " + urlPath);
                         }
                         URL urlStream = new URL(urlPath);
                         URLConnection con = urlStream.openConnection();

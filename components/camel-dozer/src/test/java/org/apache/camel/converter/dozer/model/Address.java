@@ -23,14 +23,12 @@ import org.apache.commons.lang.builder.ToStringBuilder;
 public class Address {
 
     private String zipCode;
-
     private String streetName;
 
     public Address() {
     }
 
     public Address(String zipCode, String streetName) {
-
         this.zipCode = zipCode;
         this.streetName = streetName;
     }

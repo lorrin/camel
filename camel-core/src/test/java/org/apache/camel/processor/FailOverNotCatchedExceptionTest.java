@@ -81,6 +81,7 @@ public class FailOverNotCatchedExceptionTest extends ContextTestSupport {
 
         try {
             template.sendBody("direct:start", "Hello World");
+            fail("Should have thrown exception");
         } catch (CamelExecutionException e) {
             assertEquals("Illegal", e.getCause().getMessage());
             assertIsInstanceOf(IllegalArgumentException.class, e.getCause());

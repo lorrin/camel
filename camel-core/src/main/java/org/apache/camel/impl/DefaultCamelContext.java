@@ -180,7 +180,7 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
     private ShutdownRunningTask shutdownRunningTask = ShutdownRunningTask.CompleteCurrentTaskOnly;
     private ExecutorServiceStrategy executorServiceStrategy = new DefaultExecutorServiceStrategy(this);
     private Debugger debugger;
-    private UuidGenerator uuidGenerator = new DefaultUuidGenerator();
+    private UuidGenerator uuidGenerator = createDefaultUuidGenerator();
     private final StopWatch stopWatch = new StopWatch(false);
     private Date startDate;
 
@@ -872,9 +872,8 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
             if (typeConverter == null) {
                 getTypeConverter();
             }
-            // type converter is usually the default one that also is the registry
-            if (typeConverter instanceof DefaultTypeConverter) {
-                typeConverterRegistry = (DefaultTypeConverter) typeConverter;
+            if (typeConverter instanceof TypeConverterRegistry) {
+                typeConverterRegistry = (TypeConverterRegistry) typeConverter;
             }
         }
         return typeConverterRegistry;
@@ -1526,7 +1525,7 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
                 // this method will log the routes being started
                 safelyStartRouteServices(true, true, true, false, addingRoutes, routeService);
                 // start route services if it was configured to auto startup and we are not adding routes
-                boolean autoStartup = routeService.getRouteDefinition().isAutoStartup();
+                boolean autoStartup = routeService.getRouteDefinition().isAutoStartup(this);
                 if (!addingRoutes || autoStartup) {
                     // start the route since auto start is enabled or we are starting a route (not adding new routes)
                     routeService.start();
@@ -1708,7 +1707,7 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
             RouteService routeService = entry.getValue().getRouteService();
 
             // if we are starting camel, then skip routes which are configured to not be auto started
-            boolean autoStartup = routeService.getRouteDefinition().isAutoStartup();
+            boolean autoStartup = routeService.getRouteDefinition().isAutoStartup(this);
             if (addingRoute && !autoStartup) {
                 LOG.info("Cannot start route " + routeService.getId() + " as its configured with autoStartup=false");
                 continue;
@@ -2161,5 +2160,14 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
      */
     public static void setContextCounter(int value) {
         DefaultCamelContextNameStrategy.setCounter(value);
+    }
+
+    private static UuidGenerator createDefaultUuidGenerator() {
+        if (System.getProperty("com.google.appengine.runtime.environment") != null) {
+            // either "Production" or "Development"
+            return new JavaUuidGenerator();
+        } else {
+            return new ActiveMQUuidGenerator();
+        }
     }
 }

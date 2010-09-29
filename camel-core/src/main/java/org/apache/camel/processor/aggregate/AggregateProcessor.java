@@ -118,6 +118,7 @@ public class AggregateProcessor extends ServiceSupport implements Processor, Nav
     private Expression completionSizeExpression;
     private boolean completionFromBatchConsumer;
     private AtomicInteger batchConsumerCounter = new AtomicInteger();
+    private boolean discardOnCompletionTimeout;
 
     public AggregateProcessor(CamelContext camelContext, Processor processor,
                               Expression correlationExpression, AggregationStrategy aggregationStrategy,
@@ -359,7 +360,19 @@ public class AggregateProcessor extends ServiceSupport implements Processor, Nav
             closedCorrelationKeys.put(key, key);
         }
 
-        onSubmitCompletion(key, exchange);
+        if (fromTimeout && isDiscardOnCompletionTimeout()) {
+            // discard due timeout
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Aggregation for correlation key " + key + " discarding aggregated exchange: " + exchange);
+            }
+            // must confirm the discarded exchange
+            aggregationRepository.confirm(exchange.getContext(), exchange.getExchangeId());
+            // and remove redelivery state as well
+            redeliveryState.remove(exchange.getExchangeId());
+        } else {
+            // the aggregated exchange should be published (sent out)
+            onSubmitCompletion(key, exchange);
+        }
     }
 
     private void onSubmitCompletion(final Object key, final Exchange exchange) {
@@ -501,6 +514,14 @@ public class AggregateProcessor extends ServiceSupport implements Processor, Nav
 
     public void setAggregationRepository(AggregationRepository aggregationRepository) {
         this.aggregationRepository = aggregationRepository;
+    }
+
+    public boolean isDiscardOnCompletionTimeout() {
+        return discardOnCompletionTimeout;
+    }
+
+    public void setDiscardOnCompletionTimeout(boolean discardOnCompletionTimeout) {
+        this.discardOnCompletionTimeout = discardOnCompletionTimeout;
     }
 
     /**

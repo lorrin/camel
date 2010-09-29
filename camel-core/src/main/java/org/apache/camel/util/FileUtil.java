@@ -154,10 +154,13 @@ public final class FileUtil {
         if (pos == -1) {
             pos = name.lastIndexOf(File.separator);
         }
-        if (pos != -1) {
+        if (pos > 0) {
             return name.substring(0, pos);
+        } else if (pos == 0) {
+            // name is in the root path, so extract the path as the first char
+            return name.substring(0, 1);
         }
-        // no path
+        // no path in name
         return null;
     }
 

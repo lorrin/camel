@@ -25,7 +25,8 @@ public class GaeSpringCamelContext extends SpringCamelContext {
 
     @Override
     protected void doStart() throws Exception {
-        disableJMX(); // JMX not allowed on GAE
+        // JMX not allowed on GAE
+        disableJMX();
         super.doStart();
     }
 

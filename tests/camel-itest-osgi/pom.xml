@@ -36,6 +36,11 @@
       <id>biz.aQute</id>
       <url>http://www.aqute.biz/repo</url>
     </repository>
+    <repository>
+      <id>hapi</id>
+      <name>HAPI Maven Repository</name>
+      <url>http://hl7api.sourceforge.net/m2/</url>
+    </repository>
   </repositories>
 
   <dependencies>
@@ -91,6 +96,11 @@
     </dependency>
     <dependency>
       <groupId>org.apache.camel</groupId>
+      <artifactId>camel-jasypt</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.camel</groupId>
       <artifactId>camel-jpa</artifactId>
       <scope>test</scope>
     </dependency>
@@ -106,6 +116,17 @@
     </dependency>
     <dependency>
       <groupId>org.apache.camel</groupId>
+      <artifactId>camel-hl7</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>ca.uhn.hapi</groupId>
+      <artifactId>hapi-structures-v24</artifactId>
+      <version>1.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.camel</groupId>
       <artifactId>camel-shiro</artifactId>
       <scope>test</scope>
     </dependency>
@@ -117,7 +138,6 @@
 	<dependency>
 	  <groupId>org.apache.camel.tests</groupId>
 	  <artifactId>org.apache.camel.tests.mock-javamail_1.7</artifactId>
-          <version>2.4.0</version>
 	  <scope>test</scope>
     </dependency>
 	<dependency>
@@ -189,6 +209,30 @@
         <scope>test</scope>
     </dependency>
 
+      <dependency>
+          <groupId>org.apache.camel</groupId>
+          <artifactId>camel-cxf</artifactId>
+      </dependency>
+
+      <!-- cxf -->
+      <dependency>
+          <groupId>org.apache.cxf</groupId>
+          <artifactId>cxf-rt-core</artifactId>
+          <version>${cxf-version}</version>
+      </dependency>
+      <!-- used by the real web service -->
+      <dependency>
+          <groupId>org.apache.cxf</groupId>
+          <artifactId>cxf-rt-frontend-jaxws</artifactId>
+          <version>${cxf-version}</version>
+      </dependency>
+      <!-- regular http transport -->
+      <dependency>
+          <groupId>org.apache.cxf</groupId>
+          <artifactId>cxf-rt-transports-http</artifactId>
+          <version>${cxf-version}</version>
+      </dependency>
+
   </dependencies>
 
   <build>
@@ -222,6 +266,31 @@
               </systemPropertyVariables>
           </configuration>
       </plugin>      
+
+        <!-- CXF wsdl2java generator, will plugin to the compile goal -->
+        <plugin>
+            <groupId>org.apache.cxf</groupId>
+            <artifactId>cxf-codegen-plugin</artifactId>
+            <version>${cxf-version}</version>
+            <executions>
+                <execution>
+                    <id>generate-sources</id>
+                    <phase>generate-sources</phase>
+                    <configuration>
+                        <sourceRoot>${basedir}/target/generated/src/main/java</sourceRoot>
+                        <wsdlOptions>
+                            <wsdlOption>
+                                <wsdl>${basedir}/src/main/resources/report_incident.wsdl</wsdl>
+                            </wsdlOption>
+                        </wsdlOptions>
+                    </configuration>
+                    <goals>
+                        <goal>wsdl2java</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
+
     </plugins>
   </build>
  
@@ -254,7 +323,7 @@
                             <include>**/*Test.*</include>
                         </includes>
                         <excludes>
-			    <!-- TODO: temporary disable unit test to let TC not hang -->
+			            <!-- TODO: temporary disable unit test to let TC not hang -->
 	                    <exclude>**/*Test.*</exclude>
                             <!--There are some conflicts of the JAXB OSGi bundle and Hudson System jar
                                 so I comment out these JAXB related tests -->
