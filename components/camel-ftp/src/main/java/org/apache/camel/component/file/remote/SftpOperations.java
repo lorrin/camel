@@ -347,11 +347,18 @@ public class SftpOperations implements RemoteFileOperations<ChannelSftp.LsEntry>
             return;
         }
 
+        // if it starts with the root path then a little special handling for that
+        if (path.startsWith("/") || path.startsWith("\\")) {
+            // change to root path
+            doChangeDirectory(path.substring(0, 1));
+            path = path.substring(1);
+        }
+
         // split into multiple dirs
         final String[] dirs = path.split("/|\\\\");
 
         if (dirs == null || dirs.length == 0) {
-            // this is the root path
+            // path was just a relative single path
             doChangeDirectory(path);
             return;
         }
@@ -363,6 +370,10 @@ public class SftpOperations implements RemoteFileOperations<ChannelSftp.LsEntry>
     }
 
     private void doChangeDirectory(String path) {
+        if (path == null || ".".equals(path) || ObjectHelper.isEmpty(path)) {
+            return;
+        }
+
         if (LOG.isTraceEnabled()) {
             LOG.trace("Changing directory: " + path);
         }
@@ -371,6 +382,18 @@ public class SftpOperations implements RemoteFileOperations<ChannelSftp.LsEntry>
         } catch (SftpException e) {
             throw new GenericFileOperationFailedException("Cannot change directory to: " + path, e);
         }
+    }
+
+    public void changeToParentDirectory() throws GenericFileOperationFailedException {
+        String current = getCurrentDirectory();
+
+        String parent = FileUtil.compactPath(current + "/..");
+        // must start with absolute
+        if (!parent.startsWith("/")) {
+            parent = "/" + parent;
+        }
+
+        changeCurrentDirectory(parent);
     }
 
     public List<ChannelSftp.LsEntry> listFiles() throws GenericFileOperationFailedException {
@@ -429,12 +452,16 @@ public class SftpOperations implements RemoteFileOperations<ChannelSftp.LsEntry>
             }
             String onlyName = FileUtil.stripPath(name);
 
-            channel.get(onlyName, os);
+            // use input stream which works with Apache SSHD used for testing
+            InputStream is = channel.get(onlyName);
+            IOHelper.copyAndCloseInput(is, os);
 
             // change back to current directory
             changeCurrentDirectory(currentDir);
 
             return true;
+        } catch (IOException e) {
+            throw new GenericFileOperationFailedException("Cannot retrieve file: " + name, e);
         } catch (SftpException e) {
             throw new GenericFileOperationFailedException("Cannot retrieve file: " + name, e);
         } finally {
