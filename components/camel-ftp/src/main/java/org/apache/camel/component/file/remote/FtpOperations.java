@@ -238,7 +238,7 @@ public class FtpOperations implements RemoteFileOperations<FTPFile> {
 
     public boolean buildDirectory(String directory, boolean absolute) throws GenericFileOperationFailedException {
         if (log.isTraceEnabled()) {
-            log.trace("makeDirectory(" + directory + ")");
+            log.trace("buildDirectory(" + directory + ")");
         }
         try {
             String originalDirectory = client.printWorkingDirectory();
@@ -486,7 +486,7 @@ public class FtpOperations implements RemoteFileOperations<FTPFile> {
 
     public String getCurrentDirectory() throws GenericFileOperationFailedException {
         if (log.isTraceEnabled()) {
-            log.trace("printWorkingDirectory()");
+            log.trace("getCurrentDirectory()");
         }
         try {
             return client.printWorkingDirectory();
@@ -501,7 +501,7 @@ public class FtpOperations implements RemoteFileOperations<FTPFile> {
         }
 
         // if it starts with the root path then a little special handling for that
-        if (path.startsWith("/") || path.startsWith("\\")) {
+        if (FileUtil.hasLeadingSeparator(path)) {
             // change to root path
             doChangeDirectory(path.substring(0, 1));
             path = path.substring(1);
@@ -630,27 +630,6 @@ public class FtpOperations implements RemoteFileOperations<FTPFile> {
                 }
 
                 success = client.makeDirectory(directory);
-            }
-        }
-
-        return success;
-    }
-
-    private boolean changeDirectoryChunks(String dirName) throws GenericFileOperationFailedException {
-        final String[] dirs = dirName.split("/|\\\\");
-
-        boolean success = false;
-        for (String dir : dirs) {
-            if (log.isTraceEnabled()) {
-                log.trace("Changing to directory: " + dir);
-            }
-            try {
-                success = client.changeWorkingDirectory(dir);
-            } catch (IOException e) {
-                throw new GenericFileOperationFailedException(client.getReplyCode(), client.getReplyString(), e.getMessage(), e);
-            }
-            if (!success) {
-                return false;
             }
         }
 

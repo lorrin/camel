@@ -57,7 +57,7 @@ public class ActiveMQUuidGenerator implements UuidGenerator {
             try {
                 hostName = InetAddress.getLocalHost().getHostName();
                 ServerSocket ss = new ServerSocket(0);
-                stub = "/" + ss.getLocalPort() + "-" + System.currentTimeMillis() + "/";
+                stub = "-" + ss.getLocalPort() + "-" + System.currentTimeMillis() + "-";
                 Thread.sleep(100);
                 ss.close();
             } catch (Exception ioe) {
@@ -73,6 +73,8 @@ public class ActiveMQUuidGenerator implements UuidGenerator {
     public ActiveMQUuidGenerator(String prefix) {
         synchronized (UNIQUE_STUB) {
             this.seed = prefix + UNIQUE_STUB + (instanceCount++) + "-";
+            // let the ID be friendly for URL and file systems
+            this.seed = generateSanitizedId(this.seed);
             this.length = seed.length() + ("" + Long.MAX_VALUE).length();
         }
     }
@@ -117,6 +119,7 @@ public class ActiveMQUuidGenerator implements UuidGenerator {
         id = id.replace(':', '-');
         id = id.replace('_', '-');
         id = id.replace('.', '-');
+        id = id.replace('/', '-');
         return id;
     }
 }
