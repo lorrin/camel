@@ -52,6 +52,7 @@ import quickfix.Message;
 import quickfix.MessageFactory;
 import quickfix.MessageStoreFactory;
 import quickfix.RejectLogon;
+import quickfix.SLF4JLogFactory;
 import quickfix.ScreenLogFactory;
 import quickfix.Session;
 import quickfix.SessionFactory;
@@ -86,6 +87,7 @@ public class QuickfixjEngine {
 
     private final Acceptor acceptor;
     private final Initiator initiator;
+    private final JmxExporter jmxExporter;
     private final boolean forcedShutdown;
     private final MessageStoreFactory messageStoreFactory;
     private final LogFactory sessionLogFactory;
@@ -99,7 +101,16 @@ public class QuickfixjEngine {
         ThreadPerConnector, ThreadPerSession;
     }
 
-    public QuickfixjEngine(String settingsResourceName, boolean forcedShutdown) throws ConfigError, FieldConvertError, IOException, JMException {
+    public QuickfixjEngine(String settingsResourceName, boolean forcedShutdown)
+        throws ConfigError, FieldConvertError, IOException, JMException {
+
+        this(settingsResourceName, forcedShutdown, null, null, null);
+    }
+
+    public QuickfixjEngine(String settingsResourceName, boolean forcedShutdown,
+                           MessageStoreFactory messageStoreFactoryOverride, LogFactory sessionLogFactoryOverride, MessageFactory messageFactoryOverride)
+        throws ConfigError, FieldConvertError, IOException, JMException {
+
         this.forcedShutdown = forcedShutdown;
         this.settingsResourceName = settingsResourceName;
 
@@ -110,10 +121,17 @@ public class QuickfixjEngine {
         
         SessionSettings settings = new SessionSettings(inputStream);
 
-        // TODO Make the message factory configurable for advanced users
-        messageFactory = new DefaultMessageFactory();
-        sessionLogFactory = inferLogFactory(settings);
-        messageStoreFactory = inferMessageStoreFactory(settings);
+        messageFactory = messageFactoryOverride != null 
+            ? messageFactoryOverride 
+            : new DefaultMessageFactory();
+        
+        sessionLogFactory = sessionLogFactoryOverride != null 
+            ? sessionLogFactoryOverride 
+            : inferLogFactory(settings);
+        
+        messageStoreFactory = messageStoreFactoryOverride != null 
+            ? messageStoreFactoryOverride 
+            : inferMessageStoreFactory(settings);
 
         // Set default session schedule if not specified in configuration        
         if (!settings.isSetting(Session.SETTING_START_TIME)) {
@@ -133,10 +151,11 @@ public class QuickfixjEngine {
             threadModel = ThreadModel.valueOf(settings.getString(SETTING_THREAD_MODEL));
         }
 
-        JmxExporter jmxExporter = null;
         if (settings.isSetting(SETTING_USE_JMX) && settings.getBool(SETTING_USE_JMX)) {
             LOG.info("Enabling JMX for QuickFIX/J");
             jmxExporter = new JmxExporter();
+        } else {
+            jmxExporter = null;
         }
         
         // From original component implementation...
@@ -146,24 +165,17 @@ public class QuickfixjEngine {
         try {
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
 
-            if (isConnectorRole(settings, SessionFactory.ACCEPTOR_CONNECTION_TYPE)) {
-                acceptor = createAcceptor(new Dispatcher(), settings, 
-                    messageStoreFactory, sessionLogFactory, messageFactory, threadModel);
 
-                if (jmxExporter != null) {
-                    jmxExporter.export(acceptor);
-                }
+            if (isConnectorRole(settings, SessionFactory.ACCEPTOR_CONNECTION_TYPE)) {
+                acceptor = createAcceptor(new Dispatcher(), settings,
+                    messageStoreFactory, sessionLogFactory, messageFactory, threadModel);
             } else {
                 acceptor = null;
             }
     
             if (isConnectorRole(settings, SessionFactory.INITIATOR_CONNECTION_TYPE)) {
                 initiator = createInitiator(new Dispatcher(), settings, 
-                    messageStoreFactory, sessionLogFactory, messageFactory, threadModel);
-                
-                if (jmxExporter != null) {
-                    jmxExporter.export(initiator);
-                }
+                    messageStoreFactory, sessionLogFactory, messageFactory, threadModel);               
             } else {
                 initiator = null;
             }
@@ -179,9 +191,15 @@ public class QuickfixjEngine {
     public void start() throws Exception {
         if (acceptor != null) {
             acceptor.start();
+            if (jmxExporter != null) {
+                jmxExporter.export(acceptor);
+            }
         }
         if (initiator != null) {
             initiator.start();
+            if (jmxExporter != null) {
+                jmxExporter.export(initiator);
+            }
         }
         started = true;
     }
@@ -275,6 +293,7 @@ public class QuickfixjEngine {
         isFileLog(settings, impliedLogFactories);
         isScreenLog(settings, impliedLogFactories);
         isJdbcLog(settings, impliedLogFactories);
+        isSL4JLog(settings, impliedLogFactories);
         if (impliedLogFactories.size() > 1) {
             throw new ConfigError("Ambiguous log factory implied in configuration");
         }
@@ -306,6 +325,17 @@ public class QuickfixjEngine {
     private void isJdbcLog(SessionSettings settings, Set<LogFactory> impliedLogFactories) {
         if (impliedLogFactories.size() == 0 && settings.isSetting(JdbcSetting.SETTING_JDBC_DRIVER)) {
             impliedLogFactories.add(new JdbcLogFactory(settings));
+        }
+    }
+
+    private void isSL4JLog(SessionSettings settings, Set<LogFactory> impliedLogFactories) {
+        if (impliedLogFactories.size() == 0) {
+            for (Object key : settings.getDefaultProperties().keySet()) {
+                if (key.toString().startsWith("SLF4J")) {
+                    impliedLogFactories.add(new SLF4JLogFactory(settings));
+                    return;
+                }
+            } 
         }
     }
 

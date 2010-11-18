@@ -43,4 +43,13 @@ public class OsgiSpringCamelContext extends SpringCamelContext {
     protected Registry createRegistry() {
         return OsgiCamelContextHelper.wrapRegistry(this, super.createRegistry(), bundleContext);
     }
+
+    @Override
+    public void setName(String name) {
+        super.setName(name);
+        // in OSGi prefix the bundle id to the management name so it will be unique in the JVM
+        // and also nicely sorted based on bundle id
+        super.setManagementName(bundleContext.getBundle().getBundleId() + "-" + name);
+    }
+
 }

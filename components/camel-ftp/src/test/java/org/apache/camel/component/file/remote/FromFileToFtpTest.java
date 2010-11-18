@@ -26,7 +26,7 @@ import org.junit.Test;
 public class FromFileToFtpTest extends FtpServerTestSupport {
 
     private String getFtpUrl() {
-        return "ftp://admin@localhost:" + getPort() + "/tmp2/camel?password=admin&consumer.initialDelay=5000";
+        return "ftp://admin@localhost:" + getPort() + "/tmp2/camel?password=admin&consumer.initialDelay=3000";
     }
 
     @Test
@@ -41,7 +41,7 @@ public class FromFileToFtpTest extends FtpServerTestSupport {
         return new RouteBuilder() {
             public void configure() throws Exception {
                 from(getFtpUrl()).to("mock:result");
-                from("file:src/main/data?noop=true&consumer.delay=5000").to(getFtpUrl());
+                from("file:src/main/data?noop=true&consumer.delay=3000").to(getFtpUrl());
             }
         };
     }

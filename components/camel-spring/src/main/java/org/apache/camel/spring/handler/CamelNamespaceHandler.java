@@ -17,7 +17,6 @@
 package org.apache.camel.spring.handler;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -38,6 +37,7 @@ import org.apache.camel.core.xml.CamelPropertyPlaceholderDefinition;
 import org.apache.camel.impl.DefaultCamelContextNameStrategy;
 import org.apache.camel.model.FromDefinition;
 import org.apache.camel.model.SendDefinition;
+import org.apache.camel.spi.CamelContextNameStrategy;
 import org.apache.camel.spi.NamespaceAware;
 import org.apache.camel.spring.CamelBeanPostProcessor;
 import org.apache.camel.spring.CamelConsumerTemplateFactoryBean;
@@ -115,7 +115,7 @@ public class CamelNamespaceHandler extends NamespaceHandlerSupport {
         boolean osgi = false;
         Class cl = CamelContextFactoryBean.class;
         try {
-            Class c = Class.forName("org.apache.camel.osgi.Activator");
+            Class<?> c = Class.forName("org.apache.camel.osgi.Activator");
             Method mth = c.getDeclaredMethod("getBundle");
             Object bundle = mth.invoke(null);
             if (bundle != null) {
@@ -245,7 +245,8 @@ public class CamelNamespaceHandler extends NamespaceHandlerSupport {
             // lets avoid folks having to explicitly give an ID to a camel context
             if (ObjectHelper.isEmpty(contextId)) {
                 // if no explicit id was set then use a default auto generated name
-                contextId = DefaultCamelContextNameStrategy.getNextName();
+                CamelContextNameStrategy strategy = new DefaultCamelContextNameStrategy();
+                contextId = strategy.getName();
                 element.setAttribute("id", contextId);
                 implicitId = true;
             }

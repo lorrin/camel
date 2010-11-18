@@ -22,7 +22,8 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>camel-parent</artifactId>
-        <version>2.5-SNAPSHOT</version>
+        <version>2.6-SNAPSHOT</version>
+        <relativePath>../../parent</relativePath>
     </parent>
 
     <artifactId>camel-quartz</artifactId>
@@ -31,7 +32,10 @@
     <description>Camel Quartz support</description>
 
     <properties>
-        <camel.osgi.export.pkg>org.apache.camel.component.quartz.*</camel.osgi.export.pkg>
+        <camel.osgi.export.pkg>
+            org.apache.camel.component.quartz.*,
+            org.apache.camel.routepolicy.quartz.*
+        </camel.osgi.export.pkg>
     </properties>
 
     <repositories>

@@ -69,7 +69,7 @@ public class OnExceptionDefinition extends ProcessorDefinition<OnExceptionDefini
     @XmlAttribute(name = "onRedeliveryRef", required = false)
     private String onRedeliveryRef;
     @XmlAttribute(name = "useOriginalMessage", required = false)
-    private Boolean useOriginalMessagePolicy = Boolean.FALSE;
+    private Boolean useOriginalMessagePolicy;
     @XmlElementRef
     private List<ProcessorDefinition> outputs = new ArrayList<ProcessorDefinition>();
     @XmlTransient
@@ -517,6 +517,16 @@ public class OnExceptionDefinition extends ProcessorDefinition<OnExceptionDefini
     }
 
     /**
+     * @deprecated this method will be removed in Camel 3.0, please use {@link #useOriginalMessage()}
+     * @see #useOriginalMessage()
+     */
+    @Deprecated
+    public OnExceptionDefinition useOriginalBody() {
+        setUseOriginalMessagePolicy(Boolean.TRUE);
+        return this;
+    }
+
+    /**
      * Will use the original input message when an {@link org.apache.camel.Exchange} is moved to the dead letter queue.
      * <p/>
      * <b>Notice:</b> this only applies when all redeliveries attempt have failed and the {@link org.apache.camel.Exchange} is doomed for failure.
@@ -662,6 +672,12 @@ public class OnExceptionDefinition extends ProcessorDefinition<OnExceptionDefini
 
     public Boolean getUseOriginalMessagePolicy() {
         return useOriginalMessagePolicy;
+    }
+
+    @XmlTransient
+    public boolean isUseOriginalMessage() {
+        // should be false by default
+        return useOriginalMessagePolicy != null ? useOriginalMessagePolicy : false;
     }
 
     public void setUseOriginalMessagePolicy(Boolean useOriginalMessagePolicy) {

@@ -30,6 +30,8 @@ import org.apache.camel.processor.aggregate.AggregationStrategy
 
 import org.apache.camel.scala.dsl.builder.RouteBuilder
 import reflect.Manifest
+import java.lang.String
+import java.util.Comparator
 
 abstract class SAbstractDefinition[P <: ProcessorDefinition[_]] extends DSL with Wrapper[P] with Block {
 
@@ -85,7 +87,11 @@ abstract class SAbstractDefinition[P <: ProcessorDefinition[_]] extends DSL with
   
   def inOnly = wrap(target.inOnly)
   def inOut = wrap(target.inOut)
-  
+
+  def log(message: String) = wrap(target.log(message))
+  def log(level: LoggingLevel, message: String) = wrap(target.log(level, message))
+  def log(level: LoggingLevel, logName: String, message: String) = wrap(target.log(level, logName, message))
+
   def loop(expression: Exchange => Any) = SLoopDefinition(target.loop(expression))
   
   def marshal(format: DataFormatDefinition) = wrap(target.marshal(format))
@@ -118,6 +124,9 @@ abstract class SAbstractDefinition[P <: ProcessorDefinition[_]] extends DSL with
   
   def policy(policy: Policy) = wrap(target.policy(policy))
 
+  def pollEnrich(uri: String, strategy: AggregationStrategy = null, timeout: Long = 0) = 
+    wrap(target.pollEnrich(uri, timeout, strategy))
+
   def recipients(expression: Exchange => Any) = wrap(target.recipientList(expression))
   
   def resequence(expression: Exchange => Any) = SResequenceDefinition(target.resequence(expression))
@@ -127,7 +136,9 @@ abstract class SAbstractDefinition[P <: ProcessorDefinition[_]] extends DSL with
   def routingSlip(header: String) = wrap(target.routingSlip(header))
   def routingSlip(header: String, separator: String) = wrap(target.routingSlip(header, separator))
   def routingSlip(expression: Exchange => Any) = wrap(target.routingSlip(expression))
-  
+
+  def sort[T](expression: (Exchange) => Any, comparator: Comparator[T] = null) = wrap(target.sort(expression, comparator))
+
   def dynamicRouter(expression: Exchange => Any) = wrap(target.dynamicRouter(expression))
 
   def setbody(expression: Exchange => Any) = wrap(target.setBody(expression))
@@ -148,7 +159,9 @@ abstract class SAbstractDefinition[P <: ProcessorDefinition[_]] extends DSL with
   def transform(expression: Exchange => Any) = wrap(target.transform(expression))
   
   def unmarshal(format: DataFormatDefinition) = wrap(target.unmarshal(format))
-  
+
+  def validate(expression: Exchange => Any) = wrap(target.validate(predicateBuilder(expression)))
+
   def wiretap(uri: String) = wrap(target.wireTap(uri))
   def wiretap(uri: String, expression: Exchange => Any) = wrap(target.wireTap(uri, expression))
   

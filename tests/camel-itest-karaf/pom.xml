@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.camel</groupId>
     <artifactId>camel-parent</artifactId>
-    <version>2.5-SNAPSHOT</version>
+    <version>2.6-SNAPSHOT</version>
   </parent>
 
   <artifactId>camel-itest-karaf</artifactId>
@@ -130,14 +130,6 @@
               <excludes>
                   <!-- CXF test will hang with the Spring3, need to check Cxf feature with karaf later -->
                   <exclude>**/*Cxf*.*</exclude>
-                  <!--
-                  <exclude>**/*Amqp*.*</exclude>
-                  <exclude>**/*Bindy*.*</exclude>
-                  <exclude>**/*Freemarker*.*</exclude>
-                  <exclude>**/*Http*.*</exclude>
-                  <exclude>**/*Tagsoup*.*</exclude>
-                  <exclude>**/*Jaxb*.*</exclude>
-                  -->
               </excludes>
               <systemPropertyVariables>
                   <springVersion>${spring-version}</springVersion>

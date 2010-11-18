@@ -17,10 +17,12 @@
 package org.apache.camel.component.xslt;
 
 import java.util.Map;
+import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.URIResolver;
 
 import org.apache.camel.Endpoint;
+import org.apache.camel.Exchange;
 import org.apache.camel.builder.xml.ResultHandlerFactory;
 import org.apache.camel.builder.xml.XsltBuilder;
 import org.apache.camel.builder.xml.XsltUriResolver;
@@ -39,6 +41,7 @@ import org.springframework.core.io.Resource;
 public class XsltComponent extends ResourceBasedComponent {
     private XmlConverter xmlConverter;
     private URIResolver uriResolver;
+    private boolean contentCache = true;
 
     public XmlConverter getXmlConverter() {
         return xmlConverter;
@@ -56,12 +59,20 @@ public class XsltComponent extends ResourceBasedComponent {
         this.uriResolver = uriResolver;
     }
 
-    protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
-        Resource resource = resolveMandatoryResource(remaining);
+    public boolean isContentCache() {
+        return contentCache;
+    }
+
+    public void setContentCache(boolean contentCache) {
+        this.contentCache = contentCache;
+    }
+
+    protected Endpoint createEndpoint(String uri, final String remaining, Map<String, Object> parameters) throws Exception {
+        final Resource resource = resolveMandatoryResource(remaining);
         if (log.isDebugEnabled()) {
             log.debug(this + " using schema resource: " + resource);
         }
-        XsltBuilder xslt = getCamelContext().getInjector().newInstance(XsltBuilder.class);
+        final XsltBuilder xslt = getCamelContext().getInjector().newInstance(XsltBuilder.class);
 
         // lets allow the converter to be configured
         XmlConverter converter = resolveAndRemoveReferenceParameter(parameters, "converter", XmlConverter.class);
@@ -117,9 +128,37 @@ public class XsltComponent extends ResourceBasedComponent {
         String output = getAndRemoveParameter(parameters, "output", String.class);
         configureOutput(xslt, output);
 
-        xslt.setTransformerInputStream(resource.getInputStream());
         configureXslt(xslt, uri, remaining, parameters);
-        return new ProcessorEndpoint(uri, this, xslt);
+        loadResource(xslt, resource);
+
+        // default to use the cache option from the component if the endpoint did not have the contentCache parameter
+        boolean cache = getAndRemoveParameter(parameters, "contentCache", Boolean.class, contentCache);
+        if (!cache) {
+            return new ProcessorEndpoint(uri, this, xslt) {
+                @Override
+                protected void onExchange(Exchange exchange) throws Exception {
+                    // force to load the resource on each exchange as we are not cached
+                    loadResource(xslt, resource);
+                    super.onExchange(exchange);
+                }
+            };
+        } else {
+            // we have already loaded xslt so we are cached
+            return new ProcessorEndpoint(uri, this, xslt);
+        }
+    }
+
+    private void loadResource(XsltBuilder xslt, Resource resource) throws TransformerConfigurationException {
+        if (log.isTraceEnabled()) {
+            log.trace(this + " loading schema resource: " + resource);
+        }
+        try {
+            xslt.setTransformerInputStream(resource.getInputStream());
+        } catch (Exception e) {
+            // include information about the resource in the caused exception, so its easier for
+            // end users to know which resource failed
+            throw new TransformerConfigurationException(e.getMessage() + " " + resource.toString(), e);
+        }
     }
 
     protected void configureXslt(XsltBuilder xslt, String uri, String remaining, Map<String, Object> parameters) throws Exception {

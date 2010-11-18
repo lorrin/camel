@@ -45,7 +45,7 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
     private static final Log LOG = LogFactory.getLog(DefaultExecutorServiceStrategy.class);
     private final List<ExecutorService> executorServices = new ArrayList<ExecutorService>();
     private final CamelContext camelContext;
-    private String threadNamePattern = "Camel Thread ${counter} - ${name}";
+    private String threadNamePattern;
     private String defaultThreadPoolProfileId;
     private final Map<String, ThreadPoolProfile> threadPoolProfiles = new HashMap<String, ThreadPoolProfile>();
 
@@ -132,7 +132,9 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
     }
 
     public void setThreadNamePattern(String threadNamePattern) {
-        this.threadNamePattern = threadNamePattern;
+        // must set camel id here in the pattern and let the other placeholders be resolved by ExecutorServiceHelper
+        String name = threadNamePattern.replaceFirst("\\$\\{camelId\\}", camelContext.getName());
+        this.threadNamePattern = name;
     }
 
     public ExecutorService lookup(Object source, String name, String executorServiceRef) {
@@ -252,6 +254,16 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
         return answer;
     }
 
+    public ExecutorService newSynchronousThreadPool(Object source, String name) {
+        ExecutorService answer = ExecutorServiceHelper.newSynchronousThreadPool();
+        onThreadPoolCreated(answer);
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Created new synchronous thread pool for source: " + source + " with name: " + name + ". -> " + answer);
+        }
+        return answer;
+    }
+
     public ExecutorService newThreadPool(Object source, String name, int corePoolSize, int maxPoolSize) {
         ExecutorService answer = ExecutorServiceHelper.newThreadPool(threadNamePattern, name, corePoolSize, maxPoolSize);
         onThreadPoolCreated(answer);
@@ -263,13 +275,30 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
         return answer;
     }
 
+    public ExecutorService newThreadPool(Object source, String name, int corePoolSize, int maxPoolSize, int maxQueueSize) {
+        ExecutorService answer = ExecutorServiceHelper.newThreadPool(threadNamePattern, name, corePoolSize, maxPoolSize, maxQueueSize);
+        onThreadPoolCreated(answer);
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Created new thread pool for source: " + source + " with name: " + name + ". [poolSize=" + corePoolSize
+                    + ", maxPoolSize=" + maxPoolSize + ", maxQueueSize=" + maxQueueSize + "] -> " + answer);
+        }
+        return answer;
+    }
+
     public ExecutorService newThreadPool(Object source, String name, int corePoolSize, int maxPoolSize, long keepAliveTime,
                                          TimeUnit timeUnit, int maxQueueSize, RejectedExecutionHandler rejectedExecutionHandler,
                                          boolean daemon) {
 
         // the thread name must not be null
         ObjectHelper.notNull(name, "ThreadName");
-
+        
+        // If we set the corePoolSize to be 0, the whole camel application will hang in JDK5
+        // just add a check here to throw the IllegalArgumentException 
+        if (corePoolSize < 1) {
+            throw new IllegalArgumentException("The corePoolSize can't be lower than 1");
+        }
+        
         ExecutorService answer = ExecutorServiceHelper.newThreadPool(threadNamePattern, name, corePoolSize, maxPoolSize, keepAliveTime,
                                                                      timeUnit, maxQueueSize, rejectedExecutionHandler, daemon);
         onThreadPoolCreated(answer);
@@ -344,7 +373,10 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
 
     @Override
     protected void doStart() throws Exception {
-        // noop
+        if (threadNamePattern == null) {
+            // set default name pattern which includes the camel context name
+            threadNamePattern = "Camel (" + camelContext.getName() + ") thread #${counter} - ${name}";
+        }
     }
 
     @Override

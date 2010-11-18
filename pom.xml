@@ -28,7 +28,7 @@
 
   <groupId>org.apache.camel</groupId>
   <artifactId>camel</artifactId>
-  <version>2.5-SNAPSHOT</version>
+  <version>2.6-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Camel</name>
   <description>Camel build POM</description>
@@ -43,8 +43,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <site-repo-url>scpexe://people.apache.org/www/camel.apache.org/maven/</site-repo-url>
     <felix-version>2.0.1</felix-version>
-    <jetty-version>7.0.1.v20091125</jetty-version>
-    <jaxb-version>2.1.12</jaxb-version>
+    <jdk.version>1.6</jdk.version>
+    <!-- eclipse plugin need the jaxb in this pom.xml file -->
+    <jaxb-version>2.1.13</jaxb-version>
     <jaxb-api-version>2.1</jaxb-api-version>
   </properties>
 
@@ -107,7 +108,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
-          <version>2.2-beta-5</version>
+          <version>2.2</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
@@ -279,8 +280,8 @@
           <artifactId>maven-resources-plugin</artifactId>
 	      <version>2.4.3</version>
 	      <configuration>
-             <encoding>UTF-8</encoding>
-          </configuration>
+                   <encoding>UTF-8</encoding>
+              </configuration>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -291,6 +292,15 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-clean-plugin</artifactId>
           <version>2.4.1</version>
+          <configuration>
+            <filesets>
+              <fileset>
+                <!-- just delete the activemq-data directory -->
+                <directory>activemq-data</directory>
+                <followSymlinks>false</followSymlinks>
+              </fileset>
+            </filesets>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -359,11 +369,6 @@
           <version>2.5</version>
         </plugin>
         <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-javadoc-plugin</artifactId>
-          <version>2.7</version>
-        </plugin>
-        <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>properties-maven-plugin</artifactId>
           <version>1.0-alpha-2</version>
@@ -393,16 +398,11 @@
           <artifactId>findbugs-maven-plugin</artifactId>
           <version>2.3.1</version>
         </plugin>
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-          <version>1.5</version>
-        </plugin>
       </plugins>
     </pluginManagement>
 
     <plugins>
-	  <plugin>
+      <plugin>
         <groupId>org.apache.felix</groupId>
 	    <artifactId>maven-bundle-plugin</artifactId>
 	    <version>${felix-version}</version>
@@ -507,6 +507,18 @@
 
   <profiles>
     <profile>
+      <!-- really just used for the eclipse setup as eclipse will stick JSE-15 as the compliance
+      level if we don't reconfigure the compiler plugin with 1.6.  When it does that, things 
+      like JAXB and other built in JDK things won't be found -->
+      <id>jdk15</id>
+      <activation>
+        <jdk>1.5</jdk>
+      </activation>
+      <properties>
+        <jdk.version>1.5</jdk.version>
+      </properties>
+    </profile>
+    <profile>
       <id>setup.eclipse</id>
       <!--
         set up the eclipse workspace and generate the .classpath and .project files for modules
@@ -516,6 +528,18 @@
       </properties>
       <build>
         <defaultGoal>process-test-sources</defaultGoal>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-compiler-plugin</artifactId>
+              <configuration>
+                <source>${jdk.version}</source>
+                <target>${jdk.version}</target>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
         <plugins>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>

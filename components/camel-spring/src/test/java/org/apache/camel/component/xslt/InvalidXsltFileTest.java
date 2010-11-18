@@ -40,7 +40,6 @@ public class InvalidXsltFileTest extends TestSupport {
             // expected
             assertIsInstanceOf(ResolveEndpointFailedException.class, e.getCause());
         }
-
     }
 
     protected RouteBuilder createRouteBuilder() throws Exception {

@@ -23,8 +23,10 @@ import java.util.Map;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.test.junit4.CamelSpringTestSupport;
+import org.apache.cxf.interceptor.Interceptor;
 import org.apache.cxf.interceptor.LoggingOutInterceptor;
 import org.apache.cxf.jaxws.JaxWsProxyFactoryBean;
+import org.apache.cxf.message.Message;
 import org.apache.cxf.ws.security.wss4j.WSS4JOutInterceptor;
 import org.junit.Test;
 import org.jvnet.mock_javamail.Mailbox;
@@ -47,7 +49,7 @@ public class ReportIncidentRoutesTest extends CamelSpringTestSupport {
     }
 
     protected static ReportIncidentEndpoint createCXFClient() {
-        List outInterceptors = new ArrayList();
+        List<Interceptor<? extends Message>> outInterceptors = new ArrayList<Interceptor<? extends Message>>();
 
         // Define WSS4j properties for flow outgoing
         Map<String, Object> outProps = new HashMap<String, Object>();

@@ -21,7 +21,8 @@
   <parent>
     <groupId>org.apache.camel</groupId>
     <artifactId>camel-parent</artifactId>
-    <version>2.5-SNAPSHOT</version>
+    <version>2.6-SNAPSHOT</version>
+    <relativePath>../parent</relativePath>
   </parent>
 
   <artifactId>examples</artifactId>
@@ -54,11 +55,13 @@
     <module>camel-example-cafe</module>
     <module>camel-example-cxf</module>
     <module>camel-example-cxf-proxy</module>
+    <module>camel-example-cxf-tomcat</module>
     <module>camel-example-docs</module>
     <module>camel-example-etl</module>
     <module>camel-example-gae</module>
     <module>camel-example-gauth</module>
     <module>camel-example-guice-jms</module>
+    <module>camel-example-jmx</module>
     <module>camel-example-jms-file</module>
     <module>camel-example-loadbalancing-mina</module>
     <module>camel-example-loan-broker</module>

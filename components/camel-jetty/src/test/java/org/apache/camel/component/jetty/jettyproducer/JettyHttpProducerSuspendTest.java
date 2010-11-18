@@ -19,19 +19,23 @@ package org.apache.camel.component.jetty.jettyproducer;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.http.HttpConsumer;
 import org.apache.camel.component.http.HttpOperationFailedException;
-import org.apache.camel.test.junit4.CamelTestSupport;
-import org.junit.Ignore;
+import org.apache.camel.component.jetty.BaseJettyTest;
 import org.junit.Test;
 
 /**
  * @version $Revision$
  */
-public class JettyHttpProducerSuspendTest extends CamelTestSupport {
+public class JettyHttpProducerSuspendTest extends BaseJettyTest {
 
-    private String serverUri = "jetty://http://localhost:9287/cool";
+    private String serverUri = "jetty://http://localhost:" + getPort() + "/cool";
 
     @Test
     public void testJettySuspend() throws Exception {
+        // these tests does not run well on Windows
+        if (isPlatform("windows")) {
+            return;
+        }
+
         context.getShutdownStrategy().setTimeout(50);
 
         String reply = template.requestBody(serverUri, "World", String.class);

@@ -213,6 +213,10 @@ public final class ExchangeHelper {
                 } else {
                     // if not replace IN instead to keep the MEP
                     result.getIn().copyFrom(source.getIn());
+                    // clear any existing OUT as the result is on the IN
+                    if (result.hasOut()) {
+                        result.setOut(null);
+                    }
                 }
             }
 

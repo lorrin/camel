@@ -21,9 +21,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.xml.bind.annotation.XmlAccessType;
@@ -63,6 +65,7 @@ import org.apache.camel.spi.LifecycleStrategy;
 import org.apache.camel.spi.Policy;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.spi.TransactedPolicy;
+import org.apache.camel.util.IntrospectionSupport;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -78,7 +81,7 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     protected final transient Log log = LogFactory.getLog(getClass());
     protected ErrorHandlerBuilder errorHandlerBuilder;
     protected String errorHandlerRef;
-    protected Boolean inheritErrorHandler = Boolean.TRUE;
+    protected Boolean inheritErrorHandler;
     private NodeFactory nodeFactory;
     private final LinkedList<Block> blocks = new LinkedList<Block>();
     private ProcessorDefinition<?> parent;
@@ -239,7 +242,8 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
         } else if (defn instanceof MulticastDefinition || defn instanceof RecipientListDefinition) {
             // do not use error handler for multicast or recipient list based as it offers fine grained error handlers for its outputs
         } else {
-            if (inheritErrorHandler) {
+            // use error handler by default or if configured to do so
+            if (isInheritErrorHandler() == null || isInheritErrorHandler()) {
                 if (log.isTraceEnabled()) {
                     log.trace(defn + " is configured to inheritErrorHandler");
                 }
@@ -341,6 +345,10 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     protected Processor createOutputsProcessor(RouteContext routeContext, Collection<ProcessorDefinition> outputs) throws Exception {
         List<Processor> list = new ArrayList<Processor>();
         for (ProcessorDefinition<?> output : outputs) {
+
+            // resolve properties before we create the processor
+            resolvePropertyPlaceholders(routeContext, output);
+
             Processor processor = null;
             // at first use custom factory
             if (routeContext.getCamelContext().getProcessorFactory() != null) {
@@ -377,6 +385,10 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      */
     protected Processor makeProcessor(RouteContext routeContext) throws Exception {
         Processor processor = null;
+
+        // resolve properties before we create the processor
+        resolvePropertyPlaceholders(routeContext, this);
+
         // at first use custom factory
         if (routeContext.getCamelContext().getProcessorFactory() != null) {
             processor = routeContext.getCamelContext().getProcessorFactory().createProcessor(routeContext, this);
@@ -391,6 +403,53 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
             return null;
         }
         return wrapProcessor(routeContext, processor);
+    }
+
+    /**
+     * Inspects the given processor definition and resolves any property placeholders from its properties.
+     * <p/>
+     * This implementation will check all the getter/setter pairs on this instance and for all the values
+     * (which is a String type) will be property placeholder resolved.
+     *
+     * @param routeContext the route context
+     * @param definition   the processor definition
+     * @throws Exception is thrown if property placeholders was used and there was an error resolving them
+     * @see org.apache.camel.CamelContext#resolvePropertyPlaceholders(String)
+     * @see org.apache.camel.component.properties.PropertiesComponent
+     */
+    protected void resolvePropertyPlaceholders(RouteContext routeContext, ProcessorDefinition definition) throws Exception {
+        if (log.isTraceEnabled()) {
+            log.trace("Resolving property placeholders for: " + definition);
+        }
+
+        // find all String getter/setter
+        Map<Object, Object> properties = new HashMap<Object, Object>();
+        IntrospectionSupport.getProperties(definition, properties, null);
+
+        if (!properties.isEmpty()) {
+            if (log.isTraceEnabled()) {
+                log.trace("There are " + properties.size() + " properties on: " + definition);
+            }
+
+            // lookup and resolve properties for String based properties
+            for (Map.Entry entry : properties.entrySet()) {
+                // the name is always a String
+                String name = (String) entry.getKey();
+                Object value = entry.getValue();
+                if (value instanceof String) {
+                    // we can only resolve String typed values
+                    String text = (String) value;
+                    text = routeContext.getCamelContext().resolvePropertyPlaceholders(text);
+                    if (text != value) {
+                        // invoke setter as the text has changed
+                        IntrospectionSupport.setProperty(definition, name, text);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Changed property [" + name + "] from: " + value + " to: " + text);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     protected ErrorHandlerBuilder createErrorHandlerBuilder() {
@@ -2462,7 +2521,7 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      * using a {@link org.apache.camel.PollingConsumer} to poll the endpoint.
      * <p/>
      * The difference between this and {@link #enrich(String)} is that this uses a consumer
-     * to obatin the additional data, where as enrich uses a producer.
+     * to obtain the additional data, where as enrich uses a producer.
      * <p/>
      * This method will block until data is avialable, use the method with timeout if you do not
      * want to risk waiting a long time before data is available from the resourceUri.
@@ -2483,7 +2542,7 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      * using a {@link org.apache.camel.PollingConsumer} to poll the endpoint.
      * <p/>
      * The difference between this and {@link #enrich(String)} is that this uses a consumer
-     * to obatin the additional data, where as enrich uses a producer.
+     * to obtain the additional data, where as enrich uses a producer.
      * <p/>
      * This method will block until data is avialable, use the method with timeout if you do not
      * want to risk waiting a long time before data is available from the resourceUri.
@@ -2505,7 +2564,7 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      * using a {@link org.apache.camel.PollingConsumer} to poll the endpoint.
      * <p/>
      * The difference between this and {@link #enrich(String)} is that this uses a consumer
-     * to obatin the additional data, where as enrich uses a producer.
+     * to obtain the additional data, where as enrich uses a producer.
      * <p/>
      * The timeout controls which operation to use on {@link org.apache.camel.PollingConsumer}.
      * If timeout is negative, we use <tt>receive</tt>. If timeout is 0 then we use <tt>receiveNoWait</tt>

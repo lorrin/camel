@@ -31,11 +31,13 @@ import _root_.scala.reflect.Manifest
 import org.apache.camel.scala.dsl._
 
 import org.apache.camel.scala.dsl.languages.Languages
+import java.lang.String
+import java.util.Comparator
 
 /**
  * Scala RouteBuilder implementation
  */
-class RouteBuilder extends Preamble with DSL with RoutesBuilder with Languages {
+class RouteBuilder extends Preamble with DSL with RoutesBuilder with Languages with Functions {
 
   val builder = new org.apache.camel.builder.RouteBuilder {
     override def configure() =  {
@@ -93,6 +95,10 @@ class RouteBuilder extends Preamble with DSL with RoutesBuilder with Languages {
   def inOnly = stack.top.inOnly
   def inOut = stack.top.inOut
 
+  def log(message: String) = stack.top.log(message)
+  def log(level: LoggingLevel, message: String) = stack.top.log(level, message)
+  def log(level: LoggingLevel, logName: String, message: String) = stack.top.log(level, logName, message)
+
   def loop(expression: Exchange => Any) = stack.top.loop(expression)
   def split(expression: Exchange => Any) = stack.top.split(expression)
   def otherwise = stack.top.otherwise
@@ -112,7 +118,7 @@ class RouteBuilder extends Preamble with DSL with RoutesBuilder with Languages {
   def onCompletion(predicate: Exchange => Boolean) = stack.top.onCompletion(predicate)
   def onCompletion(config: Config[SOnCompletionDefinition]) = stack.top.onCompletion(config)
   def pipeline = stack.top.pipeline
-  
+  def pollEnrich(uri: String, strategy: AggregationStrategy = null, timeout: Long = 0) = stack.top.pollEnrich(uri, strategy, timeout)
   def policy(policy: Policy) = stack.top.policy(policy)
   def process(function: Exchange => Unit) = stack.top.process(function)
   def process(processor: Processor) = stack.top.process(processor)
@@ -125,6 +131,7 @@ class RouteBuilder extends Preamble with DSL with RoutesBuilder with Languages {
   def setbody(expression : Exchange => Any) = stack.top.setbody(expression)
   def setfaultbody(expression: Exchange => Any) = stack.top.setfaultbody(expression)
   def setheader(name: String, expression: Exchange => Any) = stack.top.setheader(name, expression)
+  def sort[T](expression: (Exchange) => Any, comparator: Comparator[T] = null) = stack.top.sort(expression, comparator)
   def stop = stack.top.stop
   def threads = stack.top.threads
   def throwException(exception: Exception) = stack.top.throwException(exception)
@@ -132,6 +139,7 @@ class RouteBuilder extends Preamble with DSL with RoutesBuilder with Languages {
   def transacted(uri: String) = stack.top.transacted
   def transform(expression: Exchange => Any) = stack.top.transform(expression)
   def unmarshal(format: DataFormatDefinition) = stack.top.unmarshal(format)
+  def validate(expression: (Exchange) => Any) = stack.top.validate(expression)
   def wiretap(uri: String) = stack.top.wiretap(uri)
   def wiretap(uri: String, expression: Exchange => Any) = stack.top.wiretap(uri, expression)
   def aggregate(expression: Exchange => Any, strategy: AggregationStrategy) = stack.top.aggregate(expression, strategy)

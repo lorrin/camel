@@ -24,7 +24,8 @@
   <parent>
     <groupId>org.apache.camel</groupId>
     <artifactId>camel-parent</artifactId>
-    <version>2.5-SNAPSHOT</version>
+    <version>2.6-SNAPSHOT</version>
+    <relativePath>../../parent</relativePath>
   </parent>
 
   <artifactId>camel-itest-osgi</artifactId>
@@ -85,7 +86,7 @@
     <dependency>
       <groupId>org.apache.camel.karaf</groupId>
       <artifactId>apache-camel</artifactId>
-      <version>${version}</version>
+      <version>${project.version}</version>
       <type>pom</type>
       <scope>test</scope>
     </dependency>
@@ -208,7 +209,11 @@
         <artifactId>org.apache.felix.configadmin</artifactId>
         <scope>test</scope>
     </dependency>
-
+    <dependency>
+        <groupId>org.apache.camel</groupId>
+        <artifactId>camel-bean-validator</artifactId>
+        <scope>test</scope>
+    </dependency>
       <dependency>
           <groupId>org.apache.camel</groupId>
           <artifactId>camel-cxf</artifactId>
@@ -233,6 +238,17 @@
           <version>${cxf-version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.ftpserver</groupId>
+        <artifactId>ftpserver-core</artifactId>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.ftpserver</groupId>
+        <artifactId>ftplet-api</artifactId>
+        <scope>test</scope>
+      </dependency>
+
   </dependencies>
 
   <build>
@@ -241,6 +257,7 @@
       <plugin>
         <groupId>org.apache.servicemix.tooling</groupId>
         <artifactId>depends-maven-plugin</artifactId>
+        <version>1.2</version>
         <executions>
           <execution>
             <id>generate-depends-file</id>
@@ -259,7 +276,7 @@
                   <include>**/*Test.*</include>
               </includes>
               <excludes>
-                  <exclude>**/JpaRouteTest.*</exclude>
+                  <exclude>**/FIXMETest.*</exclude>
               </excludes>
               <systemPropertyVariables>
                   <springVersion>${spring-version}</springVersion>
@@ -280,7 +297,7 @@
                         <sourceRoot>${basedir}/target/generated/src/main/java</sourceRoot>
                         <wsdlOptions>
                             <wsdlOption>
-                                <wsdl>${basedir}/src/main/resources/report_incident.wsdl</wsdl>
+                                <wsdl>${basedir}/src/test/resources/report_incident.wsdl</wsdl>
                             </wsdlOption>
                         </wsdlOptions>
                     </configuration>
@@ -314,11 +331,6 @@
                             on this information to PAX mvn url
                         -->
                         <argLine>-Dorg.ops4j.pax.url.mvn.localRepository=${maven.repo.local}</argLine>
-                    </configuration>
-                </plugin>
-                <plugin>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <configuration>
                         <includes>
                             <include>**/*Test.*</include>
                         </includes>

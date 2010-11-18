@@ -177,6 +177,24 @@ public class SimpleTest extends LanguageTestSupport {
         assertExpression("Hello ${exception.message} World", "Hello Just testing World");
     }
 
+    public void testExceptionStacktrace() throws Exception {
+        exchange.setException(new IllegalArgumentException("Just testing"));
+
+        String out = SimpleLanguage.simple("exception.stacktrace").evaluate(exchange, String.class);
+        assertNotNull(out);
+        assertTrue(out.startsWith("java.lang.IllegalArgumentException: Just testing"));
+        assertTrue(out.contains("at org.apache.camel.language."));
+    }
+
+    public void testException() throws Exception {
+        exchange.setException(new IllegalArgumentException("Just testing"));
+
+        Exception out = SimpleLanguage.simple("exception").evaluate(exchange, Exception.class);
+        assertNotNull(out);
+        assertIsInstanceOf(IllegalArgumentException.class, out);
+        assertEquals("Just testing", out.getMessage());
+    }
+
     public void testBodyAs() throws Exception {
         assertExpression("${bodyAs(String)}", "<hello id='m123'>world!</hello>");
         assertExpression("${bodyAs('String')}", "<hello id='m123'>world!</hello>");
@@ -343,6 +361,26 @@ public class SimpleTest extends LanguageTestSupport {
         }
     }
 
+    public void testBodyOGNLAsMap() throws Exception {
+        Map map = new HashMap();
+        map.put("foo", "Camel");
+        map.put("bar", 6);
+        exchange.getIn().setBody(map);
+
+        assertExpression("${in.body[foo]}", "Camel");
+        assertExpression("${in.body[bar]}", 6);
+    }
+    
+    public void testBodyOGNLAsMapShorthand() throws Exception {
+        Map map = new HashMap();
+        map.put("foo", "Camel");
+        map.put("bar", 6);
+        exchange.getIn().setBody(map);
+
+        assertExpression("${body[foo]}", "Camel");
+        assertExpression("${body[bar]}", 6);
+    }
+
     public void testBodyOGNLSimple() throws Exception {
         Animal camel = new Animal("Camel", 6);
         exchange.getIn().setBody(camel);
@@ -350,7 +388,7 @@ public class SimpleTest extends LanguageTestSupport {
         assertExpression("${in.body.getName}", "Camel");
         assertExpression("${in.body.getAge}", 6);
     }
-    
+
     public void testExceptionOGNLSimple() throws Exception {
         exchange.getIn().setHeader(Exchange.AUTHENTICATION_FAILURE_POLICY_ID, "myPolicy");
         exchange.setProperty(Exchange.EXCEPTION_CAUGHT, new CamelAuthorizationException("The camel authorization exception", exchange));

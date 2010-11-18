@@ -23,23 +23,22 @@ import java.util.concurrent.TimeUnit;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.http.HttpOperationFailedException;
-import org.apache.camel.test.junit4.CamelTestSupport;
+import org.apache.camel.component.jetty.BaseJettyTest;
 import org.junit.Ignore;
 import org.junit.Test;
-
-import static org.apache.camel.language.simple.SimpleLanguage.simple;
 
 /**
  * @version $Revision$
  */
-public class JettyHttpProducerSuspendWhileInProgressTest extends CamelTestSupport {
+@Ignore
+public class JettyHttpProducerSuspendWhileInProgressTest extends BaseJettyTest {
 
-    private String serverUri = "jetty://http://localhost:9285/cool";
+    private String serverUri = "jetty://http://localhost:" + getPort() + "/cool";
 
     @Test
     public void testJettySuspendWhileInProgress() throws Exception {
-        // these tests does not run well on AIX
-        if (isPlatform("aix")) {
+        // these tests does not run well on AIX or Windows
+        if (isPlatform("aix") || isPlatform("windows")) {
             return;
         }
 

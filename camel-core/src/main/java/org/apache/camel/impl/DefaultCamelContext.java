@@ -61,7 +61,9 @@ import org.apache.camel.TypeConverter;
 import org.apache.camel.VetoCamelContextStartException;
 import org.apache.camel.builder.ErrorHandlerBuilder;
 import org.apache.camel.component.properties.PropertiesComponent;
+import org.apache.camel.impl.converter.BaseTypeConverterRegistry;
 import org.apache.camel.impl.converter.DefaultTypeConverter;
+import org.apache.camel.impl.converter.LazyLoadingTypeConverter;
 import org.apache.camel.management.DefaultManagementAgent;
 import org.apache.camel.management.DefaultManagementLifecycleStrategy;
 import org.apache.camel.management.DefaultManagementStrategy;
@@ -123,6 +125,7 @@ import org.apache.commons.logging.LogFactory;
 public class DefaultCamelContext extends ServiceSupport implements CamelContext, SuspendableService {
     private static final transient Log LOG = LogFactory.getLog(DefaultCamelContext.class);
     private CamelContextNameStrategy nameStrategy = new DefaultCamelContextNameStrategy();
+    private String managementName;
     private ClassLoader applicationContextClassLoader;
     private final Map<String, Endpoint> endpoints = new EndpointRegistry();
     private final AtomicInteger endpointKeyCounter = new AtomicInteger();
@@ -153,6 +156,7 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
     private Boolean streamCache = Boolean.FALSE;
     private Boolean handleFault = Boolean.FALSE;
     private Boolean disableJMX = Boolean.FALSE;
+    private Boolean lazyLoadTypeConverters = Boolean.FALSE;
     private Long delay;
     private ErrorHandlerBuilder errorHandlerBuilder;
     private Map<String, DataFormatDefinition> dataFormats = new HashMap<String, DataFormatDefinition>();
@@ -238,6 +242,14 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
         this.nameStrategy = nameStrategy;
     }
 
+    public String getManagementName() {
+        return managementName;
+    }
+
+    public void setManagementName(String managementName) {
+        this.managementName = managementName;
+    }
+
     public Component hasComponent(String componentName) {
         return components.get(componentName);
     }
@@ -284,8 +296,8 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
         if (componentType.isInstance(component)) {
             return componentType.cast(component);
         } else {
-            throw new IllegalArgumentException("The component is not of type: " + componentType + " but is: "
-                    + component);
+            throw new IllegalArgumentException("Found component of type: " 
+                + component.getClass() + " instead of expected: " + componentType);
         }
     }
 
@@ -512,7 +524,7 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
     }
 
     public Route getRoute(String id) {
-        for (Route route : routes) {
+        for (Route route : getRoutes()) {
             if (route.getId().equals(id)) {
                 return route;
             }
@@ -522,7 +534,7 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
 
     @Deprecated
     public void setRoutes(List<Route> routes) {
-        throw new UnsupportedOperationException("Overriding existing routes is not supported yet, use addRoutes instead");
+        throw new UnsupportedOperationException("Overriding existing routes is not supported yet, use addRouteCollection instead");
     }
 
     synchronized void removeRouteCollection(Collection<Route> routes) {
@@ -818,9 +830,9 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
         return answer;
     }
 
-    public String resolvePropertyPlaceholders(String uri) throws Exception {
+    public String resolvePropertyPlaceholders(String text) throws Exception {
         // do not parse uris that are designated for the properties component as it will handle that itself
-        if (uri != null && !uri.startsWith("properties:") && uri.contains(PropertiesComponent.PREFIX_TOKEN)) {
+        if (text != null && !text.startsWith("properties:") && text.contains(PropertiesComponent.PREFIX_TOKEN)) {
             // the uri contains property placeholders so lookup mandatory properties component and let it parse it
             Component component = hasComponent("properties");
             if (component == null) {
@@ -829,18 +841,20 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
             }
             if (component == null) {
                 throw new IllegalArgumentException("PropertiesComponent with name properties must be defined"
-                        + " in CamelContext to support property placeholders in endpoint URIs");
+                        + " in CamelContext to support property placeholders.");
             }
             // force component to be created and registered as a component
             PropertiesComponent pc = getComponent("properties", PropertiesComponent.class);
             // the parser will throw exception if property key was not found
-            String answer = pc.parseUri(uri);
+            String answer = pc.parseUri(text);
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Resolved uri: " + uri + " --> " + answer);
+                LOG.debug("Resolved text: " + text + " -> " + answer);
             }
             return answer;
         }
-        return uri;
+
+        // return original text as is
+        return text;
     }
 
     // Properties
@@ -1332,6 +1346,9 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
 
         // the stop order is important
 
+        // shutdown debugger
+        ServiceHelper.stopAndShutdownService(getDebugger());
+
         shutdownServices(endpoints.values());
         endpoints.clear();
 
@@ -1812,7 +1829,12 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
      * Lazily create a default implementation
      */
     protected TypeConverter createTypeConverter() {
-        DefaultTypeConverter answer = new DefaultTypeConverter(packageScanClassResolver, getInjector(), getDefaultFactoryFinder());
+        BaseTypeConverterRegistry answer;
+        if (isLazyLoadTypeConverters()) {
+            answer = new LazyLoadingTypeConverter(packageScanClassResolver, getInjector(), getDefaultFactoryFinder());
+        } else {
+            answer = new DefaultTypeConverter(packageScanClassResolver, getInjector(), getDefaultFactoryFinder());
+        }
         setTypeConverterRegistry(answer);
         return answer;
     }
@@ -2015,6 +2037,14 @@ public class DefaultCamelContext extends ServiceSupport implements CamelContext,
 
     public Boolean isAutoStartup() {
         return autoStartup != null && autoStartup;
+    }
+    
+    public Boolean isLazyLoadTypeConverters() {
+        return lazyLoadTypeConverters != null && lazyLoadTypeConverters;
+    }
+    
+    public void setLazyLoadTypeConverters(Boolean lazyLoadTypeConverters) {
+        this.lazyLoadTypeConverters = lazyLoadTypeConverters;
     }
 
     public ClassLoader getApplicationContextClassLoader() {

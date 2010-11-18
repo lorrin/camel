@@ -22,7 +22,8 @@
   <parent>
     <groupId>org.apache.camel</groupId>
     <artifactId>camel-parent</artifactId>
-    <version>2.5-SNAPSHOT</version>
+    <version>2.6-SNAPSHOT</version>
+    <relativePath>../../parent</relativePath>
   </parent>
 
   <artifactId>camel-xmpp</artifactId>
@@ -35,18 +36,12 @@
   </properties>
 
   <repositories>
-  	<!-- ServiceMix repo -->
-  	<repository>
-  		<id>servicemix</id>
-  		<name>Apache ServiceMix Repository</name>
-  		<url>http://svn.apache.org/repos/asf/servicemix/m2-repo</url>
-	</repository>
-	<!-- smack repo -->
+	<!-- Smack repo to grab new smack releases. We currently get smack from Central.
 	<repository>
 		<id>m2-repository-smack</id>
 		<name>Smakc Maven2 Repository</name>
 		<url>http://maven.reucon.com/public</url>
-	</repository>
+	</repository> -->
   </repositories>
 
   <dependencies>

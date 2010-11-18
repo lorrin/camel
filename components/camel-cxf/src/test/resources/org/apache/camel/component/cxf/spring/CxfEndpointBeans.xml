@@ -24,9 +24,15 @@
        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
     ">
 
+  <bean id="fromEndpointJaxwsHandler" class="org.apache.camel.wsdl_first.JaxwsTestHandler"/>
 
   <cxf:cxfEndpoint id="routerEndpoint" address="http://localhost:9000/router"
-    serviceClass="org.apache.camel.component.cxf.HelloService"/>
+    serviceClass="org.apache.camel.component.cxf.HelloService">
+    <cxf:schemaLocations>
+    	<cxf:schemaLocation>classpath:wsdl/Message.xsd</cxf:schemaLocation>
+    </cxf:schemaLocations>
+    <cxf:handlers><ref bean="fromEndpointJaxwsHandler"/></cxf:handlers>
+  </cxf:cxfEndpoint>
 
 
   <cxf:cxfEndpoint id="serviceEndpoint" address="http://localhost:9002/helloworld"

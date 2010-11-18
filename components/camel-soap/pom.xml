@@ -22,7 +22,8 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>camel-parent</artifactId>
-        <version>2.5-SNAPSHOT</version>
+        <version>2.6-SNAPSHOT</version>
+        <relativePath>../../parent</relativePath>
     </parent>
 
     <artifactId>camel-soap</artifactId>
@@ -60,15 +61,15 @@
             <artifactId>jaxb-impl</artifactId>
         </dependency>
 
-		<!-- JAXWS api jars -->
-		<dependency>
+	<!-- JAXWS api jars -->
+	<dependency>
             <groupId>org.apache.geronimo.specs</groupId>
             <artifactId>geronimo-ws-metadata_2.0_spec</artifactId>
             <version>1.1.2</version>
         </dependency>
         <dependency>
             <groupId>org.apache.geronimo.specs</groupId>
-            <artifactId>geronimo-jaxws_2.1_spec</artifactId>
+            <artifactId>geronimo-jaxws_2.2_spec</artifactId>
             <version>1.0</version>
         </dependency>
 
@@ -140,8 +141,8 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.cxf</groupId>
-                <artifactId>cxf-common-xsd</artifactId>
-                <version>${cxf-version}</version>
+                <artifactId>cxf-xjc-plugin</artifactId>
+                <version>${cxf-xjc-utils-version}</version>
                 <executions>
                     <execution>
                         <id>generate-sources</id>
@@ -160,14 +161,9 @@
                 </executions>
                 <dependencies>
                     <dependency>
-                        <groupId>org.apache.cxf</groupId>
+                        <groupId>org.apache.cxf.xjcplugins</groupId>
                         <artifactId>cxf-xjc-dv</artifactId>
-                        <version>${cxf-version}</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>org.apache.cxf</groupId>
-                        <artifactId>cxf-common-utilities</artifactId>
-                        <version>${cxf-version}</version>
+                        <version>${cxf-xjc-utils-version}</version>
                     </dependency>
                 </dependencies>
             </plugin>
@@ -200,9 +196,9 @@
                 </executions>
                 <dependencies>
                     <dependency>
-                        <groupId>org.apache.cxf</groupId>
+                        <groupId>org.apache.cxf.xjcplugins</groupId>
                         <artifactId>cxf-xjc-ts</artifactId>
-                        <version>${cxf-version}</version>
+                        <version>${cxf-xjc-utils-version}</version>
                     </dependency>
                 </dependencies>
             </plugin>

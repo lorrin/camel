@@ -96,6 +96,24 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     void setNameStrategy(CamelContextNameStrategy nameStrategy);
 
     /**
+     * Gets the name this {@link CamelContext} was registered in JMX.
+     * <p/>
+     * The reason that a {@link CamelContext} can have a different name in JMX is the fact to remedy for name clash
+     * in JMX when having multiple {@link CamelContext}s in the same JVM. Camel will automatic reassign and use
+     * a free name to avoid failing to start.
+     *
+     * @return the management name
+     */
+    String getManagementName();
+
+    /**
+     * Sets the name this {@link CamelContext} was registered in JMX.
+     *
+     * @param name  the actual name used when registering this {@link CamelContext} in JMX
+     */
+    void setManagementName(String name);
+
+    /**
      * Gets the version of the this context.
      *
      * @return the version
@@ -910,4 +928,19 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
      * @param uuidGenerator the UUID Generator
      */
     void setUuidGenerator(UuidGenerator uuidGenerator);
+
+    /**
+     * Whether or not type converters should be loaded lazy
+     *
+     * @return <tt>true</tt> to load lazy, <tt>false</tt> to load on startup
+     */
+    Boolean isLazyLoadTypeConverters();
+
+    /**
+     * Sets whether type converters should be loaded lazy
+     *
+     * @param lazyLoadTypeConverters <tt>true</tt> to load lazy, <tt>false</tt> to load on startup
+     */
+    void setLazyLoadTypeConverters(Boolean lazyLoadTypeConverters);
+
 }

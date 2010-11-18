@@ -30,6 +30,7 @@ ProtobufDataFormat
 RssDataFormat
 SerializationDataFormat
 StringDataFormat
+SyslogDataFormat
 TidyMarkupDataFormat
 XMLBeansDataFormat
 XStreamDataFormat

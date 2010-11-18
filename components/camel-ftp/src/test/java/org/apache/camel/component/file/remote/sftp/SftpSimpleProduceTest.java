@@ -19,11 +19,13 @@ package org.apache.camel.component.file.remote.sftp;
 import java.io.File;
 
 import org.apache.camel.Exchange;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
  * @version $Revision$
  */
+@Ignore("Disabled due CI servers fails on full build running with these tests")
 public class SftpSimpleProduceTest extends SftpServerTestSupport {
 
     @Override
@@ -55,6 +57,19 @@ public class SftpSimpleProduceTest extends SftpServerTestSupport {
         File file = new File(FTP_ROOT_DIR + "/mysub/bye.txt").getAbsoluteFile();
         assertTrue("File should exist: " + file, file.exists());
         assertEquals("Bye World", context.getTypeConverter().convertTo(String.class, file));
+    }
+
+    @Test
+    public void testSftpSimpleTwoSubPathProduce() throws Exception {
+        if (!canTest()) {
+            return;
+        }
+
+        template.sendBodyAndHeader("sftp://localhost:" + getPort() + "/" + FTP_ROOT_DIR + "/mysub/myother?username=admin&password=admin", "Farewell World", Exchange.FILE_NAME, "farewell.txt");
+
+        File file = new File(FTP_ROOT_DIR + "/mysub/myother/farewell.txt").getAbsoluteFile();
+        assertTrue("File should exist: " + file, file.exists());
+        assertEquals("Farewell World", context.getTypeConverter().convertTo(String.class, file));
     }
 
 }

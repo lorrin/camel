@@ -26,6 +26,7 @@ import org.w3c.dom.Element;
 import org.apache.camel.AsyncCallback;
 import org.apache.camel.Processor;
 import org.apache.camel.impl.DefaultConsumer;
+import org.apache.camel.util.ObjectHelper;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.continuations.Continuation;
@@ -74,7 +75,8 @@ public class CxfConsumer extends DefaultConsumer {
                 synchronized (continuation) {
                     if (continuation.isNew()) {
                         final org.apache.camel.Exchange camelExchange = perpareCamelExchange(cxfExchange);
-
+                        // TODO we need to use the CXF 2.3.0 new Continuation API in CAMEL 3.0.0
+                        // The below code should work for CXF 2.2.x and CXF 2.3.x at the same time
                         // use the asynchronous API to process the exchange
                         boolean sync = getAsyncProcessor().process(camelExchange, new AsyncCallback() {
                             public void done(boolean doneSync) {
@@ -99,13 +101,11 @@ public class CxfConsumer extends DefaultConsumer {
                                           + camelExchange.getExchangeId());
                             }
                             // The continuation could be called before the
-                            // suspend
-                            // is called
+                            // suspend is called
                             continuation.suspend(0);
                         } else {
                             // just set the response back, as the invoking
-                            // thread is
-                            // not changed
+                            // thread is not changed
                             if (LOG.isTraceEnabled()) {
                                 LOG.trace("Processed the Exchange : " + camelExchange.getExchangeId());
                             }
@@ -126,7 +126,7 @@ public class CxfConsumer extends DefaultConsumer {
             private Continuation getContinuation(Exchange cxfExchange) {
                 ContinuationProvider provider = 
                     (ContinuationProvider)cxfExchange.getInMessage().get(ContinuationProvider.class.getName());
-                return provider.getContinuation();
+                return provider == null ? null : provider.getContinuation();
             }
             
             private Object syncInvoke(Exchange cxfExchange) {
@@ -252,6 +252,9 @@ public class CxfConsumer extends DefaultConsumer {
 
         });
         server = svrBean.create();
+        if (ObjectHelper.isNotEmpty(endpoint.getPublishedEndpointUrl())) {
+            server.getEndpoint().getEndpointInfo().setProperty("publishedEndpointUrl", endpoint.getPublishedEndpointUrl());
+        }
     }
     
     @Override

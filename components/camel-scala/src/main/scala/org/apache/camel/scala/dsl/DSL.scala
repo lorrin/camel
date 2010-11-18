@@ -19,7 +19,8 @@ package scala
 package dsl 
 
 import org.apache.camel.model.DataFormatDefinition
-import reflect.Manifest;
+import reflect.Manifest
+import java.util.Comparator;
 import org.apache.camel.processor.aggregate.AggregationStrategy
 
 import org.apache.camel.spi.Policy
@@ -42,6 +43,11 @@ trait DSL {
   def inOnly(): DSL with Block
   def inOut(): DSL with Block
   def loadbalance : SLoadBalanceDefinition
+
+  def log(message: String) : DSL
+  def log(level: LoggingLevel, message: String) : DSL
+  def log(level: LoggingLevel, logName: String, message: String) : DSL
+
   def loop(expression: Exchange => Any) : SLoopDefinition
   def marshal(format : DataFormatDefinition) : DSL
   def multicast : SMulticastDefinition
@@ -51,6 +57,9 @@ trait DSL {
   def onCompletion(config: Config[SOnCompletionDefinition]) : SOnCompletionDefinition
   def pipeline : SPipelineDefinition
   def policy(policy: Policy) : DSL
+
+  def pollEnrich(uri: String, strategy: AggregationStrategy = null, timeout: Long = 0) : DSL
+
   def process(function: Exchange => Unit) : DSL
   def process(processor: Processor) : DSL
   def recipients(expression: Exchange => Any) : DSL
@@ -67,6 +76,7 @@ trait DSL {
   def setfaultbody(expression: Exchange => Any) : DSL
   def setheader(header: String, expression: Exchange => Any) : DSL
 
+  def sort[T](expression: Exchange => Any, comparator: Comparator[T] = null) : DSL
   def split(expression: Exchange => Any) : SSplitDefinition
 
   def stop : DSL
@@ -84,6 +94,9 @@ trait DSL {
   def transform(expression: Exchange => Any) : DSL
 
   def unmarshal(format: DataFormatDefinition) : DSL
+
+  def validate(expression: Exchange => Any) : DSL
+
   def when(filter: Exchange => Any) : DSL with Block
   
   def wiretap(uri: String) : DSL

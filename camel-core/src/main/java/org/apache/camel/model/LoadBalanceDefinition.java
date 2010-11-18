@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
@@ -35,12 +36,16 @@ import org.apache.camel.model.loadbalancer.RandomLoadBalancerDefinition;
 import org.apache.camel.model.loadbalancer.RoundRobinLoadBalancerDefinition;
 import org.apache.camel.model.loadbalancer.StickyLoadBalancerDefinition;
 import org.apache.camel.model.loadbalancer.TopicLoadBalancerDefinition;
+import org.apache.camel.model.loadbalancer.WeightedLoadBalancerDefinition;
 import org.apache.camel.processor.loadbalancer.FailOverLoadBalancer;
 import org.apache.camel.processor.loadbalancer.LoadBalancer;
 import org.apache.camel.processor.loadbalancer.RandomLoadBalancer;
 import org.apache.camel.processor.loadbalancer.RoundRobinLoadBalancer;
 import org.apache.camel.processor.loadbalancer.StickyLoadBalancer;
 import org.apache.camel.processor.loadbalancer.TopicLoadBalancer;
+import org.apache.camel.processor.loadbalancer.WeightedLoadBalancer;
+import org.apache.camel.processor.loadbalancer.WeightedRandomLoadBalancer;
+import org.apache.camel.processor.loadbalancer.WeightedRoundRobinLoadBalancer;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.util.CollectionStringBuffer;
 
@@ -58,7 +63,8 @@ public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefini
             @XmlElement(required = false, name = "random", type = RandomLoadBalancerDefinition.class),
             @XmlElement(required = false, name = "roundRobin", type = RoundRobinLoadBalancerDefinition.class),
             @XmlElement(required = false, name = "sticky", type = StickyLoadBalancerDefinition.class),
-            @XmlElement(required = false, name = "topic", type = TopicLoadBalancerDefinition.class)}
+            @XmlElement(required = false, name = "topic", type = TopicLoadBalancerDefinition.class),
+            @XmlElement(required = false, name = "weighted", type = WeightedLoadBalancerDefinition.class)}
     )
     private LoadBalancerDefinition loadBalancerType;
 
@@ -181,6 +187,43 @@ public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefini
         return this;
     }
 
+    /**
+     * Uses weighted load balancer
+     *
+     * @param roundRobin                   used to set the processor selection algorithm.
+     * @param distributionRatio            String of weighted ratios for distribution of messages.
+     * @return the builder
+     */
+    public LoadBalanceDefinition weighted(boolean roundRobin, String distributionRatio) {
+        return weighted(roundRobin, distributionRatio, ",");
+    }
+    
+    /**
+     * Uses weighted load balancer
+     *
+     * @param roundRobin                   used to set the processor selection algorithm.
+     * @param distributionRatio            String of weighted ratios for distribution of messages.
+     * @param distributionRatioDelimiter   String containing delimiter to be used for ratios
+     * @return the builder
+     */
+    public LoadBalanceDefinition weighted(boolean roundRobin, String distributionRatio, String distributionRatioDelimiter) {
+        WeightedLoadBalancer weighted;
+        List<Integer> distributionRatioList = new ArrayList<Integer>();
+        
+        String[] ratios = distributionRatio.split(distributionRatioDelimiter);
+        for (String ratio : ratios) {
+            distributionRatioList.add(new Integer(ratio.trim()));
+        }
+        
+        if (!roundRobin) {
+            weighted = new WeightedRandomLoadBalancer(distributionRatioList);
+        } else {
+            weighted = new WeightedRoundRobinLoadBalancer(distributionRatioList);
+        }
+        loadBalancerType = new LoadBalancerDefinition(weighted);
+        return this;
+    }
+    
     /**
      * Uses round robin load balancer
      *

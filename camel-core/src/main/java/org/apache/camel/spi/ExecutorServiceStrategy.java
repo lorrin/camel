@@ -89,11 +89,12 @@ public interface ExecutorServiceStrategy extends ShutdownableService {
     /**
      * Sets the thread name pattern used for creating the full thread name.
      * <p/>
-     * The default pattern is: <tt>Camel Thread ${counter} - ${name}</tt>
-     * </br>
-     * Where <tt>${counter}</tt> is a unique incrementing counter.
-     * And <tt>${name}</tt> is the regular thread name.
-     * And <tt>${longName}</tt> is the long thread name which can includes endpoint parameters etc.
+     * The default pattern is: <tt>Camel (${camelId}) thread #${counter} - ${name}</tt>
+     * <p/>
+     * Where <tt>${camelId}</tt> is the name of the {@link org.apache.camel.CamelContext}
+     * <br/>and <tt>${counter}</tt> is a unique incrementing counter.
+     * <br/>and <tt>${name}</tt> is the regular thread name.
+     * <br/>You can also use <tt>${longName}</tt> is the long thread name which can includes endpoint parameters etc.
      *
      * @param pattern  the pattern
      * @throws IllegalArgumentException if the pattern is invalid.
@@ -193,6 +194,15 @@ public interface ExecutorServiceStrategy extends ShutdownableService {
     ExecutorService newSingleThreadExecutor(Object source, String name);
 
     /**
+     * Creates a new synchronous thread pool, which executes the task in the caller thread (no task queue).
+     *
+     * @param source      the source object, usually it should be <tt>this</tt> passed in as parameter
+     * @param name        name which is appended to the thread name
+     * @return the created thread pool
+     */
+    ExecutorService newSynchronousThreadPool(Object source, String name);
+
+    /**
      * Creates a new custom thread pool.
      * <p/>
      * Will by default use 60 seconds for keep alive time for idle threads.
@@ -205,6 +215,21 @@ public interface ExecutorServiceStrategy extends ShutdownableService {
      * @return the created thread pool
      */
     ExecutorService newThreadPool(Object source, String name, int corePoolSize, int maxPoolSize);
+
+    /**
+     * Creates a new custom thread pool.
+     * <p/>
+     * Will by default use 60 seconds for keep alive time for idle threads.
+     * And use {@link java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy CallerRunsPolicy} as rejection handler
+     *
+     * @param source        the source object, usually it should be <tt>this</tt> passed in as parameter
+     * @param name          name which is appended to the thread name
+     * @param corePoolSize  the core pool size
+     * @param maxPoolSize   the maximum pool size
+     * @param maxQueueSize  the maximum number of tasks in the queue, use <tt>Integer.MAX_INT</tt> or <tt>-1</tt> to indicate unbounded
+     * @return the created thread pool
+     */
+    ExecutorService newThreadPool(Object source, String name, int corePoolSize, int maxPoolSize, int maxQueueSize);
 
     /**
      * Creates a new custom thread pool.
