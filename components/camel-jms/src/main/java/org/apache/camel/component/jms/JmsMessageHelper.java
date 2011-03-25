@@ -19,13 +19,21 @@ package org.apache.camel.component.jms;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.Message;
+
+import org.apache.camel.util.ObjectHelper;
+
+import static org.apache.camel.component.jms.JmsConfiguration.QUEUE_PREFIX;
+import static org.apache.camel.component.jms.JmsConfiguration.TOPIC_PREFIX;
+import static org.apache.camel.util.ObjectHelper.removeStartingCharacters;
 
 /**
  * Utility class for {@link javax.jms.Message}.
  *
- * @version $Revision$
+ * @version 
  */
 public final class JmsMessageHelper {
 
@@ -65,8 +73,8 @@ public final class JmsMessageHelper {
 
         // redo the properties to keep
         jmsMessage.clearProperties();
-        for (String key : map.keySet()) {
-            jmsMessage.setObjectProperty(key, map.get(key));
+        for (Entry<String, Object> entry : map.entrySet()) {
+            jmsMessage.setObjectProperty(entry.getKey(), entry.getValue());
         }
 
         return answer;
@@ -140,4 +148,70 @@ public final class JmsMessageHelper {
             // ignore
         }
     }
+
+    /**
+     * Normalizes the destination name, by removing any leading queue or topic prefixes.
+     *
+     * @param destination the destination
+     * @return the normalized destination
+     */
+    public static String normalizeDestinationName(String destination) {
+        if (ObjectHelper.isEmpty(destination)) {
+            return destination;
+        }
+        if (destination.startsWith(QUEUE_PREFIX)) {
+            return removeStartingCharacters(destination.substring(QUEUE_PREFIX.length()), '/');
+        } else if (destination.startsWith(TOPIC_PREFIX)) {
+            return removeStartingCharacters(destination.substring(TOPIC_PREFIX.length()), '/');
+        } else {
+            return destination;
+        }
+    }
+
+    /**
+     * Sets the JMSReplyTo on the message.
+     *
+     * @param message  the message
+     * @param replyTo  the reply to destination
+     */
+    public static void setJMSReplyTo(Message message, Destination replyTo) {
+        try {
+            message.setJMSReplyTo(replyTo);
+        } catch (Exception e) {
+            // ignore due OracleAQ does not support accessing JMSReplyTo
+        }
+    }
+
+    /**
+     * Gets the JMSReplyTo from the message.
+     *
+     * @param message  the message
+     * @return the reply to, can be <tt>null</tt>
+     */
+    public static Destination getJMSReplyTo(Message message) {
+        try {
+            return message.getJMSReplyTo();
+        } catch (Exception e) {
+            // ignore due OracleAQ does not support accessing JMSReplyTo
+        }
+
+        return null;
+    }
+
+    /**
+     * Gets the JMSType from the message.
+     *
+     * @param message  the message
+     * @return the type, can be <tt>null</tt>
+     */
+    public static String getJMSType(Message message) {
+        try {
+            return message.getJMSType();
+        } catch (Exception e) {
+            // ignore due OracleAQ does not support accessing JMSType
+        }
+
+        return null;
+    }
+
 }

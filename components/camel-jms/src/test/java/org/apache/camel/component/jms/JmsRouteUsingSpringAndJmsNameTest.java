@@ -20,14 +20,13 @@ import org.junit.Before;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmsRouteUsingSpringAndJmsNameTest extends JmsRouteUsingSpringTest {
 
     protected ClassPathXmlApplicationContext createApplicationContext() {
         return new ClassPathXmlApplicationContext("org/apache/camel/component/jms/jmsRouteUsingSpringAndJmsName.xml");
     }
-
 
     @Override
     @Before

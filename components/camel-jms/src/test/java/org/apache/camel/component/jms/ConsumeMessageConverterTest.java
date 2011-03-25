@@ -33,10 +33,10 @@ import org.junit.Test;
 import org.springframework.jms.support.converter.MessageConversionException;
 import org.springframework.jms.support.converter.MessageConverter;
 
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentClientAcknowledge;
+import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class ConsumeMessageConverterTest extends CamelTestSupport {
 
@@ -50,8 +50,8 @@ public class ConsumeMessageConverterTest extends CamelTestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
 
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false");
-        camelContext.addComponent("activemq", jmsComponentClientAcknowledge(connectionFactory));
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
+        camelContext.addComponent("activemq", jmsComponentAutoAcknowledge(connectionFactory));
 
         return camelContext;
     }

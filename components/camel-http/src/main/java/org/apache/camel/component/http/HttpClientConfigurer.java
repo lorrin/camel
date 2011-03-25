@@ -19,9 +19,9 @@ package org.apache.camel.component.http;
 import org.apache.commons.httpclient.HttpClient;
 
 /**
- * A plugable strategy for configuring the HttpClient used by this component
+ * A pluggable strategy for configuring the HttpClient used by this component
  *
- * @version $Revision$
+ * @version 
  */
 public interface HttpClientConfigurer {
 

@@ -16,6 +16,8 @@
  */
 package org.apache.camel.builder;
 
+import java.util.Arrays;
+
 import org.apache.camel.Exchange;
 import org.apache.camel.Expression;
 import org.apache.camel.Processor;
@@ -23,7 +25,7 @@ import org.apache.camel.Processor;
 /**
  * A builder of a number of different {@link Processor} implementations
  *
- * @version $Revision$
+ * @version 
  */
 public final class ProcessorBuilder {
 
@@ -185,10 +187,28 @@ public final class ProcessorBuilder {
             }
         };
     }
+    
+    /**
+     * Removes all headers on the IN message, except for the ones provided in the <tt>names</tt> parameter
+     */
+    public static Processor removeHeaders(final String pattern, final String... exceptionPatterns) {
+        return new Processor() {
+            public void process(Exchange exchange) {
+                exchange.getIn().removeHeaders(pattern, exceptionPatterns);
+            }
+
+            @Override
+            public String toString() {
+                return "removeHeaders(" + pattern + ", " + Arrays.toString(exceptionPatterns) + ")";
+            }
+        };
+    }
 
     /**
      * Removes the header on the FAULT message
+     * @deprecated use {@link #removeHeader(String)}
      */
+    @Deprecated
     public static Processor removeFaultHeader(final String name) {
         return new Processor() {
             public void process(Exchange exchange) {

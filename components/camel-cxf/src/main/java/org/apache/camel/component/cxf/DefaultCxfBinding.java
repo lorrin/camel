@@ -38,8 +38,6 @@ import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.attachment.AttachmentImpl;
 import org.apache.cxf.binding.soap.SoapHeader;
 import org.apache.cxf.endpoint.Client;
@@ -59,14 +57,17 @@ import org.apache.cxf.service.model.BindingMessageInfo;
 import org.apache.cxf.service.model.BindingOperationInfo;
 import org.apache.cxf.service.model.MessagePartInfo;
 import org.apache.cxf.service.model.OperationInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 /**
  * The Default CXF binding implementation.
  * 
- * @version $Revision$
+ * @version 
  */
 public class DefaultCxfBinding implements CxfBinding, HeaderFilterStrategyAware {
-    private static final Log LOG = LogFactory.getLog(DefaultCxfBinding.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultCxfBinding.class);
     private HeaderFilterStrategy headerFilterStrategy;
 
     // CxfBinding Methods
@@ -91,6 +92,16 @@ public class DefaultCxfBinding implements CxfBinding, HeaderFilterStrategyAware 
         // propagate headers
         propagateHeadersFromCamelToCxf(camelExchange, camelHeaders, cxfExchange, 
                 requestContext);
+        
+        String overrideAddress = camelExchange.getIn().getHeader(Exchange.DESTINATION_OVERRIDE_URL, String.class);
+
+        if (overrideAddress != null) {
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("Client address is overridden by header '" + Exchange.DESTINATION_OVERRIDE_URL
+                          + "' to value '" + overrideAddress + "'");
+            }
+            requestContext.put(Message.ENDPOINT_ADDRESS, overrideAddress);
+        }
         
         // propagate attachments
         Set<Attachment> attachments = null;
@@ -248,8 +259,9 @@ public class DefaultCxfBinding implements CxfBinding, HeaderFilterStrategyAware 
             camelExchange.getIn().setBody(body);
         }  
         
-        // propagate attachments
-        if (cxfMessage.getAttachments() != null) {
+        // propagate attachments if the data format is not POJO        
+        if (cxfMessage.getAttachments() != null 
+            && !camelExchange.getProperty(CxfConstants.DATA_FORMAT_PROPERTY, DataFormat.class).equals(DataFormat.POJO)) {
             for (Attachment attachment : cxfMessage.getAttachments()) {
                 camelExchange.getIn().addAttachment(attachment.getId(), attachment.getDataHandler());
             }
@@ -326,20 +338,22 @@ public class DefaultCxfBinding implements CxfBinding, HeaderFilterStrategyAware 
             }
         }         
         
-        // propagate attachments
-        Set<Attachment> attachments = null;
-        boolean isXop = Boolean.valueOf(camelExchange.getProperty(Message.MTOM_ENABLED, String.class));
-        for (Map.Entry<String, DataHandler> entry : camelExchange.getOut().getAttachments().entrySet()) {
-            if (attachments == null) {
-                attachments = new HashSet<Attachment>();
+        // propagate attachments if the data format is not POJO
+        if (!DataFormat.POJO.equals(dataFormat)) {
+            Set<Attachment> attachments = null;
+            boolean isXop = Boolean.valueOf(camelExchange.getProperty(Message.MTOM_ENABLED, String.class));
+            for (Map.Entry<String, DataHandler> entry : camelExchange.getOut().getAttachments().entrySet()) {
+                if (attachments == null) {
+                    attachments = new HashSet<Attachment>();
+                }
+                AttachmentImpl attachment = new AttachmentImpl(entry.getKey(), entry.getValue());
+                attachment.setXOP(isXop); 
+                attachments.add(attachment);
             }
-            AttachmentImpl attachment = new AttachmentImpl(entry.getKey(), entry.getValue());
-            attachment.setXOP(isXop); 
-            attachments.add(attachment);
-        }
-        
-        if (attachments != null) {
-            outMessage.setAttachments(attachments);
+            
+            if (attachments != null) {
+                outMessage.setAttachments(attachments);
+            }
         }
        
         BindingOperationInfo boi = cxfExchange.get(BindingOperationInfo.class);
@@ -438,19 +452,33 @@ public class DefaultCxfBinding implements CxfBinding, HeaderFilterStrategyAware 
     @SuppressWarnings("unchecked")
     protected void propagateHeadersFromCxfToCamel(Message cxfMessage,
             org.apache.camel.Message camelMessage, Exchange exchange) {
-        
         Map<String, List<String>> cxfHeaders = (Map)cxfMessage.get(Message.PROTOCOL_HEADERS);
         Map<String, Object> camelHeaders = camelMessage.getHeaders();
+        camelHeaders.put(CxfConstants.CAMEL_CXF_MESSAGE, cxfMessage);
 
         if (cxfHeaders != null) {
             for (Map.Entry<String, List<String>> entry : cxfHeaders.entrySet()) {
                 if (!headerFilterStrategy.applyFilterToExternalHeaders(entry.getKey(), 
                                                                        entry.getValue(), exchange)) {
-                    camelHeaders.put(entry.getKey(), entry.getValue().get(0));
-                    if (LOG.isTraceEnabled()) {
-                        LOG.trace("Populate header from CXF header=" + entry.getKey() + " value="
-                                + entry.getValue());
+                    // We need to filter the content type with multi-part, 
+                    // as the multi-part stream is already consumed by AttachmentInInterceptor,
+                    // it will cause some trouble when route this message to another CXF endpoint.
+                    if ("Content-Type".compareToIgnoreCase(entry.getKey()) == 0
+                        && entry.getValue().get(0) != null
+                        && entry.getValue().get(0).startsWith("multipart/related")) {
+                        String contentType = replaceMultiPartContentType(entry.getValue().get(0));
+                        if (LOG.isTraceEnabled()) {
+                            LOG.trace("Find the multi-part Conent-Type, and replace it with " + contentType);
+                        }
+                        camelHeaders.put(entry.getKey(), contentType);
+                    } else {
+                        if (LOG.isTraceEnabled()) {
+                            LOG.trace("Populate header from CXF header=" + entry.getKey() + " value="
+                                    + entry.getValue());
+                        }
+                        camelHeaders.put(entry.getKey(), entry.getValue().get(0));
                     }
+                    
                 }
             }
         }
@@ -469,6 +497,25 @@ public class DefaultCxfBinding implements CxfBinding, HeaderFilterStrategyAware 
                 ((List<?>)value).clear();
             }
         }       
+    }
+    
+    // replace the multi-part content-type
+    protected String replaceMultiPartContentType(String contentType) {
+        String result = "";
+        String[] parts = contentType.split(";");
+        for (String part : parts) {
+            part = part.trim();
+            if (part.startsWith("type=")) {
+                part = part.substring(5).trim();
+                if (part.charAt(0) == '\"') {
+                    result = part.substring(1, part.length() - 1);
+                } else {
+                    result = part.substring(5);
+                }
+                break;
+            }
+        }
+        return result;
     }
 
     @SuppressWarnings("unchecked")

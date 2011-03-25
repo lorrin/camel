@@ -19,15 +19,16 @@ package org.apache.camel.core.osgi;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Component;
 import org.apache.camel.spi.ComponentResolver;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.camel.util.CamelContextHelper;
+import org.apache.camel.util.ObjectHelper;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class OsgiComponentResolver implements ComponentResolver {
-    
-    private static final transient Log LOG = LogFactory.getLog(OsgiComponentResolver.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(OsgiComponentResolver.class);
 
     private final BundleContext bundleContext;
 
@@ -47,6 +48,13 @@ public class OsgiComponentResolver implements ComponentResolver {
         }
         if (bean instanceof Component) {
             return (Component)bean;
+        } else {
+            // lets use Camel's type conversion mechanism to convert things like CamelContext
+            // and other types into a valid Component
+            Component component = CamelContextHelper.convertTo(context, Component.class, bean);
+            if (component != null) {
+                return component;
+            }
         }
 
         // Check in OSGi bundles
@@ -54,7 +62,9 @@ public class OsgiComponentResolver implements ComponentResolver {
     }
 
     protected Component getComponent(String name, CamelContext context) throws Exception {
-        LOG.trace("Finding Component: " + name);
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("Finding Component: " + name);
+        }
         try {
             ServiceReference[] refs = bundleContext.getServiceReferences(ComponentResolver.class.getName(), "(component=" + name + ")");
             if (refs != null && refs.length > 0) {
@@ -63,7 +73,7 @@ public class OsgiComponentResolver implements ComponentResolver {
             }
             return null;
         } catch (InvalidSyntaxException e) {
-            throw new RuntimeException(e); // Should never happen
+            throw ObjectHelper.wrapRuntimeCamelException(e);
         }
     }
 

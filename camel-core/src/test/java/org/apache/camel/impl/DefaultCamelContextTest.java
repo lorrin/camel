@@ -36,7 +36,7 @@ import org.apache.camel.spi.UuidGenerator;
 import org.apache.camel.util.CamelContextHelper;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class DefaultCamelContextTest extends TestSupport {
 
@@ -86,6 +86,16 @@ public class DefaultCamelContextTest extends TestSupport {
             fail("Should have thrown exception");
         } catch (IllegalArgumentException e) {
             // expected
+        }
+    }
+    
+    public void testGetEndPointByTypeUnknown() {
+        DefaultCamelContext camelContext = new DefaultCamelContext();
+        try {
+            camelContext.getEndpoint("xxx", Endpoint.class);
+            fail();
+        } catch (NoSuchEndpointException e) {
+            assertEquals("No endpoint could be found for: xxx, please check your classpath contains the needed Camel component jar.", e.getMessage());
         }
     }
 
@@ -314,5 +324,4 @@ public class DefaultCamelContextTest extends TestSupport {
         assertEquals(false, ctx.isStarted());
         assertEquals(false, ctx.isSuspended());
     }
-
 }

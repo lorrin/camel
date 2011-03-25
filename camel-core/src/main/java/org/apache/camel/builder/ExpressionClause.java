@@ -27,7 +27,7 @@ import org.apache.camel.model.language.ExpressionDefinition;
  * Represents an expression clause within the DSL which when the expression is
  * complete the clause continues to another part of the DSL
  * 
- * @version $Revision$
+ * @version 
  */
 public class ExpressionClause<T> extends ExpressionDefinition {
     private ExpressionClauseSupport<T> delegate;
@@ -345,6 +345,17 @@ public class ExpressionClause<T> extends ExpressionDefinition {
         return delegate.sql(text);
     }
 
+    /**
+     * Evaluates a <a href="http://camel.apache.org/spel.html">SpEL
+     * expression</a>
+     * 
+     * @param text the expression to be evaluated
+     * @return the builder to continue processing the DSL
+     */
+    public T spel(String text) {
+        return delegate.spel(text);
+    }
+    
     /**
      * Evaluates a <a href="http://camel.apache.org/simple.html">Simple
      * expression</a>

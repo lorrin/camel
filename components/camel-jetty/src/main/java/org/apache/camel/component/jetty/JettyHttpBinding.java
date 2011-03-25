@@ -22,7 +22,7 @@ import org.apache.camel.spi.HeaderFilterStrategy;
 /**
  * Jetty specific binding to parse the response when using {@link org.apache.camel.component.jetty.JettyHttpProducer}
  *
- * @version $Revision$
+ * @version 
  */
 public interface JettyHttpBinding {
 
@@ -66,5 +66,21 @@ public interface JettyHttpBinding {
      * @return <tt>true</tt> to throw exception
      */
     boolean isThrowExceptionOnFailure();
+
+    /**
+     * Whether to transfer exception back as a serialized java object
+     * if processing failed due to an exception
+     *
+     * @param transferException <tt>true</tt> to transfer exception
+     */
+    void setTransferException(boolean transferException);
+
+    /**
+     * Whether to transfer exception back as a serialized java object
+     * if processing failed due to an exception
+     *
+     * @return <tt>true</tt> to transfer exception
+     */
+    boolean isTransferException();
 
 }

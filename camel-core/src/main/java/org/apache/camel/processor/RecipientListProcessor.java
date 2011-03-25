@@ -26,15 +26,13 @@ import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
-import org.apache.camel.builder.ErrorHandlerBuilder;
 import org.apache.camel.impl.ProducerCache;
 import org.apache.camel.processor.aggregate.AggregationStrategy;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.util.ExchangeHelper;
-import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.ServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implements a dynamic <a
@@ -49,11 +47,11 @@ import org.apache.commons.logging.LogFactory;
  * runs under the hood. Also this implementation supports the asynchronous routing engine which makes the code
  * more trickier.
  *
- * @version $Revision$
+ * @version 
  */
 public class RecipientListProcessor extends MulticastProcessor {
 
-    private static final transient Log LOG = LogFactory.getLog(RecipientListProcessor.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(RecipientListProcessor.class);
     private final Iterator<Object> iter;
     private boolean ignoreInvalidEndpoints;
     private ProducerCache producerCache;
@@ -164,7 +162,9 @@ public class RecipientListProcessor extends MulticastProcessor {
                 producer = producerCache.acquireProducer(endpoint);
             } catch (Exception e) {
                 if (isIgnoreInvalidEndpoints()) {
-                    LOG.info("Endpoint uri is invalid: " + recipient + ". This exception will be ignored.", e);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Endpoint uri is invalid: " + recipient + ". This exception will be ignored.", e);
+                    }
                     continue;
                 } else {
                     // failure so break out
@@ -192,24 +192,10 @@ public class RecipientListProcessor extends MulticastProcessor {
         setToEndpoint(copy, prepared);
 
         // rework error handling to support fine grained error handling
-        if (exchange.getUnitOfWork() != null && exchange.getUnitOfWork().getRouteContext() != null) {
-            // wrap the producer in error handler so we have fine grained error handling on
-            // the output side instead of the input side
-            // this is needed to support redelivery on that output alone and not doing redelivery
-            // for the entire multicast block again which will start from scratch again
-            RouteContext routeContext = exchange.getUnitOfWork().getRouteContext();
-            ErrorHandlerBuilder builder = routeContext.getRoute().getErrorHandlerBuilder();
-            // create error handler (create error handler directly to keep it light weight,
-            // instead of using ProcessorDefinition.wrapInErrorHandler)
-            try {
-                prepared = builder.createErrorHandler(routeContext, prepared);
-                // and wrap in unit of work processor so the copy exchange also can run under UoW
-                prepared = new UnitOfWorkProcessor(prepared);
-            } catch (Exception e) {
-                throw ObjectHelper.wrapRuntimeCamelException(e);
-            }
-        }
+        RouteContext routeContext = exchange.getUnitOfWork() != null ? exchange.getUnitOfWork().getRouteContext() : null;
+        prepared = createErrorHandler(routeContext, prepared);
 
+        // and create the pair
         return new RecipientProcessorExchangePair(index, producerCache, endpoint, producer, prepared, copy);
     }
 

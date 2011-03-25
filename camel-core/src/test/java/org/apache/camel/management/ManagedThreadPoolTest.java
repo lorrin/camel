@@ -16,48 +16,20 @@
  */
 package org.apache.camel.management;
 
-import java.util.Iterator;
-import java.util.Set;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
-import org.apache.camel.CamelContext;
-import org.apache.camel.ContextTestSupport;
 import org.apache.camel.builder.RouteBuilder;
 
 /**
- * @version $Revision$
+ * @version 
  */
-public class ManagedThreadPoolTest extends ContextTestSupport {
+public class ManagedThreadPoolTest extends ManagementTestSupport {
 
-    @Override
-    protected boolean useJmx() {
-        return true;
-    }
-
-    @Override
-    protected CamelContext createCamelContext() throws Exception {
-        CamelContext context = super.createCamelContext();
-        DefaultManagementNamingStrategy naming = (DefaultManagementNamingStrategy) context.getManagementStrategy().getManagementNamingStrategy();
-        naming.setHostName("localhost");
-        naming.setDomainName("org.apache.camel");
-        return context;
-    }
- 
     public void testManagedThreadPool() throws Exception {
-        MBeanServer mbeanServer = context.getManagementStrategy().getManagementAgent().getMBeanServer();
+        MBeanServer mbeanServer = getMBeanServer();
 
-        Set<ObjectName> set = mbeanServer.queryNames(new ObjectName("*:type=threadpools,*"), null);
-        Iterator<ObjectName> it = set.iterator();
-        ObjectName on = null;
-        while (it.hasNext()) {
-            on = it.next();
-            if (on.getCanonicalName().contains("ScheduledThreadPoolExecutor")) {
-                continue;
-            }
-            // find the first non scheduled
-            break;
-        }
+        ObjectName on = ObjectName.getInstance("org.apache.camel:context=localhost/camel-1,type=threadpools,name=\"threads1(threads)\"");
 
         Boolean shutdown = (Boolean) mbeanServer.getAttribute(on, "Shutdown");
         assertEquals(false, shutdown.booleanValue());
@@ -89,6 +61,12 @@ public class ManagedThreadPoolTest extends ContextTestSupport {
 
         Long completed = (Long) mbeanServer.getAttribute(on, "CompletedTaskCount");
         assertEquals(1, completed.intValue());
+
+        Long size = (Long) mbeanServer.getAttribute(on, "TaskQueueSize");
+        assertEquals(0, size.intValue());
+
+        Boolean empty = (Boolean) mbeanServer.getAttribute(on, "TaskQueueEmpty");
+        assertEquals(true, empty.booleanValue());
     }
 
     @Override

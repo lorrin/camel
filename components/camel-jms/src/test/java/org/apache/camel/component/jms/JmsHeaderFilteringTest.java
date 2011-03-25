@@ -36,11 +36,11 @@ import org.apache.camel.impl.DefaultHeaderFilterStrategy;
 import org.apache.camel.test.junit4.CamelTestSupport;
 import org.junit.Test;
 
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentClientAcknowledge;
+import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 
 /**
  *
- * @version $Revision$
+ * @version 
  */
 public class JmsHeaderFilteringTest extends CamelTestSupport {
 
@@ -74,8 +74,8 @@ public class JmsHeaderFilteringTest extends CamelTestSupport {
     @Override
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false");
-        camelContext.addComponent(componentName, jmsComponentClientAcknowledge(connectionFactory));
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
+        camelContext.addComponent(componentName, jmsComponentAutoAcknowledge(connectionFactory));
 
         // add "testheader" to in filter set
         JmsComponent component = (JmsComponent)camelContext.getComponent(componentName);

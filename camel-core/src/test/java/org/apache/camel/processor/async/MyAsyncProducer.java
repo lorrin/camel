@@ -25,20 +25,21 @@ import org.apache.camel.AsyncCallback;
 import org.apache.camel.CamelExchangeException;
 import org.apache.camel.Exchange;
 import org.apache.camel.impl.DefaultAsyncProducer;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class MyAsyncProducer extends DefaultAsyncProducer {
 
-    private static final Log LOG = LogFactory.getLog(MyAsyncProducer.class);
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private static final Logger LOG = LoggerFactory.getLogger(MyAsyncProducer.class);
+    private final ExecutorService executor;
     private final AtomicInteger counter = new AtomicInteger();
 
     public MyAsyncProducer(MyAsyncEndpoint endpoint) {
         super(endpoint);
+        this.executor = endpoint.getCamelContext().getExecutorServiceStrategy().newCachedThreadPool(this, "MyProducer");
     }
 
     public MyAsyncEndpoint getEndpoint() {
@@ -48,6 +49,7 @@ public class MyAsyncProducer extends DefaultAsyncProducer {
     public boolean process(final Exchange exchange, final AsyncCallback callback) {
         executor.submit(new Callable<Object>() {
             public Object call() throws Exception {
+
                 LOG.info("Simulating a task which takes " + getEndpoint().getDelay() + " millis to reply");
                 Thread.sleep(getEndpoint().getDelay());
 

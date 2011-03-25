@@ -35,10 +35,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.core.MessageCreator;
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentClientAcknowledge;
+import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class ConsumeJmsObjectMessageTest extends CamelTestSupport {
     protected JmsTemplate jmsTemplate;
@@ -99,9 +99,9 @@ public class ConsumeJmsObjectMessageTest extends CamelTestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
 
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false");
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
         jmsTemplate = new JmsTemplate(connectionFactory);
-        camelContext.addComponent("activemq", jmsComponentClientAcknowledge(connectionFactory));
+        camelContext.addComponent("activemq", jmsComponentAutoAcknowledge(connectionFactory));
 
         return camelContext;
     }

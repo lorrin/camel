@@ -16,8 +16,6 @@
  */
 package org.apache.camel.model;
 
-import java.util.Collections;
-import java.util.List;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -29,11 +27,14 @@ import org.apache.camel.spi.RouteContext;
 /**
  * Represents an XML &lt;stop/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "stop")
 @XmlAccessorType(XmlAccessType.FIELD)
-public class StopDefinition extends OutputDefinition<StopDefinition> {
+public class StopDefinition extends NoOutputDefinition<StopDefinition> {
+
+    public StopDefinition() {
+    }
 
     @Override
     public String getShortName() {
@@ -55,9 +56,4 @@ public class StopDefinition extends OutputDefinition<StopDefinition> {
         return "Stop";
     }
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public List<ProcessorDefinition> getOutputs() {
-        return Collections.EMPTY_LIST;
-    }
 }

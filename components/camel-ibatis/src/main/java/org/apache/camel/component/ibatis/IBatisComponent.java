@@ -24,15 +24,13 @@ import java.util.Map;
 import com.ibatis.sqlmap.client.SqlMapClient;
 import com.ibatis.sqlmap.client.SqlMapClientBuilder;
 import org.apache.camel.component.ResourceBasedComponent;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.springframework.core.io.Resource;
 
 /**
  * An <a href="http://camel.apache.org/ibatis.html>iBatis Component</a>
  * for performing SQL operations using an XML mapping file to abstract away the SQL
  *
- * @version $Revision$
+ * @version 
  * 
  * <pre>
  * Ibatis Component used to read/write to a database.
@@ -48,7 +46,7 @@ import org.springframework.core.io.Resource;
  *
  * Using Ibatis as a source of data (&lt;from&gt;) you can use this component
  * to treat a database table as a logical queue.
- * Details are available in the {@link IBatisPollingConsumer}
+ * Details are available in the {@link IBatisConsumer}
  *
  * Using Ibatis as a destination for data (&lt;to&gt;) you can use this
  * component to run an insert statement either on a single message or if the
@@ -58,7 +56,7 @@ import org.springframework.core.io.Resource;
  * </pre>
  *
  * @see IBatisProducer
- * @see IBatisPollingConsumer
+ * @see IBatisConsumer
  */
 public class IBatisComponent extends ResourceBasedComponent {
     private static final String DEFAULT_CONFIG_URI = "classpath:SqlMapConfig.xml";

@@ -27,7 +27,7 @@ import org.apache.camel.impl.EventDrivenConsumerRoute;
 import org.apache.camel.processor.interceptor.StreamCaching;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class ResequencerTest extends ContextTestSupport {
     protected Endpoint startEndpoint;
@@ -60,7 +60,7 @@ public class ResequencerTest extends ContextTestSupport {
             public void configure() {
                 // START SNIPPET: example
                 from("direct:start")
-                    .resequence(body())
+                    .resequence().body()
                     .to("mock:result");
                 // END SNIPPET: example
             }

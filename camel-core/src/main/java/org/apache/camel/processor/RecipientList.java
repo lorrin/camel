@@ -42,7 +42,7 @@ import static org.apache.camel.util.ObjectHelper.notNull;
  * pattern where the list of actual endpoints to send a message exchange to are
  * dependent on some dynamic expression.
  *
- * @version $Revision$
+ * @version 
  */
 public class RecipientList extends ServiceSupport implements AsyncProcessor {
     private final CamelContext camelContext;
@@ -55,6 +55,7 @@ public class RecipientList extends ServiceSupport implements AsyncProcessor {
     private boolean streaming;
     private long timeout;
     private ExecutorService executorService;
+    private ExecutorService aggregateExecutorService;
     private AggregationStrategy aggregationStrategy = new UseLatestAggregationStrategy();
 
     public RecipientList(CamelContext camelContext) {
@@ -108,8 +109,26 @@ public class RecipientList extends ServiceSupport implements AsyncProcessor {
         Iterator<Object> iter = ObjectHelper.createIterator(recipientList, delimiter);
 
         RecipientListProcessor rlp = new RecipientListProcessor(exchange.getContext(), producerCache, iter, getAggregationStrategy(),
-                                                                isParallelProcessing(), getExecutorService(), isStreaming(), isStopOnException(), getTimeout());
+                                                                isParallelProcessing(), getExecutorService(), isStreaming(), isStopOnException(), getTimeout()) {
+            @Override
+            protected synchronized ExecutorService createAggregateExecutorService(String name) {
+                // use a shared executor service to avoid creating new thread pools
+                if (aggregateExecutorService == null) {
+                    aggregateExecutorService = super.createAggregateExecutorService("RecipientList-AggregateTask");
+                }
+                return aggregateExecutorService;
+            }
+        };
         rlp.setIgnoreInvalidEndpoints(isIgnoreInvalidEndpoints());
+
+        // start the service
+        try {
+            ServiceHelper.startService(rlp);
+        } catch (Exception e) {
+            exchange.setException(e);
+            callback.done(true);
+            return true;
+        }
 
         // now let the multicast process the exchange
         return AsyncProcessorHelper.process(rlp, exchange, callback);
@@ -135,7 +154,7 @@ public class RecipientList extends ServiceSupport implements AsyncProcessor {
     protected void doStop() throws Exception {
         ServiceHelper.stopService(producerCache);
     }
-    
+
     public boolean isStreaming() {
         return streaming;
     }
@@ -191,4 +210,5 @@ public class RecipientList extends ServiceSupport implements AsyncProcessor {
     public void setTimeout(long timeout) {
         this.timeout = timeout;
     }
+
 }

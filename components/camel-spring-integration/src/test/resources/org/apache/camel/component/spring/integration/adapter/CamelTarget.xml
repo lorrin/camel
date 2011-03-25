@@ -24,18 +24,20 @@
        http://www.springframework.org/schema/beans
        http://www.springframework.org/schema/beans/spring-beans.xsd
        http://www.springframework.org/schema/integration
-	   http://www.springframework.org/schema/integration/spring-integration-1.0.xsd
+	   http://www.springframework.org/schema/integration/spring-integration.xsd
        http://camel.apache.org/schema/spring/integration
        http://camel.apache.org/schema/spring/integration/camel-spring-integration.xsd
        http://camel.apache.org/schema/spring
        http://camel.apache.org/schema/spring/camel-spring.xsd
     ">
  <!-- END SNIPPET: header -->
-  
+
+    <!-- spring integration channels -->
     <outbound-channel-adapter id="channelA" ref="camelTargetA"/>
    	<outbound-channel-adapter id="channelB" ref="camelTargetB"/>
     <channel id="channelC"/>
     <outbound-channel-adapter id="channelD" ref="camelTargetD"/>
+
    <!-- START SNIPPET: example -->
    <!-- Create the camel context here -->
    <camelContext id="camelTargetContext" xmlns="http://camel.apache.org/schema/spring">

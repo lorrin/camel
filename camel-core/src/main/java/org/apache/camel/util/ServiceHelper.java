@@ -23,16 +23,17 @@ import java.util.List;
 import org.apache.camel.Service;
 import org.apache.camel.ShutdownableService;
 import org.apache.camel.SuspendableService;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.camel.impl.ServiceSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A collection of helper methods for working with {@link Service} objects
  *
- * @version $Revision$
+ * @version 
  */
 public final class ServiceHelper {
-    private static final transient Log LOG = LogFactory.getLog(ServiceHelper.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(ServiceHelper.class);
 
     /**
      * Utility classes should not have a public constructor.
@@ -44,6 +45,13 @@ public final class ServiceHelper {
      * Starts all of the given services
      */
     public static void startService(Object value) throws Exception {
+        if (isStarted(value)) {
+            // only start service if not already started
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("Service already started: " + value);
+            }
+            return;
+        }
         if (value instanceof Service) {
             Service service = (Service)value;
             if (LOG.isTraceEnabled()) {
@@ -59,6 +67,9 @@ public final class ServiceHelper {
      * Starts all of the given services
      */
     public static void startServices(Object... services) throws Exception {
+        if (services == null) {
+            return;
+        }
         for (Object value : services) {
             startService(value);
         }
@@ -68,14 +79,11 @@ public final class ServiceHelper {
      * Starts all of the given services
      */
     public static void startServices(Collection<?> services) throws Exception {
+        if (services == null) {
+            return;
+        }
         for (Object value : services) {
-            if (value instanceof Service) {
-                Service service = (Service)value;
-                if (LOG.isTraceEnabled()) {
-                    LOG.trace("Starting service: " + service);
-                }
-                service.start();
-            }
+            startService(value);
         }
     }
 
@@ -83,6 +91,9 @@ public final class ServiceHelper {
      * Stops all of the given services, throwing the first exception caught
      */
     public static void stopServices(Object... services) throws Exception {
+        if (services == null) {
+            return;
+        }
         List<Object> list = Arrays.asList(services);
         stopServices(list);
     }
@@ -91,6 +102,13 @@ public final class ServiceHelper {
      * Stops all of the given services, throwing the first exception caught
      */
     public static void stopService(Object value) throws Exception {
+        if (isStopped(value)) {
+            // only stop service if not already stopped
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("Service already stopped: " + value);
+            }
+            return;
+        }
         if (value instanceof Service) {
             Service service = (Service)value;
             if (LOG.isTraceEnabled()) {
@@ -106,22 +124,19 @@ public final class ServiceHelper {
      * Stops all of the given services, throwing the first exception caught
      */
     public static void stopServices(Collection<?> services) throws Exception {
+        if (services == null) {
+            return;
+        }
         Exception firstException = null;
         for (Object value : services) {
-            if (value instanceof Service) {
-                Service service = (Service)value;
-                try {
-                    if (LOG.isTraceEnabled()) {
-                        LOG.trace("Stopping service: " + service);
-                    }
-                    service.stop();
-                } catch (Exception e) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Caught exception stopping service: " + service, e);
-                    }
-                    if (firstException == null) {
-                        firstException = e;
-                    }
+            try {
+                stopService(value);
+            } catch (Exception e) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Caught exception stopping service: " + value, e);
+                }
+                if (firstException == null) {
+                    firstException = e;
                 }
             }
         }
@@ -134,6 +149,9 @@ public final class ServiceHelper {
      * Stops and shutdowns all of the given services, throwing the first exception caught
      */
     public static void stopAndShutdownServices(Object... services) throws Exception {
+        if (services == null) {
+            return;
+        }
         List<Object> list = Arrays.asList(services);
         stopAndShutdownServices(list);
     }
@@ -163,6 +181,9 @@ public final class ServiceHelper {
      * Stops and shutdowns all of the given services, throwing the first exception caught
      */
     public static void stopAndShutdownServices(Collection<?> services) throws Exception {
+        if (services == null) {
+            return;
+        }
         Exception firstException = null;
 
         for (Object value : services) {
@@ -194,16 +215,15 @@ public final class ServiceHelper {
     }
 
     public static void resumeServices(Collection<?> services) throws Exception {
+        if (services == null) {
+            return;
+        }
         Exception firstException = null;
         for (Object value : services) {
             if (value instanceof Service) {
                 Service service = (Service)value;
                 try {
                     resumeService(service);
-                    if (LOG.isTraceEnabled()) {
-                        LOG.trace("Resumed service: " + service);
-                    }
-                    service.stop();
                 } catch (Exception e) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Caught exception resuming service: " + service, e);
@@ -239,8 +259,8 @@ public final class ServiceHelper {
         if (service instanceof SuspendableService) {
             SuspendableService ss = (SuspendableService) service;
             if (ss.isSuspended()) {
-                if (LOG.isTraceEnabled()) {
-                    LOG.trace("Resuming service " + service);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Resuming service " + service);
                 }
                 ss.resume();
                 return true;
@@ -254,16 +274,15 @@ public final class ServiceHelper {
     }
 
     public static void suspendServices(Collection<?> services) throws Exception {
+        if (services == null) {
+            return;
+        }
         Exception firstException = null;
         for (Object value : services) {
             if (value instanceof Service) {
                 Service service = (Service)value;
                 try {
                     suspendService(service);
-                    if (LOG.isTraceEnabled()) {
-                        LOG.trace("Suspending service: " + service);
-                    }
-                    service.stop();
                 } catch (Exception e) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Caught exception suspending service: " + service, e);
@@ -311,6 +330,36 @@ public final class ServiceHelper {
             stopService(service);
             return true;
         }
+    }
+
+    /**
+     * Is the given service stopping or stopped?
+     *
+     * @return <tt>true</tt> if already stopped, otherwise <tt>false</tt>
+     */
+    public static boolean isStopped(Object value) {
+        if (value instanceof ServiceSupport) {
+            ServiceSupport service = (ServiceSupport) value;
+            if (service.isStopping() || service.isStopped()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Is the given service starting or started?
+     *
+     * @return <tt>true</tt> if already started, otherwise <tt>false</tt>
+     */
+    public static boolean isStarted(Object value) {
+        if (value instanceof ServiceSupport) {
+            ServiceSupport service = (ServiceSupport) value;
+            if (service.isStarting() || service.isStarted()) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }

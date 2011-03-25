@@ -59,7 +59,7 @@ public class QuartzCronRouteTest extends OSGiIntegrationTestSupport {
             // install the spring dm profile
             profile("spring.dm").version("1.2.0"),
             // this is how you set the default log level when using pax logging (logProfile)
-            org.ops4j.pax.exam.CoreOptions.systemProperty("org.ops4j.pax.logging.DefaultServiceLog.level").value("INFO"),
+            org.ops4j.pax.exam.CoreOptions.systemProperty("org.ops4j.pax.logging.DefaultServiceLog.level").value("DEBUG"),
 
             // using the features to install the camel components
             scanFeatures(getCamelKarafFeatureUrl(),
@@ -67,7 +67,8 @@ public class QuartzCronRouteTest extends OSGiIntegrationTestSupport {
 
             workingDirectory("target/paxrunner/"),
 
-            felix(), equinox());
+            // TODO: test hang on shutdown on equionox
+            felix());
 
         return options;
     }

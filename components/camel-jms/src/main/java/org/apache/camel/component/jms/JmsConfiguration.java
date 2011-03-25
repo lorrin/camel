@@ -26,9 +26,8 @@ import javax.jms.Session;
 
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.camel.util.PackageHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.jms.JmsException;
 import org.springframework.jms.connection.JmsTransactionManager;
@@ -36,19 +35,17 @@ import org.springframework.jms.core.JmsOperations;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.core.MessageCreator;
 import org.springframework.jms.core.SessionCallback;
-import org.springframework.jms.listener.AbstractMessageListenerContainer;
 import org.springframework.jms.listener.DefaultMessageListenerContainer;
-import org.springframework.jms.listener.SimpleMessageListenerContainer;
 import org.springframework.jms.support.JmsUtils;
 import org.springframework.jms.support.converter.MessageConverter;
 import org.springframework.jms.support.destination.DestinationResolver;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.util.Assert;
 
-import static org.apache.camel.util.ObjectHelper.removeStartingCharacters;
+import static org.apache.camel.component.jms.JmsMessageHelper.normalizeDestinationName;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmsConfiguration implements Cloneable {
 
@@ -57,7 +54,7 @@ public class JmsConfiguration implements Cloneable {
     public static final String TEMP_QUEUE_PREFIX = "temp:queue:";
     public static final String TEMP_TOPIC_PREFIX = "temp:topic:";
 
-    private static final transient Log LOG = LogFactory.getLog(JmsConfiguration.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(JmsConfiguration.class);
     private JmsOperations jmsOperations;
     private DestinationResolver destinationResolver;
     private ConnectionFactory connectionFactory;
@@ -67,7 +64,6 @@ public class JmsConfiguration implements Cloneable {
     private String acknowledgementModeName;
     // Used to configure the spring Container
     private ExceptionListener exceptionListener;
-    private ConsumerType consumerType = ConsumerType.Default;
     private boolean autoStartup = true;
     private boolean acceptMessagesWhileStopping;
     private String clientId;
@@ -75,8 +71,6 @@ public class JmsConfiguration implements Cloneable {
     private boolean subscriptionDurable;
     private boolean exposeListenerSession = true;
     private TaskExecutor taskExecutor;
-    // TODO: remove in Camel 3.0 when Spring 3.0+ is required
-    private Object taskExecutorSpring2;
     private boolean pubSubNoLocal;
     private int concurrentConsumers = 1;
     private int maxMessagesPerTask = -1;
@@ -119,6 +113,9 @@ public class JmsConfiguration implements Cloneable {
     private boolean transferExchange;
     private boolean transferException;
     private boolean testConnectionOnStartup;
+    // if the message is a JmsMessage and mapJmsMessage=false, force the 
+    // producer to send the javax.jms.Message body to the next JMS destination    
+    private boolean forceSendOriginalMessage;
 
     public JmsConfiguration() {
     }
@@ -353,8 +350,8 @@ public class JmsConfiguration implements Cloneable {
         return template;
     }
 
-    public AbstractMessageListenerContainer createMessageListenerContainer(JmsEndpoint endpoint) {
-        AbstractMessageListenerContainer container = chooseMessageListenerContainerImplementation();
+    public DefaultMessageListenerContainer createMessageListenerContainer(JmsEndpoint endpoint) throws Exception {
+        DefaultMessageListenerContainer container = new JmsMessageListenerContainer(endpoint);
         configureMessageListenerContainer(container, endpoint);
         return container;
     }
@@ -390,8 +387,7 @@ public class JmsConfiguration implements Cloneable {
     }
 
     /**
-     * Sets the connection factory to be used for consuming messages via the
-     * {@link #createMessageListenerContainer(JmsEndpoint)}
+     * Sets the connection factory to be used for consuming messages
      *
      * @param listenerConnectionFactory the connection factory to use for
      *                                  consuming messages
@@ -490,14 +486,6 @@ public class JmsConfiguration implements Cloneable {
 
     public void setTaskExecutor(TaskExecutor taskExecutor) {
         this.taskExecutor = taskExecutor;
-    }
-
-    public Object getTaskExecutorSpring2() {
-        return taskExecutorSpring2;
-    }
-
-    public void setTaskExecutorSpring2(Object taskExecutorSpring2) {
-        this.taskExecutorSpring2 = taskExecutorSpring2;
     }
 
     public boolean isPubSubNoLocal() {
@@ -674,14 +662,6 @@ public class JmsConfiguration implements Cloneable {
         configuredQoS();
     }
 
-    public ConsumerType getConsumerType() {
-        return consumerType;
-    }
-
-    public void setConsumerType(ConsumerType consumerType) {
-        this.consumerType = consumerType;
-    }
-
     public int getAcknowledgementMode() {
         return acknowledgementMode;
     }
@@ -822,8 +802,8 @@ public class JmsConfiguration implements Cloneable {
     }
 
 
-    protected void configureMessageListenerContainer(AbstractMessageListenerContainer container,
-                                                     JmsEndpoint endpoint) {
+    protected void configureMessageListenerContainer(DefaultMessageListenerContainer container,
+                                                     JmsEndpoint endpoint) throws Exception {
         container.setConnectionFactory(getListenerConnectionFactory());
         if (endpoint instanceof DestinationEndpoint) {
             container.setDestinationResolver(createDestinationResolver((DestinationEndpoint) endpoint));
@@ -835,9 +815,6 @@ public class JmsConfiguration implements Cloneable {
         if (durableSubscriptionName != null) {
             container.setDurableSubscriptionName(durableSubscriptionName);
             container.setSubscriptionDurable(true);
-        }
-        if (durableSubscriptionName != null && clientId == null) {
-            throw new IllegalArgumentException("ClientId must be configured when subscription is durable for " + endpoint);
         }
         if (clientId != null) {
             container.setClientId(clientId);
@@ -864,66 +841,52 @@ public class JmsConfiguration implements Cloneable {
             container.setMessageSelector(endpoint.getSelector());
         }
 
-        if (container instanceof DefaultMessageListenerContainer) {
-            // this includes DefaultMessageListenerContainer102
-            DefaultMessageListenerContainer listenerContainer = (DefaultMessageListenerContainer) container;
-            if (concurrentConsumers >= 0) {
-                listenerContainer.setConcurrentConsumers(concurrentConsumers);
-            }
+        if (concurrentConsumers >= 0) {
+            container.setConcurrentConsumers(concurrentConsumers);
+        }
 
-            if (cacheLevel >= 0) {
-                listenerContainer.setCacheLevel(cacheLevel);
-            } else if (cacheLevelName != null) {
-                listenerContainer.setCacheLevelName(cacheLevelName);
-            } else {
-                listenerContainer.setCacheLevel(defaultCacheLevel(endpoint));
-            }
+        if (cacheLevel >= 0) {
+            container.setCacheLevel(cacheLevel);
+        } else if (cacheLevelName != null) {
+            container.setCacheLevelName(cacheLevelName);
+        } else {
+            container.setCacheLevel(defaultCacheLevel(endpoint));
+        }
 
-            if (idleTaskExecutionLimit >= 0) {
-                listenerContainer.setIdleTaskExecutionLimit(idleTaskExecutionLimit);
+        if (idleTaskExecutionLimit >= 0) {
+            container.setIdleTaskExecutionLimit(idleTaskExecutionLimit);
+        }
+        if (maxConcurrentConsumers > 0) {
+            if (maxConcurrentConsumers < concurrentConsumers) {
+                throw new IllegalArgumentException("Property maxConcurrentConsumers: " + maxConcurrentConsumers
+                        + " must be higher than concurrentConsumers: " + concurrentConsumers);
             }
-            if (maxConcurrentConsumers > 0) {
-                if (maxConcurrentConsumers < concurrentConsumers) {
-                    throw new IllegalArgumentException("Property maxConcurrentConsumers: " + maxConcurrentConsumers
-                            + " must be higher than concurrentConsumers: " + concurrentConsumers);
-                }
-                listenerContainer.setMaxConcurrentConsumers(maxConcurrentConsumers);
-            }
-            if (maxMessagesPerTask >= 0) {
-                listenerContainer.setMaxMessagesPerTask(maxMessagesPerTask);
-            }
-            listenerContainer.setPubSubNoLocal(pubSubNoLocal);
-            if (receiveTimeout >= 0) {
-                listenerContainer.setReceiveTimeout(receiveTimeout);
-            }
-            if (recoveryInterval >= 0) {
-                listenerContainer.setRecoveryInterval(recoveryInterval);
-            }
-            if (taskExecutor != null) {
-                listenerContainer.setTaskExecutor(taskExecutor);
-            }
-            PlatformTransactionManager tm = getTransactionManager();
-            if (tm != null && transacted) {
-                listenerContainer.setTransactionManager(tm);
-            } else if (transacted) {
-                throw new IllegalArgumentException("Property transacted is enabled but a transactionManager was not injected!");
-            }
-            if (transactionName != null) {
-                listenerContainer.setTransactionName(transactionName);
-            }
-            if (transactionTimeout >= 0) {
-                listenerContainer.setTransactionTimeout(transactionTimeout);
-            }
-        } else if (container instanceof SimpleMessageListenerContainer) {
-            // this includes SimpleMessageListenerContainer102
-            SimpleMessageListenerContainer listenerContainer = (SimpleMessageListenerContainer) container;
-            if (concurrentConsumers >= 0) {
-                listenerContainer.setConcurrentConsumers(concurrentConsumers);
-            }
-            listenerContainer.setPubSubNoLocal(pubSubNoLocal);
-            if (taskExecutor != null) {
-                listenerContainer.setTaskExecutor(taskExecutor);
-            }
+            container.setMaxConcurrentConsumers(maxConcurrentConsumers);
+        }
+        if (maxMessagesPerTask >= 0) {
+            container.setMaxMessagesPerTask(maxMessagesPerTask);
+        }
+        container.setPubSubNoLocal(pubSubNoLocal);
+        if (receiveTimeout >= 0) {
+            container.setReceiveTimeout(receiveTimeout);
+        }
+        if (recoveryInterval >= 0) {
+            container.setRecoveryInterval(recoveryInterval);
+        }
+        if (taskExecutor != null) {
+            container.setTaskExecutor(taskExecutor);
+        }
+        PlatformTransactionManager tm = getTransactionManager();
+        if (tm != null && transacted) {
+            container.setTransactionManager(tm);
+        } else if (transacted) {
+            throw new IllegalArgumentException("Property transacted is enabled but a transactionManager was not injected!");
+        }
+        if (transactionName != null) {
+            container.setTransactionName(transactionName);
+        }
+        if (transactionTimeout >= 0) {
+            container.setTransactionTimeout(transactionTimeout);
         }
     }
 
@@ -949,47 +912,16 @@ public class JmsConfiguration implements Cloneable {
         }
     }
 
-    public AbstractMessageListenerContainer chooseMessageListenerContainerImplementation() {
-        switch (consumerType) {
-        case Simple:
-            return new SimpleMessageListenerContainer();
-        case Default:
-            return new DefaultMessageListenerContainer();
-        default:
-            throw new IllegalArgumentException("Unknown consumer type: " + consumerType);
-        }
-    }
-
     /**
-     * Defaults the JMS cache level if none is explicitly specified. Note that
-     * due to this <a
-     * href="http://opensource.atlassian.com/projects/spring/browse/SPR-3890">Spring
-     * Bug</a> we cannot use CACHE_CONSUMER by default (which we should do as
-     * its most efficient) unless the spring version is 2.5.1 or later. Instead
-     * we use CACHE_CONNECTION - part from for non-durable topics which must use
-     * CACHE_CONSUMER to avoid missing messages (due to the consumer being
-     * created and destroyed per message).
+     * Defaults the JMS cache level if none is explicitly specified.
+     * <p/>
+     * Will by default use <tt>CACHE_CONSUMER</tt> which is the most efficient.
      *
      * @param endpoint the endpoint
      * @return the cache level
      */
     protected int defaultCacheLevel(JmsEndpoint endpoint) {
-        // if we are on a new enough spring version we can assume CACHE_CONSUMER
-        if (PackageHelper.isValidVersion("org.springframework.jms", 2.51D)) {
-            return DefaultMessageListenerContainer.CACHE_CONSUMER;
-        } else {
-            if (endpoint.isPubSubDomain() && !isSubscriptionDurable()) {
-                // we must cache the consumer or we will miss messages
-                // see https://issues.apache.org/activemq/browse/CAMEL-253
-                return DefaultMessageListenerContainer.CACHE_CONSUMER;
-            } else {
-                // to enable consuming and sending with a single JMS session (to
-                // avoid XA) we can only use CACHE_CONNECTION
-                // due to this bug :
-                // http://opensource.atlassian.com/projects/spring/browse/SPR-3890
-                return DefaultMessageListenerContainer.CACHE_CONNECTION;
-            }
-        }
+        return DefaultMessageListenerContainer.CACHE_CONSUMER;
     }
 
     /**
@@ -1075,13 +1007,7 @@ public class JmsConfiguration implements Cloneable {
     }
 
     public void setReplyTo(String replyToDestination) {
-        if (replyToDestination.startsWith(QUEUE_PREFIX)) {
-            this.replyToDestination = removeStartingCharacters(replyToDestination.substring(QUEUE_PREFIX.length()), '/');
-        } else if (replyToDestination.startsWith(TOPIC_PREFIX)) {
-            this.replyToDestination = removeStartingCharacters(replyToDestination.substring(TOPIC_PREFIX.length()), '/');
-        } else {
-            this.replyToDestination = replyToDestination;
-        }
+        this.replyToDestination = normalizeDestinationName(replyToDestination);
     }
 
     public String getReplyToDestinationSelectorName() {
@@ -1152,4 +1078,13 @@ public class JmsConfiguration implements Cloneable {
     public void setTestConnectionOnStartup(boolean testConnectionOnStartup) {
         this.testConnectionOnStartup = testConnectionOnStartup;
     }
+
+    public void setForceSendOriginalMessage(boolean forceSendOriginalMessage) {
+        this.forceSendOriginalMessage = forceSendOriginalMessage;
+    }
+
+    public boolean isForceSendOriginalMessage() {
+        return forceSendOriginalMessage;
+    }
+
 }

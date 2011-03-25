@@ -35,13 +35,15 @@ import org.apache.camel.spi.RouteContext;
 @XmlRootElement(name = "failover")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class FailoverLoadBalancerDefinition extends LoadBalancerDefinition {
-
     @XmlElement(name = "exception")
     private List<String> exceptions = new ArrayList<String>();
     @XmlAttribute
-    private Boolean roundRobin = Boolean.FALSE;
+    private Boolean roundRobin;
     @XmlAttribute
     private Integer maximumFailoverAttempts;
+
+    public FailoverLoadBalancerDefinition() {
+    }
 
     @Override
     protected LoadBalancer createLoadBalancer(RouteContext routeContext) {
@@ -64,8 +66,8 @@ public class FailoverLoadBalancerDefinition extends LoadBalancerDefinition {
         if (getMaximumFailoverAttempts() != null) {
             answer.setMaximumFailoverAttempts(getMaximumFailoverAttempts());
         }
-        if (isRoundRobin() != null) {
-            answer.setRoundRobin(isRoundRobin());
+        if (roundRobin != null) {
+            answer.setRoundRobin(roundRobin);
         }
 
         return answer;
@@ -79,7 +81,11 @@ public class FailoverLoadBalancerDefinition extends LoadBalancerDefinition {
         this.exceptions = exceptions;
     }
 
-    public Boolean isRoundRobin() {
+    public boolean isRoundRobin() {
+        return roundRobin != null && roundRobin;
+    }
+
+    public Boolean getRoundRobin() {
         return roundRobin;
     }
 

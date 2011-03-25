@@ -24,8 +24,8 @@ import org.apache.camel.AsyncCallback;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A useful base class for any processor which provides some kind of throttling
@@ -33,10 +33,10 @@ import org.apache.commons.logging.LogFactory;
  * <p/>
  * This implementation will block while waiting.
  * 
- * @version $Revision$
+ * @version 
  */
 public abstract class DelayProcessorSupport extends DelegateAsyncProcessor {
-    protected final transient Log log = LogFactory.getLog(getClass());
+    protected final transient Logger log = LoggerFactory.getLogger(getClass());
     private final ScheduledExecutorService executorService;
     private boolean asyncDelayed;
     private boolean callerRunsWhenRejected = true;

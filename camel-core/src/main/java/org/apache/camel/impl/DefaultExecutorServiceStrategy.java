@@ -29,20 +29,24 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.ThreadPoolRejectedPolicy;
+import org.apache.camel.model.OptionalIdentifiedDefinition;
+import org.apache.camel.model.ProcessorDefinition;
+import org.apache.camel.model.ProcessorDefinitionHelper;
+import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.spi.ExecutorServiceStrategy;
 import org.apache.camel.spi.LifecycleStrategy;
 import org.apache.camel.spi.ThreadPoolProfile;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.concurrent.ExecutorServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class DefaultExecutorServiceStrategy extends ServiceSupport implements ExecutorServiceStrategy {
 
-    private static final Log LOG = LogFactory.getLog(DefaultExecutorServiceStrategy.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultExecutorServiceStrategy.class);
     private final List<ExecutorService> executorServices = new ArrayList<ExecutorService>();
     private final CamelContext camelContext;
     private String threadNamePattern;
@@ -202,7 +206,7 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
             Integer maxQueueSize = profile.getMaxQueueSize() != null ? profile.getMaxQueueSize() : defaultProfile.getMaxQueueSize();
             RejectedExecutionHandler handler = profile.getRejectedExecutionHandler() != null ? profile.getRejectedExecutionHandler() : defaultProfile.getRejectedExecutionHandler();
             // create the pool
-            return newThreadPool(source, name, poolSize, maxPoolSize, keepAliveTime, timeUnit, maxQueueSize, handler, false);
+            return newThreadPool(threadPoolProfileId, source, name, poolSize, maxPoolSize, keepAliveTime, timeUnit, maxQueueSize, handler, false);
         } else {
             // no profile with that id
             return null;
@@ -211,7 +215,7 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
 
     public ExecutorService newCachedThreadPool(Object source, String name) {
         ExecutorService answer = ExecutorServiceHelper.newCachedThreadPool(threadNamePattern, name, true);
-        onThreadPoolCreated(answer);
+        onThreadPoolCreated(answer, source, null);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Created new cached thread pool for source: " + source + " with name: " + name + ". -> " + answer);
@@ -226,7 +230,7 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
 
     public ScheduledExecutorService newScheduledThreadPool(Object source, String name, int poolSize) {
         ScheduledExecutorService answer = ExecutorServiceHelper.newScheduledThreadPool(poolSize, threadNamePattern, name, true);
-        onThreadPoolCreated(answer);
+        onThreadPoolCreated(answer, source, null);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Created new scheduled thread pool for source: " + source + " with name: " + name + ". [poolSize=" + poolSize + "]. -> " + answer);
@@ -236,7 +240,7 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
 
     public ExecutorService newFixedThreadPool(Object source, String name, int poolSize) {
         ExecutorService answer = ExecutorServiceHelper.newFixedThreadPool(poolSize, threadNamePattern, name, true);
-        onThreadPoolCreated(answer);
+        onThreadPoolCreated(answer, source, null);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Created new fixed thread pool for source: " + source + " with name: " + name + ". [poolSize=" + poolSize + "]. -> " + answer);
@@ -246,7 +250,7 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
 
     public ExecutorService newSingleThreadExecutor(Object source, String name) {
         ExecutorService answer = ExecutorServiceHelper.newSingleThreadExecutor(threadNamePattern, name, true);
-        onThreadPoolCreated(answer);
+        onThreadPoolCreated(answer, source, null);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Created new single thread pool for source: " + source + " with name: " + name + ". -> " + answer);
@@ -256,7 +260,7 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
 
     public ExecutorService newSynchronousThreadPool(Object source, String name) {
         ExecutorService answer = ExecutorServiceHelper.newSynchronousThreadPool();
-        onThreadPoolCreated(answer);
+        onThreadPoolCreated(answer, source, null);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Created new synchronous thread pool for source: " + source + " with name: " + name + ". -> " + answer);
@@ -266,7 +270,7 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
 
     public ExecutorService newThreadPool(Object source, String name, int corePoolSize, int maxPoolSize) {
         ExecutorService answer = ExecutorServiceHelper.newThreadPool(threadNamePattern, name, corePoolSize, maxPoolSize);
-        onThreadPoolCreated(answer);
+        onThreadPoolCreated(answer, source, null);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Created new thread pool for source: " + source + " with name: " + name + ". [poolSize=" + corePoolSize
@@ -277,7 +281,7 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
 
     public ExecutorService newThreadPool(Object source, String name, int corePoolSize, int maxPoolSize, int maxQueueSize) {
         ExecutorService answer = ExecutorServiceHelper.newThreadPool(threadNamePattern, name, corePoolSize, maxPoolSize, maxQueueSize);
-        onThreadPoolCreated(answer);
+        onThreadPoolCreated(answer, source, null);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Created new thread pool for source: " + source + " with name: " + name + ". [poolSize=" + corePoolSize
@@ -286,22 +290,22 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
         return answer;
     }
 
-    public ExecutorService newThreadPool(Object source, String name, int corePoolSize, int maxPoolSize, long keepAliveTime,
+    private ExecutorService newThreadPool(String threadPoolProfileId, Object source, String name, int corePoolSize, int maxPoolSize, long keepAliveTime,
                                          TimeUnit timeUnit, int maxQueueSize, RejectedExecutionHandler rejectedExecutionHandler,
                                          boolean daemon) {
 
         // the thread name must not be null
         ObjectHelper.notNull(name, "ThreadName");
-        
+
         // If we set the corePoolSize to be 0, the whole camel application will hang in JDK5
-        // just add a check here to throw the IllegalArgumentException 
+        // just add a check here to throw the IllegalArgumentException
         if (corePoolSize < 1) {
             throw new IllegalArgumentException("The corePoolSize can't be lower than 1");
         }
-        
+
         ExecutorService answer = ExecutorServiceHelper.newThreadPool(threadNamePattern, name, corePoolSize, maxPoolSize, keepAliveTime,
                                                                      timeUnit, maxQueueSize, rejectedExecutionHandler, daemon);
-        onThreadPoolCreated(answer);
+        onThreadPoolCreated(answer, source, threadPoolProfileId);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Created new thread pool for source: " + source + " with name: " + name + ". [poolSize=" + corePoolSize
@@ -310,6 +314,13 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
                     + ", daemon=" + daemon + "] -> " + answer);
         }
         return answer;
+    }
+
+
+    public ExecutorService newThreadPool(Object source, String name, int corePoolSize, int maxPoolSize, long keepAliveTime,
+                                         TimeUnit timeUnit, int maxQueueSize, RejectedExecutionHandler rejectedExecutionHandler,
+                                         boolean daemon) {
+        return newThreadPool(null, source, name, corePoolSize, maxPoolSize, keepAliveTime, timeUnit, maxQueueSize, rejectedExecutionHandler, daemon);
     }
 
     public void shutdown(ExecutorService executorService) {
@@ -346,15 +357,45 @@ public class DefaultExecutorServiceStrategy extends ServiceSupport implements Ex
         return answer;
     }
 
-    private void onThreadPoolCreated(ExecutorService executorService) {
+    private void onThreadPoolCreated(ExecutorService executorService, Object source, String threadPoolProfileId) {
         // add to internal list of thread pools
         executorServices.add(executorService);
+
+        String id;
+        String sourceId = null;
+        String routeId = null;
+
+        // extract id from source
+        if (source instanceof OptionalIdentifiedDefinition) {
+            id = ((OptionalIdentifiedDefinition) source).idOrCreate(camelContext.getNodeIdFactory());
+            // and let source be the short name of the pattern
+            sourceId = ((OptionalIdentifiedDefinition) source).getShortName();
+        } else if (source instanceof String) {
+            id = (String) source;
+        } else if (source != null) {
+            // fallback and use the simple class name with hashcode for the id so its unique for this given source
+            id = source.getClass().getSimpleName() + "(" + ObjectHelper.getIdentityHashCode(source) + ")";
+        } else {
+            // no source, so fallback and use the simple class name from thread pool and its hashcode identity so its unique
+            id = executorService.getClass().getSimpleName() + "(" + ObjectHelper.getIdentityHashCode(executorService) + ")";
+        }
+
+        // id is mandatory
+        ObjectHelper.notEmpty(id, "id for thread pool " + executorService);
+
+        // extract route id if possible
+        if (source instanceof ProcessorDefinition) {
+            RouteDefinition route = ProcessorDefinitionHelper.getRoute((ProcessorDefinition) source);
+            if (route != null) {
+                routeId = route.idOrCreate(camelContext.getNodeIdFactory());
+            }
+        }
 
         // let lifecycle strategy be notified as well which can let it be managed in JMX as well
         if (executorService instanceof ThreadPoolExecutor) {
             ThreadPoolExecutor threadPool = (ThreadPoolExecutor) executorService;
             for (LifecycleStrategy lifecycle : camelContext.getLifecycleStrategies()) {
-                lifecycle.onThreadPoolAdd(camelContext, threadPool);
+                lifecycle.onThreadPoolAdd(camelContext, threadPool, id, sourceId, routeId, threadPoolProfileId);
             }
         }
 

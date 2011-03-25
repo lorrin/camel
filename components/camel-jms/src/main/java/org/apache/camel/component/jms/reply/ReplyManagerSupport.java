@@ -16,7 +16,9 @@
  */
 package org.apache.camel.component.jms.reply;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -30,23 +32,24 @@ import org.apache.camel.component.jms.JmsMessageHelper;
 import org.apache.camel.impl.ServiceSupport;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.ServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jms.listener.AbstractMessageListenerContainer;
 
 /**
  * Base class for {@link ReplyManager} implementations.
  *
- * @version $Revision$
+ * @version 
  */
 public abstract class ReplyManagerSupport extends ServiceSupport implements ReplyManager {
 
-    protected final Log log = LogFactory.getLog(getClass());
+    protected final Logger log = LoggerFactory.getLogger(getClass());
     protected ScheduledExecutorService executorService;
     protected JmsEndpoint endpoint;
     protected Destination replyTo;
     protected AbstractMessageListenerContainer listenerContainer;
-    protected long replyToResolverTimeout = 5000;
+    protected final CountDownLatch replyToLatch = new CountDownLatch(1);
+    protected final long replyToTimeout = 10000;
     protected CorrelationMap correlation;
 
     public void setScheduledExecutorService(ScheduledExecutorService executorService) {
@@ -62,18 +65,27 @@ public abstract class ReplyManagerSupport extends ServiceSupport implements Repl
             log.trace("ReplyTo destination: " + replyTo);
         }
         this.replyTo = replyTo;
+        // trigger latch as the reply to has been resolved and set
+        replyToLatch.countDown();
     }
 
     public Destination getReplyTo() {
-        synchronized (this) {
-            try {
-                // wait for the reply to destination to be resolved
-                if (replyTo == null) {
-                    wait(replyToResolverTimeout);
-                }
-            } catch (Throwable e) {
-                // ignore
+        if (replyTo != null) {
+            return replyTo;
+        }
+        try {
+            // the reply to destination has to be resolved using a DestinationResolver using
+            // the MessageListenerContainer which occurs asynchronously so we have to wait
+            // for that to happen before we can retrieve the reply to destination to be used
+            log.trace("Waiting for replyTo to be set");
+            boolean done = replyToLatch.await(replyToTimeout, TimeUnit.MILLISECONDS);
+            if (!done) {
+                log.warn("ReplyTo destination was not set and timeout occurred");
+            } else {
+                log.trace("Waiting for replyTo to be set done");
             }
+        } catch (InterruptedException e) {
+            // ignore
         }
         return replyTo;
     }
@@ -200,6 +212,7 @@ public abstract class ReplyManagerSupport extends ServiceSupport implements Repl
         // create JMS listener and start it
         listenerContainer = createListenerContainer();
         listenerContainer.afterPropertiesSet();
+        log.info("Starting reply listener container on endpoint: " + endpoint);
         listenerContainer.start();
     }
 
@@ -208,6 +221,7 @@ public abstract class ReplyManagerSupport extends ServiceSupport implements Repl
         ServiceHelper.stopService(correlation);
 
         if (listenerContainer != null) {
+            log.info("Stopping reply listener container on endpoint: " + endpoint);
             listenerContainer.stop();
             listenerContainer.destroy();
             listenerContainer = null;

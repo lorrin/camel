@@ -21,7 +21,7 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class RouteNoAutoStartupTest extends ContextTestSupport {
 
@@ -31,7 +31,7 @@ public class RouteNoAutoStartupTest extends ContextTestSupport {
 
         template.sendBody("direct:start", "Hello World");
 
-        Thread.sleep(1000);
+        Thread.sleep(100);
 
         assertMockEndpointsSatisfied();
     }
@@ -42,7 +42,7 @@ public class RouteNoAutoStartupTest extends ContextTestSupport {
 
         template.sendBody("direct:start", "Hello World");
 
-        Thread.sleep(1000);
+        Thread.sleep(100);
 
         assertMockEndpointsSatisfied();
 

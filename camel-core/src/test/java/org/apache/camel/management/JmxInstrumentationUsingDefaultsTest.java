@@ -35,7 +35,7 @@ import org.apache.camel.component.mock.MockEndpoint;
  * This test verifies JMX is enabled by default and it uses local mbean
  * server to conduct the test as connector server is not enabled by default.
  *
- * @version $Revision$
+ * @version 
  */
 public class JmxInstrumentationUsingDefaultsTest extends ContextTestSupport {
 
@@ -69,7 +69,7 @@ public class JmxInstrumentationUsingDefaultsTest extends ContextTestSupport {
         assertEquals("Could not find 1 context: " + s, 1, s.size());
 
         s = mbsc.queryNames(new ObjectName(domainName + ":type=processors,*"), null);
-        assertEquals("Could not find 2 processors: " + s, 2, s.size());
+        assertEquals("Could not find 1 processors: " + s, 1, s.size());
 
         s = mbsc.queryNames(new ObjectName(domainName + ":type=consumers,*"), null);
         assertEquals("Could not find 1 consumers: " + s, 1, s.size());

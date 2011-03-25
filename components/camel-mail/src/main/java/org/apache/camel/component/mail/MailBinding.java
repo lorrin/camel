@@ -48,18 +48,18 @@ import org.apache.camel.impl.DefaultHeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.util.CollectionHelper;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A Strategy used to convert between a Camel {@link Exchange} and {@link Message} to and
  * from a Mail {@link MimeMessage}
  *
- * @version $Revision$
+ * @version 
  */
 public class MailBinding {
 
-    private static final transient Log LOG = LogFactory.getLog(MailBinding.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(MailBinding.class);
     private HeaderFilterStrategy headerFilterStrategy;
     private ContentTypeResolver contentTypeResolver;
 
@@ -314,8 +314,12 @@ public class MailBinding {
                     String fileName = part.getFileName();
                     if (fileName != null) {
                         LOG.debug("Mail contains file attachment: " + fileName);
-                        // Parts marked with a disposition of Part.ATTACHMENT are clearly attachments
-                        CollectionHelper.appendValue(map, fileName, part.getDataHandler());
+                        if (!map.containsKey(fileName)) {
+                            // Parts marked with a disposition of Part.ATTACHMENT are clearly attachments
+                            map.put(fileName, part.getDataHandler());
+                        } else {
+                            LOG.warn("Cannot extract duplicate attachment: " + fileName);
+                        }
                     }
                 }
             }

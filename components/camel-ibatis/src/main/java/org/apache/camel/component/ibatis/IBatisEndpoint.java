@@ -30,7 +30,7 @@ import org.apache.camel.util.ObjectHelper;
  * An <a href="http://camel.apache.org/ibatis.html>iBatis Endpoint</a>
  * for performing SQL operations using an XML mapping file to abstract away the SQL
  *
- * @version $Revision$
+ * @version 
  */
 public class IBatisEndpoint extends DefaultPollingEndpoint {
     private IBatisProcessingStrategy strategy;
@@ -63,8 +63,8 @@ public class IBatisEndpoint extends DefaultPollingEndpoint {
     }
 
     @Override
-    public IBatisPollingConsumer createConsumer(Processor processor) throws Exception {
-        IBatisPollingConsumer consumer = new IBatisPollingConsumer(this, processor);
+    public IBatisConsumer createConsumer(Processor processor) throws Exception {
+        IBatisConsumer consumer = new IBatisConsumer(this, processor);
         consumer.setMaxMessagesPerPoll(getMaxMessagesPerPoll());
         configureConsumer(consumer);
         return consumer;

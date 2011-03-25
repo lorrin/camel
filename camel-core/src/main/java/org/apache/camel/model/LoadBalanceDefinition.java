@@ -55,9 +55,8 @@ import org.apache.camel.util.CollectionStringBuffer;
 @XmlRootElement(name = "loadBalance")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefinition> {
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String ref;
-
     @XmlElements({
             @XmlElement(required = false, name = "failover", type = FailoverLoadBalancerDefinition.class),
             @XmlElement(required = false, name = "random", type = RandomLoadBalancerDefinition.class),
@@ -67,7 +66,6 @@ public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefini
             @XmlElement(required = false, name = "weighted", type = WeightedLoadBalancerDefinition.class)}
     )
     private LoadBalancerDefinition loadBalancerType;
-
     @XmlElementRef
     private List<ProcessorDefinition> outputs = new ArrayList<ProcessorDefinition>();
 
@@ -92,6 +90,10 @@ public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefini
         }
     }
 
+    public boolean isOutputSupported() {
+        return true;
+    }
+
     public String getRef() {
         return ref;
     }
@@ -105,6 +107,9 @@ public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefini
     }
 
     public void setLoadBalancerType(LoadBalancerDefinition loadbalancer) {
+        if (loadBalancerType != null) {
+            throw new IllegalArgumentException("Loadbalancer already configured to: " + loadBalancerType + ". Cannot set it to: " + loadbalancer);
+        }
         loadBalancerType = loadbalancer;
     }
 
@@ -121,7 +126,11 @@ public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefini
     @Override
     public Processor createProcessor(RouteContext routeContext) throws Exception {
         LoadBalancer loadBalancer = LoadBalancerDefinition.getLoadBalancer(routeContext, loadBalancerType, ref);
-        for (ProcessorDefinition<?> processorType : getOutputs()) {            
+        for (ProcessorDefinition<?> processorType : getOutputs()) {
+            // output must not be another load balancer
+            if (processorType instanceof LoadBalanceDefinition) {
+                throw new IllegalArgumentException("Loadbalancer already configured to: " + loadBalancerType + ". Cannot set it to: " + processorType);
+            }
             Processor processor = processorType.createProcessor(routeContext);
             processor = wrapProcessor(routeContext, processor);
             loadBalancer.addProcessor(processor);
@@ -139,7 +148,7 @@ public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefini
      * @return the builder
      */
     public LoadBalanceDefinition loadBalance(LoadBalancer loadBalancer) {
-        loadBalancerType = new LoadBalancerDefinition(loadBalancer);
+        setLoadBalancerType(new LoadBalancerDefinition(loadBalancer));
         return this;
     }
     
@@ -182,7 +191,7 @@ public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefini
         FailOverLoadBalancer failover = new FailOverLoadBalancer(Arrays.asList(exceptions));
         failover.setMaximumFailoverAttempts(maximumFailoverAttempts);
         failover.setRoundRobin(roundRobin);
-        loadBalancerType = new LoadBalancerDefinition(failover);
+        setLoadBalancerType(new LoadBalancerDefinition(failover));
         this.setInheritErrorHandler(inheritErrorHandler);
         return this;
     }
@@ -220,7 +229,7 @@ public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefini
         } else {
             weighted = new WeightedRoundRobinLoadBalancer(distributionRatioList);
         }
-        loadBalancerType = new LoadBalancerDefinition(weighted);
+        setLoadBalancerType(new LoadBalancerDefinition(weighted));
         return this;
     }
     
@@ -230,7 +239,7 @@ public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefini
      * @return the builder
      */
     public LoadBalanceDefinition roundRobin() {
-        loadBalancerType = new LoadBalancerDefinition(new RoundRobinLoadBalancer());
+        setLoadBalancerType(new LoadBalancerDefinition(new RoundRobinLoadBalancer()));
         return this;
     }
 
@@ -239,7 +248,7 @@ public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefini
      * @return the builder
      */
     public LoadBalanceDefinition random() {
-        loadBalancerType = new LoadBalancerDefinition(new RandomLoadBalancer());
+        setLoadBalancerType(new LoadBalancerDefinition(new RandomLoadBalancer()));
         return this;
     }
 
@@ -250,7 +259,7 @@ public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefini
      * @return  the builder
      */
     public LoadBalanceDefinition sticky(Expression correlationExpression) {
-        loadBalancerType = new LoadBalancerDefinition(new StickyLoadBalancer(correlationExpression));
+        setLoadBalancerType(new LoadBalancerDefinition(new StickyLoadBalancer(correlationExpression)));
         return this;
     }
 
@@ -260,7 +269,7 @@ public class LoadBalanceDefinition extends ProcessorDefinition<LoadBalanceDefini
      * @return the builder
      */
     public LoadBalanceDefinition topic() {
-        loadBalancerType = new LoadBalancerDefinition(new TopicLoadBalancer());
+        setLoadBalancerType(new LoadBalancerDefinition(new TopicLoadBalancer()));
         return this;
     }
 

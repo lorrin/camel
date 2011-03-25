@@ -35,7 +35,7 @@ import org.apache.camel.Service;
  * <p/>
  * Camel provides a default strategy which supports all that that can be used as inspiration for your own strategy.
  *
- * @version $Revision$
+ * @version 
  * @see org.apache.camel.spi.ShutdownAware
  */
 public interface ShutdownStrategy extends Service {
@@ -68,6 +68,19 @@ public interface ShutdownStrategy extends Service {
      * @throws Exception is thrown if error shutting down the consumers, however its preferred to avoid this
      */
     void shutdown(CamelContext context, List<RouteStartupOrder> routes, long timeout, TimeUnit timeUnit) throws Exception;
+
+    /**
+     * Shutdown the route using a specified timeout instead of the default timeout values and supports abortAfterTimeout mode
+     *
+     * @param context   the camel context
+     * @param route     the route
+     * @param timeout   timeout
+     * @param timeUnit  the unit to use
+     * @param abortAfterTimeout   should abort shutdown after timeout
+     * @return <tt>true</tt> if the route is stopped before the timeout
+     * @throws Exception is thrown if error shutting down the consumer, however its preferred to avoid this
+     */
+    boolean shutdown(CamelContext context, RouteStartupOrder route, long timeout, TimeUnit timeUnit, boolean abortAfterTimeout) throws Exception;
 
     /**
      * Suspends the routes using a specified timeout instead of the default timeout values

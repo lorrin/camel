@@ -20,20 +20,20 @@ import org.apache.camel.Exchange;
 import org.apache.camel.RuntimeExchangeException;
 import org.apache.camel.impl.DefaultProducer;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jivesoftware.smack.Chat;
 import org.jivesoftware.smack.ChatManager;
 import org.jivesoftware.smack.MessageListener;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class XmppPrivateChatProducer extends DefaultProducer {
-    private static final transient Log LOG = LogFactory.getLog(XmppPrivateChatProducer.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(XmppPrivateChatProducer.class);
     private final XmppEndpoint endpoint;
     private XMPPConnection connection;
     private final String participant;

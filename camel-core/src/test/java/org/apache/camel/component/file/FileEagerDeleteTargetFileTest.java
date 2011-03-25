@@ -22,7 +22,7 @@ import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class FileEagerDeleteTargetFileTest extends ContextTestSupport {
 
@@ -37,7 +37,7 @@ public class FileEagerDeleteTargetFileTest extends ContextTestSupport {
         template.sendBodyAndHeader("file://target/eagerdelete?tempFileName=inprogress-${file:name}&eagerDeleteTargetFile=true",
                 "Bye World", Exchange.FILE_NAME, "world.txt");
 
-        Thread.sleep(1000);
+        oneExchangeDone.matchesMockWaitTime();
 
         File file = new File("target/eagerdelete/world.txt").getAbsoluteFile();
         assertTrue("File should exist", file.exists());
@@ -48,7 +48,7 @@ public class FileEagerDeleteTargetFileTest extends ContextTestSupport {
         template.sendBodyAndHeader("file://target/eagerdelete?tempFileName=inprogress-${file:name}&eagerDeleteTargetFile=false",
                 "Bye World", Exchange.FILE_NAME, "world.txt");
 
-        Thread.sleep(1000);
+        oneExchangeDone.matchesMockWaitTime();
 
         File file = new File("target/eagerdelete/world.txt").getAbsoluteFile();
         assertTrue("File should exist", file.exists());
@@ -59,7 +59,7 @@ public class FileEagerDeleteTargetFileTest extends ContextTestSupport {
         template.sendBodyAndHeader("file://target/eagerdelete?tempFileName=inprogress-${file:name}",
                 "Bye World", Exchange.FILE_NAME, "world.txt");
 
-        Thread.sleep(1000);
+        oneExchangeDone.matchesMockWaitTime();
 
         File file = new File("target/eagerdelete/world.txt").getAbsoluteFile();
         assertTrue("File should exist", file.exists());

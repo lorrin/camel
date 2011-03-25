@@ -38,7 +38,7 @@ import org.apache.commons.httpclient.params.HttpClientParams;
  * Defines the <a href="http://camel.apache.org/http.html">HTTP
  * Component</a>
  *
- * @version $Revision$
+ * @version 
  */
 public class HttpComponent extends HeaderFilterStrategyComponent {
     protected HttpClientConfigurer httpClientConfigurer;
@@ -208,6 +208,7 @@ public class HttpComponent extends HeaderFilterStrategyComponent {
             binding = resolveAndRemoveReferenceParameter(parameters, "httpBinding", HttpBinding.class);
         }
         Boolean throwExceptionOnFailure = getAndRemoveParameter(parameters, "throwExceptionOnFailure", Boolean.class);
+        Boolean transferException = getAndRemoveParameter(parameters, "transferException", Boolean.class);
         Boolean bridgeEndpoint = getAndRemoveParameter(parameters, "bridgeEndpoint", Boolean.class);
         Boolean matchOnUriPrefix = getAndRemoveParameter(parameters, "matchOnUriPrefix", Boolean.class);
         Boolean disableStreamCache = getAndRemoveParameter(parameters, "disableStreamCache", Boolean.class);
@@ -231,7 +232,7 @@ public class HttpComponent extends HeaderFilterStrategyComponent {
         String part = httpUri.getSchemeSpecificPart();
         if (part != null) {
             part = part.toLowerCase();
-            if (part.startsWith("//http//") || part.startsWith("//https//")) {
+            if (part.startsWith("//http//") || part.startsWith("//https//") || part.startsWith("//http://") || part.startsWith("//https://")) {
                 throw new ResolveEndpointFailedException(uri,
                         "The uri part is not configured correctly. You have duplicated the http(s) protocol.");
             }
@@ -253,6 +254,10 @@ public class HttpComponent extends HeaderFilterStrategyComponent {
         // should we use an exception for failed error codes?
         if (throwExceptionOnFailure != null) {
             endpoint.setThrowExceptionOnFailure(throwExceptionOnFailure);
+        }
+        // should we transfer exception as serialized object
+        if (transferException != null) {
+            endpoint.setTransferException(transferException);
         }
         if (bridgeEndpoint != null) {
             endpoint.setBridgeEndpoint(bridgeEndpoint);

@@ -19,18 +19,18 @@ package org.apache.camel.component.jms.issues;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.component.jms.JmsConstants;
 import org.apache.camel.test.junit4.CamelSpringTestSupport;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.xbean.spring.context.ClassPathXmlApplicationContext;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.support.AbstractXmlApplicationContext;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmsSendToAlotOfDestinationWithSameEndpointTest extends CamelSpringTestSupport {
 
-    private static final transient Log LOG = LogFactory.getLog(JmsSendToAlotOfDestinationWithSameEndpointTest.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(JmsSendToAlotOfDestinationWithSameEndpointTest.class);
     private static final String URI = "activemq:queue:foo?autoStartup=false";
 
     public int getExpectedRouteCount() {
@@ -39,7 +39,7 @@ public class JmsSendToAlotOfDestinationWithSameEndpointTest extends CamelSpringT
 
     @Test
     public void testSendToAlotOfMessageToQueues() throws Exception {
-        int size = 1000;
+        int size = 100;
 
         LOG.info("About to send " + size + " messages");
 

@@ -18,24 +18,19 @@ package org.apache.camel.component.jms;
 
 import javax.jms.ConnectionFactory;
 
-import org.apache.activemq.ActiveMQConnectionFactory;
-import org.apache.activemq.broker.BrokerService;
 import org.apache.camel.CamelContext;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit4.CamelTestSupport;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentClientAcknowledge;
+import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmsQosRouteTest extends CamelTestSupport {
     protected String componentName = "activemq";
-    protected BrokerService brokerService;
 
     @Test
     public void testJmsRoutePreserveQos() throws Exception {
@@ -71,29 +66,11 @@ public class JmsQosRouteTest extends CamelTestSupport {
         MockEndpoint.assertIsSatisfied(regularEndpoint1, regularEndpoint2);
     }
 
-
-    @Override
-    @Before
-    public void setUp() throws Exception {
-        brokerService = new BrokerService();
-        brokerService.setPersistent(false);
-        brokerService.start();
-
-        super.setUp();
-    }
-
-    @Override
-    @After
-    public void tearDown() throws Exception {
-        super.tearDown();
-        brokerService.stop();
-    }
-
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
 
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost");
-        camelContext.addComponent(componentName, jmsComponentClientAcknowledge(connectionFactory));
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
+        camelContext.addComponent(componentName, jmsComponentAutoAcknowledge(connectionFactory));
 
         return camelContext;
     }

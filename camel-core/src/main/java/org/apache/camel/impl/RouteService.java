@@ -35,18 +35,18 @@ import org.apache.camel.spi.LifecycleStrategy;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.util.EventHelper;
 import org.apache.camel.util.ServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents the runtime objects for a given {@link RouteDefinition} so that it can be stopped independently
  * of other routes
  *
- * @version $Revision$
+ * @version 
  */
 public class RouteService extends ServiceSupport {
 
-    private static final Log LOG = LogFactory.getLog(RouteService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RouteService.class);
 
     private final DefaultCamelContext camelContext;
     private final RouteDefinition routeDefinition;
@@ -56,6 +56,7 @@ public class RouteService extends ServiceSupport {
     private boolean removingRoutes;
     private final Map<Route, Consumer> inputs = new HashMap<Route, Consumer>();
     private final AtomicBoolean warmUpDone = new AtomicBoolean(false);
+    private final AtomicBoolean endpointpDone = new AtomicBoolean(false);
 
     public RouteService(DefaultCamelContext camelContext, RouteDefinition routeDefinition, List<RouteContext> routeContexts, List<Route> routes) {
         this.camelContext = camelContext;
@@ -105,11 +106,20 @@ public class RouteService extends ServiceSupport {
     }
 
     public synchronized void warmUp() throws Exception {
+        if (endpointpDone.compareAndSet(false, true)) {
+            // endpoints should only be started once as they can be reused on other routes
+            // and whatnot, thus their lifecycle is to start once, and only to stop when Camel shutdown
+            for (Route route : routes) {
+                // ensure endpoint is started first (before the route services, such as the consumer)
+                ServiceHelper.startService(route.getEndpoint());
+            }
+        }
+
         if (warmUpDone.compareAndSet(false, true)) {
 
             for (Route route : routes) {
-                if (LOG.isTraceEnabled()) {
-                    LOG.trace("Starting route services: " + route);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Starting services on route: " + route.getId());
                 }
 
                 List<Service> services = route.getServices();
@@ -172,8 +182,8 @@ public class RouteService extends ServiceSupport {
         }
         
         for (Route route : routes) {
-            if (LOG.isTraceEnabled()) {
-                LOG.trace("Stopping route: " + route);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Stopping services on route: " + route.getId());
             }
             // getServices will not add services again
             List<Service> services = route.getServices();
@@ -187,9 +197,9 @@ public class RouteService extends ServiceSupport {
 
             // stop the route itself
             if (isShutdownCamelContext) {
-                ServiceHelper.stopAndShutdownService(route);
+                ServiceHelper.stopAndShutdownServices(route);
             } else {
-                ServiceHelper.stopService(route);
+                ServiceHelper.stopServices(route);
             }
 
             // fire event
@@ -203,6 +213,12 @@ public class RouteService extends ServiceSupport {
 
     @Override
     protected void doShutdown() throws Exception {
+        for (Route route : routes) {
+            // endpoints should only be stopped when Camel is shutting down
+            // see more details in the warmUp method
+            ServiceHelper.stopAndShutdownServices(route.getEndpoint());
+        }
+
         // need to call onRoutesRemove when the CamelContext is shutting down or Route is shutdown
         for (LifecycleStrategy strategy : camelContext.getLifecycleStrategies()) {
             strategy.onRoutesRemove(routes);
@@ -211,6 +227,7 @@ public class RouteService extends ServiceSupport {
         // clear inputs on shutdown
         inputs.clear();
         warmUpDone.set(false);
+        endpointpDone.set(false);
     }
 
     @Override

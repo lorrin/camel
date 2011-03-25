@@ -22,7 +22,7 @@ import org.apache.camel.impl.DefaultHeaderFilterStrategy;
 
 /**
  *
- * @version $Revision$
+ * @version 
  */
 public class CxfRsHeaderFilterStrategy extends DefaultHeaderFilterStrategy {
 
@@ -38,6 +38,8 @@ public class CxfRsHeaderFilterStrategy extends DefaultHeaderFilterStrategy {
         getOutFilter().add(CxfConstants.OPERATION_NAME);
         getOutFilter().add(Exchange.HTTP_METHOD);
         getOutFilter().add(Exchange.HTTP_PATH);
+        getOutFilter().add(Exchange.DESTINATION_OVERRIDE_URL);
+
     }
 
 }

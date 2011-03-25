@@ -39,7 +39,7 @@ public class FileConsumerIdempotentTest extends ContextTestSupport {
     protected RouteBuilder createRouteBuilder() throws Exception {
         return new RouteBuilder() {
             public void configure() throws Exception {
-                from("file://target/idempotent/?idempotent=true&move=done/${file:name}")
+                from("file://target/idempotent/?idempotent=true&move=done/${file:name}&delay=10")
                         .convertBodyTo(String.class).to("mock:result");
             }
         };
@@ -52,7 +52,7 @@ public class FileConsumerIdempotentTest extends ContextTestSupport {
 
         assertMockEndpointsSatisfied();
 
-        Thread.sleep(1000);
+        oneExchangeDone.matchesMockWaitTime();
 
         // reset mock and set new expectations
         mock.reset();
@@ -64,8 +64,8 @@ public class FileConsumerIdempotentTest extends ContextTestSupport {
         file = file.getAbsoluteFile();
         file.renameTo(renamed.getAbsoluteFile());
 
-        // should NOT consume the file again, let 2 secs pass to let the consumer try to consume it but it should not
-        Thread.sleep(2000);
+        // should NOT consume the file again, let a bit time pass to let the consumer try to consume it but it should not
+        Thread.sleep(100);
         assertMockEndpointsSatisfied();
     }
 

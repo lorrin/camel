@@ -21,15 +21,17 @@ import java.io.File;
 import junit.framework.TestCase;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class FileUtilTest extends TestCase {
 
     public void testNormalizePath() {
         if (FileUtil.isWindows()) {
             assertEquals("foo\\bar", FileUtil.normalizePath("foo/bar"));
+            assertEquals("foo\\bar\\baz", FileUtil.normalizePath("foo/bar\\baz"));
         } else {
             assertEquals("foo/bar", FileUtil.normalizePath("foo/bar"));
+            assertEquals("foo/bar/baz", FileUtil.normalizePath("foo/bar\\baz"));
         }
     }
 
@@ -84,6 +86,16 @@ public class FileUtilTest extends TestCase {
         assertEquals("bar", FileUtil.stripPath("/foo/bar"));
     }
 
+    public void testStripPathWithMixedSeparators() {
+        assertEquals(null, FileUtil.stripPath(null));
+        assertEquals("", FileUtil.stripPath("/"));
+        assertEquals("foo.xml", FileUtil.stripPath("/foo.xml"));
+        assertEquals("foo", FileUtil.stripPath("foo"));
+        assertEquals("baz", FileUtil.stripPath("foo/bar\\baz"));
+        assertEquals("bar", FileUtil.stripPath("\\foo\\bar"));
+        assertEquals("baz", FileUtil.stripPath("/foo\\bar/baz"));
+    }
+
     public void testStripExt() {
         assertEquals(null, FileUtil.stripExt(null));
         assertEquals("foo", FileUtil.stripExt("foo"));
@@ -100,6 +112,17 @@ public class FileUtilTest extends TestCase {
         assertEquals("/foo/bar", FileUtil.onlyPath("/foo/bar/baz.xml"));
         assertEquals("/", FileUtil.onlyPath("/foo.xml"));
         assertEquals("/bar", FileUtil.onlyPath("/bar/foo.xml"));
+    }
+
+    public void testOnlyPathWithMixedSeparators() {
+        assertEquals(null, FileUtil.onlyPath(null));
+        assertEquals(null, FileUtil.onlyPath("foo"));
+        assertEquals(null, FileUtil.onlyPath("foo.xml"));
+        assertEquals("foo", FileUtil.onlyPath("foo/bar.xml"));
+        assertEquals("/foo", FileUtil.onlyPath("/foo\\bar.xml"));
+        assertEquals("\\foo\\bar", FileUtil.onlyPath("\\foo\\bar/baz.xml"));
+        assertEquals("\\", FileUtil.onlyPath("\\foo.xml"));
+        assertEquals("/bar", FileUtil.onlyPath("/bar\\foo.xml"));
     }
 
     public void testCompactPath() {

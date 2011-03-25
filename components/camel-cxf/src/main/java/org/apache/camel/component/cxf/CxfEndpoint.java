@@ -40,8 +40,6 @@ import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
 import org.apache.camel.spring.SpringCamelContext;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.Bus;
 import org.apache.cxf.BusFactory;
 import org.apache.cxf.common.classloader.ClassLoaderUtils;
@@ -63,6 +61,8 @@ import org.apache.cxf.message.Message;
 import org.apache.cxf.message.MessageContentsList;
 import org.apache.cxf.service.model.BindingOperationInfo;
 import org.apache.cxf.service.model.MessagePartInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 
 /**
@@ -71,11 +71,11 @@ import org.springframework.context.ApplicationContext;
  * {@link CxfBinding}, and {@link HeaderFilterStrategy}.  The default DataFormat 
  * mode is {@link DataFormat#POJO}.  
  *
- * @version $Revision$
+ * @version 
  */
 public class CxfEndpoint extends DefaultEndpoint implements HeaderFilterStrategyAware, Service {
     
-    private static final Log LOG = LogFactory.getLog(CxfEndpoint.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CxfEndpoint.class);
 
     private String wsdlURL;
     private String serviceClass;
@@ -360,9 +360,9 @@ public class CxfEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
         
     }
     
-    void checkName(String value, String name) {
+    void checkName(Object value, String name) {
         if (ObjectHelper.isEmpty(value)) {
-            LOG.warn("The " + name + "is empty, cxf will try to load the first one in wsdl for you");
+            LOG.warn("The " + name + " of " + this.getEndpointUri() + " is empty, cxf will try to load the first one in wsdl for you.");
         }
     }
 
@@ -384,8 +384,8 @@ public class CxfEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
         ServerFactoryBean answer = null;
         
         if (cls == null) {
-            ObjectHelper.notNull(portName, "Please provide endpoint/port name");
-            ObjectHelper.notNull(serviceName, "Please provide service name");
+            checkName(portName, " endpoint/port name");
+            checkName(serviceName, " service name");
             answer = new ServerFactoryBean(new WSDLServiceFactoryBean());
         } else if (CxfEndpointUtils.hasWebServiceAnnotation(cls)) {
             answer = new JaxWsServerFactoryBean();
@@ -548,9 +548,10 @@ public class CxfEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
 
     public boolean isLoggingFeatureEnabled() {
         return loggingFeatureEnabled;
-    }    
+    }
 
-    public void start() throws Exception {
+    @Override
+    protected void doStart() throws Exception {
         if (headerFilterStrategy == null) {
             headerFilterStrategy = new CxfHeaderFilterStrategy();
         }
@@ -562,7 +563,8 @@ public class CxfEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
         }
     }
 
-    public void stop() throws Exception {
+    @Override
+    protected void doStop() throws Exception {
         // noop
     }
 
@@ -620,6 +622,11 @@ public class CxfEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
                         .equals(elements.get(i).getLocalName())) {
                         content.put(partInfo, elements.get(i++));
                     }
+                }
+                
+                if (content.size() < elements.size()) {
+                    LOG.warn("Cannot set right payload paremeters. Please check the BindingOperation and PayLoadMessage.");
+                    throw new IllegalArgumentException("The PayLoad elements cannot fit with the message parts of the BindingOperation. Please check the BindingOperation and PayLoadMessage.");
                 }
 
                 message.setContent(List.class, content);

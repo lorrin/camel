@@ -16,6 +16,7 @@
  */
 package org.apache.camel.management.mbean;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.camel.CamelContext;
@@ -31,11 +32,10 @@ import org.springframework.jmx.export.annotation.ManagedResource;
 
 @ManagedResource(description = "Managed Route")
 public class ManagedRoute extends ManagedPerformanceCounter {
-
     public static final String VALUE_UNKNOWN = "Unknown";
-    protected Route route;
-    protected String description;
-    protected CamelContext context;
+    protected final Route route;
+    protected final String description;
+    protected final CamelContext context;
 
     public ManagedRoute(CamelContext context, Route route) {
         this.route = route;
@@ -108,13 +108,17 @@ public class ManagedRoute extends ManagedPerformanceCounter {
         route.getRouteContext().setTracing(tracing);
     }
 
-    @ManagedAttribute(description = "Route Policy")
-    public String getRoutePolicy() {
-        RoutePolicy policy = route.getRouteContext().getRoutePolicy();
-        if (policy != null) {
+    @ManagedAttribute(description = "Route Policy List")
+    public String getRoutePolicyList() {
+        List<RoutePolicy> policyList = route.getRouteContext().getRoutePolicyList();
+        if (policyList != null) {
             StringBuilder sb = new StringBuilder();
-            sb.append(policy.getClass().getSimpleName());
-            sb.append("(").append(ObjectHelper.getIdentityHashCode(policy)).append(")");
+            for (RoutePolicy policy : policyList) {
+                sb.append(policy.getClass().getSimpleName());
+                sb.append("(").append(ObjectHelper.getIdentityHashCode(policy)).append(")");
+                sb.append(", ");
+            }
+            sb = sb.delete(sb.lastIndexOf(", "), sb.length() - 1);
             return sb.toString();
         }
         return null;
@@ -142,6 +146,14 @@ public class ManagedRoute extends ManagedPerformanceCounter {
             throw new IllegalArgumentException("CamelContext is not started");
         }
         context.stopRoute(getRouteId(), timeout, TimeUnit.SECONDS);
+    }
+
+    @ManagedOperation(description = "Stop route, abort stop after timeout (in seconds)")
+    public boolean stop(Long timeout, Boolean abortAfterTimeout) throws Exception {
+        if (!context.getStatus().isStarted()) {
+            throw new IllegalArgumentException("CamelContext is not started");
+        }
+        return context.stopRoute(getRouteId(), timeout, TimeUnit.SECONDS, abortAfterTimeout);
     }
 
     @ManagedOperation(description = "Shutdown and remove route")

@@ -16,38 +16,38 @@
  */
 package org.apache.camel.component.restlet;
 
+import java.io.File;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Map;
-
 import javax.xml.transform.dom.DOMSource;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
-import org.apache.camel.RuntimeCamelException;
+import org.apache.camel.component.file.GenericFile;
 import org.apache.camel.converter.jaxp.StringSource;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.restlet.Request;
+import org.restlet.Response;
 import org.restlet.data.ChallengeResponse;
 import org.restlet.data.ChallengeScheme;
 import org.restlet.data.CharacterSet;
 import org.restlet.data.Form;
 import org.restlet.data.MediaType;
 import org.restlet.data.Method;
-import org.restlet.data.Parameter;
-import org.restlet.data.Request;
-import org.restlet.data.Response;
 import org.restlet.data.Status;
+import org.restlet.representation.FileRepresentation;
+import org.restlet.representation.InputRepresentation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Default Restlet binding implementation
- *
- * @version $Revision$
  */
 public class DefaultRestletBinding implements RestletBinding, HeaderFilterStrategyAware {
-    private static final Log LOG = LogFactory.getLog(DefaultRestletBinding.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultRestletBinding.class);
     private HeaderFilterStrategy headerFilterStrategy;
 
     public void populateExchangeFromRestletRequest(Request request, Exchange exchange) throws Exception {
@@ -81,7 +81,7 @@ public class DefaultRestletBinding implements RestletBinding, HeaderFilterStrate
         }
 
         // only deal with the form if the content type is "application/x-www-form-urlencoded"
-        if (request.getEntity().getMediaType().equals(MediaType.APPLICATION_WWW_FORM)) {
+        if (request.getEntity().getMediaType() != null && request.getEntity().getMediaType().equals(MediaType.APPLICATION_WWW_FORM)) {
             Form form = new Form(request.getEntity());
             for (Map.Entry<String, String> entry : form.getValuesMap().entrySet()) {
                 if (entry.getValue() == null) {
@@ -215,11 +215,29 @@ public class DefaultRestletBinding implements RestletBinding, HeaderFilterStrate
             }
         }
 
-        String text = out.getBody(String.class);
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Populate Restlet response from exchange body: " + text);
+        // set response body according to the message body
+        Object body = out.getBody();
+        if (body instanceof GenericFile) {
+            // grab body from generic file holder
+            GenericFile gf = (GenericFile) body;
+            body = gf.getBody();
         }
-        response.setEntity(text, mediaType);
+
+        if (body == null) {
+            // empty response
+            response.setEntity("", MediaType.TEXT_PLAIN);
+        } else if (body instanceof InputStream) {
+            response.setEntity(new InputRepresentation(out.getBody(InputStream.class), mediaType));
+        } else if (body instanceof File) {
+            response.setEntity(new FileRepresentation(out.getBody(File.class), mediaType));
+        } else if (body != null) {
+            // fallback and use string
+            String text = out.getBody(String.class);
+            response.setEntity(text, mediaType);
+        }
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Populate Restlet response from exchange body: " + body);
+        }
 
         if (exchange.getProperty(Exchange.CHARSET_NAME) != null) {
             CharacterSet cs = CharacterSet.valueOf(exchange.getProperty(Exchange.CHARSET_NAME, String.class));

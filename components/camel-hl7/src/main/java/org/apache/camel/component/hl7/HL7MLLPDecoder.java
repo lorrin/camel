@@ -19,12 +19,12 @@ package org.apache.camel.component.hl7;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.mina.common.ByteBuffer;
 import org.apache.mina.common.IoSession;
 import org.apache.mina.filter.codec.CumulativeProtocolDecoder;
 import org.apache.mina.filter.codec.ProtocolDecoderOutput;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * HL7MLLPDecoder that is aware that a HL7 message can span several TCP packets.
@@ -32,7 +32,7 @@ import org.apache.mina.filter.codec.ProtocolDecoderOutput;
  */
 class HL7MLLPDecoder extends CumulativeProtocolDecoder {
 
-    private static final transient Log LOG = LogFactory.getLog(HL7MLLPDecoder.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(HL7MLLPDecoder.class);
 
     private static final String CHARSET_DECODER = HL7MLLPDecoder.class.getName() + ".charsetdecoder";
     private static final String DECODER_STATE = HL7MLLPDecoder.class.getName() + ".STATE";

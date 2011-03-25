@@ -29,17 +29,19 @@ import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.impl.converter.AsyncProcessorTypeConverter;
 import org.apache.camel.util.AsyncProcessorHelper;
 import org.apache.camel.util.ExchangeHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.apache.camel.processor.PipelineHelper.continueProcessing;
 
 /**
  * Creates a Pipeline pattern where the output of the previous step is sent as
  * input to the next step, reusing the same message exchanges
  *
- * @version $Revision$
+ * @version 
  */
 public class Pipeline extends MulticastProcessor implements AsyncProcessor, Traceable {
-    private static final transient Log LOG = LogFactory.getLog(Pipeline.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(Pipeline.class);
 
     public Pipeline(CamelContext camelContext, Collection<Processor> processors) {
         super(camelContext, processors);
@@ -92,27 +94,7 @@ public class Pipeline extends MulticastProcessor implements AsyncProcessor, Trac
             }
 
             // check for error if so we should break out
-            boolean exceptionHandled = hasExceptionBeenHandledByErrorHandler(nextExchange);
-            if (nextExchange.isFailed() || nextExchange.isRollbackOnly() || exceptionHandled) {
-                // The Exchange.ERRORHANDLED_HANDLED property is only set if satisfactory handling was done
-                // by the error handler. It's still an exception, the exchange still failed.
-                if (LOG.isDebugEnabled()) {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("Message exchange has failed so breaking out of pipeline: ").append(nextExchange);
-                    if (nextExchange.isRollbackOnly()) {
-                        sb.append(" Marked as rollback only.");
-                    }
-                    if (nextExchange.getException() != null) {
-                        sb.append(" Exception: ").append(nextExchange.getException());
-                    }
-                    if (nextExchange.hasOut() && nextExchange.getOut().isFault()) {
-                        sb.append(" Fault: ").append(nextExchange.getOut());
-                    }
-                    if (exceptionHandled) {
-                        sb.append(" Handled by the error handler.");
-                    }
-                    LOG.debug(sb.toString());
-                }
+            if (!continueProcessing(nextExchange, "so breaking out of pipeline", LOG)) {
                 break;
             }
         }
@@ -153,27 +135,7 @@ public class Pipeline extends MulticastProcessor implements AsyncProcessor, Trac
                     AsyncProcessor processor = AsyncProcessorTypeConverter.convert(processors.next());
 
                     // check for error if so we should break out
-                    boolean exceptionHandled = hasExceptionBeenHandledByErrorHandler(nextExchange);
-                    if (nextExchange.isFailed() || nextExchange.isRollbackOnly() || exceptionHandled) {
-                        // The Exchange.ERRORHANDLED_HANDLED property is only set if satisfactory handling was done
-                        // by the error handler. It's still an exception, the exchange still failed.
-                        if (LOG.isDebugEnabled()) {
-                            StringBuilder sb = new StringBuilder();
-                            sb.append("Message exchange has failed so breaking out of pipeline: ").append(nextExchange);
-                            if (nextExchange.isRollbackOnly()) {
-                                sb.append(" Marked as rollback only.");
-                            }
-                            if (nextExchange.getException() != null) {
-                                sb.append(" Exception: ").append(nextExchange.getException());
-                            }
-                            if (nextExchange.hasOut() && nextExchange.getOut().isFault()) {
-                                sb.append(" Fault: ").append(nextExchange.getOut());
-                            }
-                            if (exceptionHandled) {
-                                sb.append(" Handled by the error handler.");
-                            }
-                            LOG.debug(sb.toString());
-                        }
+                    if (!continueProcessing(nextExchange, "so breaking out of pipeline", LOG)) {
                         break;
                     }
 
@@ -196,10 +158,6 @@ public class Pipeline extends MulticastProcessor implements AsyncProcessor, Trac
         });
 
         return sync;
-    }
-
-    private static boolean hasExceptionBeenHandledByErrorHandler(Exchange nextExchange) {
-        return Boolean.TRUE.equals(nextExchange.getProperty(Exchange.ERRORHANDLER_HANDLED));
     }
 
     /**

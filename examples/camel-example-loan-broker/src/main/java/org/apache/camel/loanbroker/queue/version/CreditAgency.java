@@ -18,20 +18,20 @@ package org.apache.camel.loanbroker.queue.version;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 //START SNIPPET: creditAgency
 public class CreditAgency implements Processor {
-    private static final transient Log LOG = LogFactory.getLog(CreditAgency.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(CreditAgency.class);
 
     public void process(Exchange exchange) throws Exception {
         LOG.info("Receiving credit agency request");
         String ssn = exchange.getIn().getHeader(Constants.PROPERTY_SSN, String.class);
         int score = (int) (Math.random() * 600 + 300);
         int hlength = (int) (Math.random() * 19 + 1);
-        exchange.getOut().setHeader(Constants.PROPERTY_SCORE, new Integer(score));
-        exchange.getOut().setHeader(Constants.PROPERTY_HISTORYLENGTH, new Integer(hlength));
+        exchange.getOut().setHeader(Constants.PROPERTY_SCORE, score);
+        exchange.getOut().setHeader(Constants.PROPERTY_HISTORYLENGTH, hlength);
         exchange.getOut().setHeader(Constants.PROPERTY_SSN, ssn);
         exchange.getOut().setBody("CreditAgency processed the request.");
     }

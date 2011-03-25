@@ -27,7 +27,7 @@ import javax.jms.TemporaryQueue;
  * <p/>
  * <b>Important:</b> Need to be really careful to always use the same Connection otherwise the destination goes stale
  *
- * @version $Revision$
+ * @version 
  */
 public class JmsTemporaryQueueEndpoint extends JmsQueueEndpoint implements DestinationEndpoint {
     private Destination jmsDestination;
@@ -61,12 +61,6 @@ public class JmsTemporaryQueueEndpoint extends JmsQueueEndpoint implements Desti
         return true;
     }
     
-    @Override
-    public Object getManagedObject(JmsEndpoint object) {
-        // We don't want to manage this temporary object, so return null
-        return null;
-    }
-
     public synchronized Destination getJmsDestination(Session session) throws JMSException {
         if (jmsDestination == null) {
             jmsDestination = createJmsDestination(session);

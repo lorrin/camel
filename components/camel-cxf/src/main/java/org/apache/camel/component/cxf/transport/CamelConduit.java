@@ -18,8 +18,6 @@ package org.apache.camel.component.cxf.transport;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
@@ -33,7 +31,7 @@ import org.apache.camel.component.cxf.util.CxfHeaderHelper;
 import org.apache.camel.component.cxf.util.CxfMessageHelper;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.spi.HeaderFilterStrategy;
-import org.apache.camel.util.IOHelper;
+import org.apache.camel.util.ObjectHelper;
 import org.apache.cxf.Bus;
 import org.apache.cxf.common.logging.LogUtils;
 import org.apache.cxf.configuration.Configurable;
@@ -46,13 +44,18 @@ import org.apache.cxf.transport.Conduit;
 import org.apache.cxf.transport.Destination;
 import org.apache.cxf.transport.MessageObserver;
 import org.apache.cxf.ws.addressing.EndpointReferenceType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class CamelConduit extends AbstractConduit implements Configurable {
     protected static final String BASE_BEAN_NAME_SUFFIX = ".camel-conduit";
-    private static final Logger LOG = LogUtils.getL7dLogger(CamelConduit.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CamelConduit.class);
+    // used for places where CXF requires JUL
+    private static final java.util.logging.Logger JUL_LOG = LogUtils.getL7dLogger(CamelConduit.class);
+
     private CamelContext camelContext;
     private EndpointInfo endpointInfo;
     private String targetCamelEndpointUri;
@@ -98,31 +101,28 @@ public class CamelConduit extends AbstractConduit implements Configurable {
     }
 
     public CamelContext getCamelContext() {
-        if (camelContext == null) {
-            getLogger().log(Level.INFO, "No CamelContext injected, create a default one");
-            camelContext = new DefaultCamelContext();
-        }
+        ObjectHelper.notNull(camelContext, "CamelContext", this);
         return camelContext;
     }
 
     // prepare the message for send out , not actually send out the message
     public void prepare(Message message) throws IOException {
-        getLogger().log(Level.FINE, "CamelConduit send message");
+        LOG.trace("CamelConduit send message");
         message.setContent(OutputStream.class, new CamelOutputStream(message));
     }
 
     public void close() {
-        getLogger().log(Level.FINE, "CamelConduit closed ");
+        LOG.trace("CamelConduit closed ");
         // shutdown the producer
         try {
             producer.stop();
         } catch (Exception e) {
-            getLogger().log(Level.WARNING, "CamelConduit producer stop with the exception", e);
+            LOG.warn("CamelConduit producer stop with the exception", e);
         }
     }
 
-    protected Logger getLogger() {
-        return LOG;
+    protected java.util.logging.Logger getLogger() {
+        return JUL_LOG;
     }
 
     public String getBeanName() {
@@ -144,7 +144,7 @@ public class CamelConduit extends AbstractConduit implements Configurable {
 
     @Deprecated
     public ProducerTemplate getCamelTemplate() throws Exception {
-        if (camelTemplate == null) {            
+        if (camelTemplate == null) {
             camelTemplate = getCamelContext().createProducerTemplate();
         }
         return camelTemplate;
@@ -184,27 +184,29 @@ public class CamelConduit extends AbstractConduit implements Configurable {
             } else {
                 pattern = ExchangePattern.InOut;
             }
-            getLogger().log(Level.FINE, "send the message to endpoint" + targetCamelEndpointUri);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("send the message to endpoint" + targetCamelEndpointUri);
+            }
             org.apache.camel.Exchange exchange = producer.createExchange(pattern);
-            
+
             exchange.setProperty(Exchange.TO_ENDPOINT, targetCamelEndpointUri);
-            CachedOutputStream outputStream = (CachedOutputStream)outMessage.getContent(OutputStream.class);
+            CachedOutputStream outputStream = (CachedOutputStream) outMessage.getContent(OutputStream.class);
             // Send out the request message here, copy the protocolHeader back
             CxfHeaderHelper.propagateCxfToCamel(headerFilterStrategy, outMessage, exchange.getIn().getHeaders(), exchange);
 
             // TODO support different encoding
             exchange.getIn().setBody(outputStream.getBytes());
-            getLogger().log(Level.FINE, "template sending request: ", exchange.getIn());
-            Exception exception = null;
+            LOG.debug("template sending request: ", exchange.getIn());
+            Exception exception;
             try {
                 producer.process(exchange);
             } catch (Exception ex) {
-                exception = ex;                
+                exception = ex;
             }
             // Throw the exception that the template get
-            exception = exchange.getException();            
+            exception = exchange.getException();
             if (exception != null) {
-                throw IOHelper.createIOException("Can't send the request message.", exchange.getException());
+                throw new IOException("Cannot send the request message.", exchange.getException());
             }
             exchange.setProperty(CxfConstants.CXF_EXCHANGE, outMessage.getExchange());
             if (!isOneWay) {
@@ -216,11 +218,9 @@ public class CamelConduit extends AbstractConduit implements Configurable {
         private void handleResponse(org.apache.camel.Exchange exchange) throws IOException {
             org.apache.cxf.message.Message inMessage = null;
             try {
-                inMessage = CxfMessageHelper.getCxfInMessage(headerFilterStrategy,
-                    exchange, true);
+                inMessage = CxfMessageHelper.getCxfInMessage(headerFilterStrategy, exchange, true);
             } catch (Exception ex) {
-                // Throw IOException here
-                throw IOHelper.createIOException("Can't get the response message. ", ex);
+                throw new IOException("Cannot get the response message. ", ex);
             }
             incomingObserver.onMessage(inMessage);
         }

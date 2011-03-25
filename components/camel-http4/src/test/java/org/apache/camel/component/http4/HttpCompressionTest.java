@@ -47,7 +47,7 @@ import org.junit.Test;
 
 /**
  * 
- * @version $Revision$
+ * @version 
  */
 public class HttpCompressionTest extends BaseHttpTest {
 
@@ -127,6 +127,11 @@ public class HttpCompressionTest extends BaseHttpTest {
             public long getContentLength() {
                 return -1;
             }
+            
+            @Override
+            public boolean isStreaming() {
+                return false;
+            }
         }
     }
 
@@ -160,7 +165,11 @@ public class HttpCompressionTest extends BaseHttpTest {
             public long getContentLength() {
                 return -1;
             }
+            
+            @Override
+            public boolean isStreaming() {
+                return false;
+            }
         }
     }
-    
 }

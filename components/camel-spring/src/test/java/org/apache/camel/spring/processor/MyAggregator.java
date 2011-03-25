@@ -19,16 +19,16 @@ package org.apache.camel.spring.processor;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.camel.processor.aggregate.AggregationStrategy;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A simple aggregator which just appends the message bodies together
  *
- * @version $Revision$
+ * @version 
  */
 public class MyAggregator implements AggregationStrategy {
-    private static final transient Log LOG = LogFactory.getLog(MyAggregator.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(MyAggregator.class);
 
     public Exchange aggregate(Exchange oldExchange, Exchange newExchange) {
         // lets append the old body to the new body

@@ -16,9 +16,6 @@
  */
 package org.apache.camel.model;
 
-import java.util.Collections;
-import java.util.List;
-
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
@@ -35,13 +32,13 @@ import org.apache.camel.util.ObjectHelper;
 /**
  * Base class for sending to an endpoint with an optional {@link ExchangePattern}
  *
- * @version $Revision$
+ * @version 
  */
 @XmlAccessorType(XmlAccessType.FIELD)
-public abstract class SendDefinition<Type extends ProcessorDefinition<Type>> extends ProcessorDefinition<Type> {
-    @XmlAttribute(required = false)
+public abstract class SendDefinition<Type extends ProcessorDefinition<Type>> extends NoOutputDefinition<Type> {
+    @XmlAttribute
     protected String uri;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     protected String ref;
     @XmlTransient
     protected Endpoint endpoint;
@@ -86,6 +83,14 @@ public abstract class SendDefinition<Type extends ProcessorDefinition<Type>> ext
         this.uri = uri;
     }
 
+    /**
+     * Gets tne endpoint if an {@link Endpoint} instance was set.
+     * <p/>
+     * This implementation may return <tt>null</tt> which means you need to use
+     * {@link #getRef()} or {@link #getUri()} to get information about the endpoint.
+     *
+     * @return the endpoint instance, or <tt>null</tt>
+     */
     public Endpoint getEndpoint() {
         return endpoint;
     }
@@ -96,10 +101,6 @@ public abstract class SendDefinition<Type extends ProcessorDefinition<Type>> ext
 
     public ExchangePattern getPattern() {
         return null;
-    }
-
-    public List<ProcessorDefinition> getOutputs() {
-        return Collections.emptyList();
     }
 
     /**

@@ -26,7 +26,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class DataFormatTest extends CamelTestSupport {
     
@@ -41,7 +41,6 @@ public class DataFormatTest extends CamelTestSupport {
 
     @Test
     public void testMarshalThenUnmarshalBean() throws Exception {
-        
         PurchaseOrder bean = new PurchaseOrder();
         bean.setName("Beer");
         bean.setAmount(23);
@@ -76,7 +75,6 @@ public class DataFormatTest extends CamelTestSupport {
         assertTrue("we should find the <firstName>", indexFirstName > 0);
         assertTrue("There should some sapce between <Person> and <firstName>", indexFirstName - indexPerson > 8);
     }
-
 
     protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {

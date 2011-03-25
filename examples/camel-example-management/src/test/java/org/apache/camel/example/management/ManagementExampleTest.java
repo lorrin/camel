@@ -26,7 +26,7 @@ import org.springframework.context.support.AbstractXmlApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class ManagementExampleTest extends CamelSpringTestSupport {
 
@@ -43,7 +43,8 @@ public class ManagementExampleTest extends CamelSpringTestSupport {
 
         // Find the endpoints
         Set<ObjectName> set = mbeanServer.queryNames(new ObjectName("*:type=endpoints,*"), null);
-        assertEquals(6, set.size()); 
+        // now there is no managed endpoint for the dead queue
+        assertEquals(5, set.size()); 
         
         // Find the routes
         set = mbeanServer.queryNames(new ObjectName("*:type=routes,*"), null);

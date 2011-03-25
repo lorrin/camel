@@ -21,6 +21,7 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 
+import org.apache.camel.CamelException;
 import org.apache.camel.spi.DataFormat;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.util.IntrospectionSupport;
@@ -29,7 +30,7 @@ import org.apache.camel.util.ObjectHelper;
 /**
  * Represents the base XML type for DataFormat.
  *
- * @version $Revision$
+ * @version 
  */
 @XmlType(name = "dataFormat")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -83,8 +84,13 @@ public class DataFormatDefinition extends IdentifiedType {
     public DataFormat getDataFormat(RouteContext routeContext) {
         if (dataFormat == null) {
             dataFormat = createDataFormat(routeContext);
-            ObjectHelper.notNull(dataFormat, "dataFormat");
-            configureDataFormat(dataFormat);
+            if (dataFormat != null) {
+                configureDataFormat(dataFormat);
+            } else {
+                throw new IllegalArgumentException(
+                    "Data format '" + (dataFormatName != null ? dataFormatName : "<null>") + "' could not be created. "
+                    + "Ensure that the dataformat is valid and the associated Camel component is present on the classpath");
+            }
         }
         return dataFormat;
     }

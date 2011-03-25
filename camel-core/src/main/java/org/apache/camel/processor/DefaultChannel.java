@@ -17,12 +17,14 @@
 package org.apache.camel.processor;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.camel.AsyncCallback;
 import org.apache.camel.AsyncProcessor;
 import org.apache.camel.CamelContext;
+import org.apache.camel.CamelContextAware;
 import org.apache.camel.Channel;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
@@ -37,9 +39,10 @@ import org.apache.camel.spi.InterceptStrategy;
 import org.apache.camel.spi.LifecycleStrategy;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.util.AsyncProcessorHelper;
+import org.apache.camel.util.OrderedComparator;
 import org.apache.camel.util.ServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * DefaultChannel is the default {@link Channel}.
@@ -51,11 +54,11 @@ import org.apache.commons.logging.LogFactory;
  * {@link Exchange} in the route graph, as we have a {@link Channel} between each and every node
  * in the graph.
  *
- * @version $Revision$
+ * @version 
  */
 public class DefaultChannel extends ServiceSupport implements Channel {
 
-    private static final transient Log LOG = LogFactory.getLog(DefaultChannel.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(DefaultChannel.class);
 
     private final List<InterceptStrategy> interceptors = new ArrayList<InterceptStrategy>();
     private Processor errorHandler;
@@ -148,6 +151,7 @@ public class DefaultChannel extends ServiceSupport implements Channel {
         ServiceHelper.stopServices(output, errorHandler);
     }
 
+    @SuppressWarnings("unchecked")
     public void initChannel(ProcessorDefinition<?> outputDefinition, RouteContext routeContext) throws Exception {
         this.routeContext = routeContext;
         this.definition = outputDefinition;
@@ -155,6 +159,11 @@ public class DefaultChannel extends ServiceSupport implements Channel {
 
         Processor target = nextProcessor;
         Processor next;
+
+        // init CamelContextAware as early as possible on target
+        if (target instanceof CamelContextAware) {
+            ((CamelContextAware) target).setCamelContext(camelContext);
+        }
 
         // first wrap the output with the managed strategy if any
         InterceptStrategy managed = routeContext.getManagedInterceptStrategy();
@@ -171,6 +180,10 @@ public class DefaultChannel extends ServiceSupport implements Channel {
         trace.setRouteContext(routeContext);
         target = trace;
 
+        // sort interceptors according to ordered
+        Collections.sort(interceptors, new OrderedComparator());
+        // then reverse list so the first will be wrapped last, as it would then be first being invoked
+        Collections.reverse(interceptors);
         // wrap the output with the configured interceptors
         for (InterceptStrategy strategy : interceptors) {
             next = target == nextProcessor ? null : nextProcessor;
@@ -178,13 +191,13 @@ public class DefaultChannel extends ServiceSupport implements Channel {
             if (strategy instanceof Tracer) {
                 continue;
             }
-            Processor wrapped = strategy.wrapProcessorInInterceptors(routeContext.getCamelContext(), outputDefinition, target, next); 
+            Processor wrapped = strategy.wrapProcessorInInterceptors(routeContext.getCamelContext(), outputDefinition, target, next);
             if (!(wrapped instanceof AsyncProcessor)) {
                 LOG.warn("Interceptor: " + strategy + " at: " + outputDefinition + " does not return an AsyncProcessor instance."
-                    + " This causes the asynchronous routing engine to not work as optimal as possible."
-                    + " See more details at the InterceptStrategy javadoc."
-                    + " Camel will use a bridge to adapt the interceptor to the asynchronous routing engine,"
-                    + " but its not the most optimal solution. Please consider changing your interceptor to comply.");
+                        + " This causes the asynchronous routing engine to not work as optimal as possible."
+                        + " See more details at the InterceptStrategy javadoc."
+                        + " Camel will use a bridge to adapt the interceptor to the asynchronous routing engine,"
+                        + " but its not the most optimal solution. Please consider changing your interceptor to comply.");
 
                 // use a bridge and wrap again which allows us to adapt and leverage the asynchronous routing engine anyway
                 // however its not the most optimal solution, but we can still run.

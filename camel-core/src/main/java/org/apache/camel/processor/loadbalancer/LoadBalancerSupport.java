@@ -26,8 +26,8 @@ import org.apache.camel.Processor;
 import org.apache.camel.impl.ServiceSupport;
 import org.apache.camel.util.AsyncProcessorHelper;
 import org.apache.camel.util.ServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A default base class for a {@link LoadBalancer} implementation.
@@ -37,11 +37,11 @@ import org.apache.commons.logging.LogFactory;
  * Consider using the {@link SimpleLoadBalancerSupport} if your load balancer does not by nature
  * support asynchronous routing.
  *
- * @version $Revision$
+ * @version 
  */
 public abstract class LoadBalancerSupport extends ServiceSupport implements LoadBalancer, Navigate<Processor> {
 
-    protected final Log log = LogFactory.getLog(getClass());
+    protected final Logger log = LoggerFactory.getLogger(getClass());
     private final List<Processor> processors = new CopyOnWriteArrayList<Processor>();
 
     public void addProcessor(Processor processor) {

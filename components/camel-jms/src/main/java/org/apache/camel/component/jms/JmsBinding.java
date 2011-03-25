@@ -25,6 +25,7 @@ import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.jms.BytesMessage;
@@ -51,9 +52,10 @@ import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.util.CamelContextHelper;
 import org.apache.camel.util.ExchangeHelper;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import static org.apache.camel.component.jms.JmsMessageHelper.normalizeDestinationName;
 import static org.apache.camel.component.jms.JmsMessageType.Bytes;
 import static org.apache.camel.component.jms.JmsMessageType.Map;
 import static org.apache.camel.component.jms.JmsMessageType.Object;
@@ -63,10 +65,10 @@ import static org.apache.camel.component.jms.JmsMessageType.Text;
  * A Strategy used to convert between a Camel {@link Exchange} and {@link JmsMessage}
  * to and from a JMS {@link Message}
  *
- * @version $Revision$
+ * @version 
  */
 public class JmsBinding {
-    private static final transient Log LOG = LogFactory.getLog(JmsBinding.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(JmsBinding.class);
     private final JmsEndpoint endpoint;
     private final HeaderFilterStrategy headerFilterStrategy;
     private final JmsKeyFormatStrategy jmsKeyFormatStrategy;
@@ -173,18 +175,8 @@ public class JmsBinding {
                 map.put("JMSRedelivered", jmsMessage.getJMSRedelivered());
                 map.put("JMSTimestamp", jmsMessage.getJMSTimestamp());
 
-                // to work around OracleAQ not supporting the JMSReplyTo header (CAMEL-2909)
-                try {
-                    map.put("JMSReplyTo", jmsMessage.getJMSReplyTo());
-                } catch (JMSException e) {
-                    LOG.trace("Cannot read JMSReplyTo header. Will ignore this exception.", e);
-                }
-                // to work around OracleAQ not supporting the JMSType header (CAMEL-2909)
-                try {
-                    map.put("JMSType", jmsMessage.getJMSType());
-                } catch (JMSException e) {
-                    LOG.trace("Cannot read JMSType header. Will ignore this exception.", e);
-                }
+                map.put("JMSReplyTo", JmsMessageHelper.getJMSReplyTo(jmsMessage));
+                map.put("JMSType", JmsMessageHelper.getJMSType(jmsMessage));
 
                 // this works around a bug in the ActiveMQ property handling
                 map.put("JMSXGroupID", jmsMessage.getStringProperty("JMSXGroupID"));
@@ -267,9 +259,10 @@ public class JmsBinding {
         Message answer = null;
 
         boolean alwaysCopy = endpoint != null && endpoint.getConfiguration().isAlwaysCopyMessage();
+        boolean force = endpoint != null && endpoint.getConfiguration().isForceSendOriginalMessage();
         if (!alwaysCopy && camelMessage instanceof JmsMessage) {
             JmsMessage jmsMessage = (JmsMessage)camelMessage;
-            if (!jmsMessage.shouldCreateNewMessage()) {
+            if (!jmsMessage.shouldCreateNewMessage() || force) {
                 answer = jmsMessage.getJmsMessage();
             }
         }
@@ -304,7 +297,7 @@ public class JmsBinding {
      * Appends the JMS headers from the Camel {@link JmsMessage}
      */
     public void appendJmsProperties(Message jmsMessage, Exchange exchange, org.apache.camel.Message in) throws JMSException {
-        Set<Map.Entry<String, Object>> entries = in.getHeaders().entrySet();
+        Set<Map.Entry<String, Object>> entries = in.getHeaders().entrySet();        
         for (Map.Entry<String, Object> entry : entries) {
             String headerName = entry.getKey();
             Object headerValue = entry.getValue();
@@ -318,7 +311,12 @@ public class JmsBinding {
             if (headerName.equals("JMSCorrelationID")) {
                 jmsMessage.setJMSCorrelationID(ExchangeHelper.convertToType(exchange, String.class, headerValue));
             } else if (headerName.equals("JMSReplyTo") && headerValue != null) {
-                jmsMessage.setJMSReplyTo(ExchangeHelper.convertToType(exchange, Destination.class, headerValue));
+                if (headerValue instanceof String) {
+                    // if the value is a String we must normalize it first
+                    headerValue = normalizeDestinationName((String) headerValue);
+                }
+                Destination replyTo = ExchangeHelper.convertToType(exchange, Destination.class, headerValue);
+                JmsMessageHelper.setJMSReplyTo(jmsMessage, replyTo);
             } else if (headerName.equals("JMSType")) {
                 jmsMessage.setJMSType(ExchangeHelper.convertToType(exchange, String.class, headerValue));
             } else if (headerName.equals("JMSPriority")) {
@@ -545,10 +543,10 @@ public class JmsBinding {
      */
     protected void populateMapMessage(MapMessage message, Map<?, ?> map, CamelContext context)
         throws JMSException {
-        for (Object key : map.keySet()) {
-            String keyString = CamelContextHelper.convertTo(context, String.class, key);
+        for (Entry<?, ?> entry : map.entrySet()) {
+            String keyString = CamelContextHelper.convertTo(context, String.class, entry.getKey());
             if (keyString != null) {
-                message.setObject(keyString, map.get(key));
+                message.setObject(keyString, entry.getValue());
             }
         }
     }

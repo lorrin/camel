@@ -27,14 +27,13 @@ import org.springframework.jmx.export.annotation.ManagedAttribute;
 import org.springframework.jmx.export.annotation.ManagedResource;
 
 /**
- * @version $Revision$
+ * @version 
  */
 @ManagedResource(description = "Managed ErrorHandler")
 public class ManagedErrorHandler {
-
-    private RouteContext routeContext;
-    private Processor errorHandler;
-    private ErrorHandlerBuilder errorHandlerBuilder;
+    private final RouteContext routeContext;
+    private final Processor errorHandler;
+    private final ErrorHandlerBuilder errorHandlerBuilder;
 
     public ManagedErrorHandler(RouteContext routeContext, Processor errorHandler, ErrorHandlerBuilder builder) {
         this.routeContext = routeContext;

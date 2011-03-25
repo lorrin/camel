@@ -36,6 +36,7 @@ import org.apache.camel.Predicate;
 import org.apache.camel.builder.PredicateBuilder;
 import org.apache.camel.impl.DefaultRouteContext;
 import org.apache.camel.spi.Language;
+import org.apache.camel.spi.Required;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.util.CollectionStringBuffer;
 import org.apache.camel.util.IntrospectionSupport;
@@ -44,7 +45,7 @@ import org.apache.camel.util.ObjectHelper;
 /**
  * A useful base class for an expression
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement
 @XmlType(name = "expression")
@@ -54,7 +55,7 @@ public class ExpressionDefinition implements Expression, Predicate {
     @XmlJavaTypeAdapter(CollapsedStringAdapter.class)
     @XmlID
     private String id;
-    @XmlValue()
+    @XmlValue
     private String expression;
     @XmlTransient
     private Predicate predicate;
@@ -179,6 +180,7 @@ public class ExpressionDefinition implements Expression, Predicate {
         return expression;
     }
 
+    @Required
     public void setExpression(String expression) {
         this.expression = expression;
     }

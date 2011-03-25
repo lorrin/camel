@@ -25,15 +25,15 @@ import org.apache.camel.AsyncCallback;
 import org.apache.camel.AsyncProcessor;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Helper methods for {@link AsyncProcessor} objects.
  */
 public final class AsyncProcessorHelper {
 
-    private static final transient Log LOG = LogFactory.getLog(AsyncProcessorHelper.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(AsyncProcessorHelper.class);
 
     private AsyncProcessorHelper() {
         // utility class
@@ -66,8 +66,20 @@ public final class AsyncProcessorHelper {
             callback.done(true);
             sync = true;
         } else {
+            // allow unit of work to wrap callback in case it need to do some special work
+            // for example the MDCUnitOfWork
+            AsyncCallback async = callback;
+            if (exchange.getUnitOfWork() != null) {
+                async = exchange.getUnitOfWork().beforeProcess(processor, exchange, callback);
+            }
+
             // we support asynchronous routing so invoke it
-            sync = processor.process(exchange, callback);
+            sync = processor.process(exchange, async);
+
+            // execute any after processor work
+            if (exchange.getUnitOfWork() != null) {
+                exchange.getUnitOfWork().afterProcess(processor, exchange, callback, sync);
+            }
         }
 
         if (LOG.isTraceEnabled()) {

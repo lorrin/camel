@@ -21,11 +21,11 @@ import org.apache.camel.AsyncProcessor;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.impl.DefaultUnitOfWork;
+import org.apache.camel.impl.MDCUnitOfWork;
 import org.apache.camel.spi.RouteContext;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import static org.apache.camel.util.ObjectHelper.wrapRuntimeCamelException;
+import org.apache.camel.spi.UnitOfWork;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Ensures the {@link Exchange} is routed under the boundaries of an {@link org.apache.camel.spi.UnitOfWork}.
@@ -35,7 +35,7 @@ import static org.apache.camel.util.ObjectHelper.wrapRuntimeCamelException;
  */
 public final class UnitOfWorkProcessor extends DelegateAsyncProcessor {
 
-    private static final transient Log LOG = LogFactory.getLog(UnitOfWorkProcessor.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(UnitOfWorkProcessor.class);
     private final RouteContext routeContext;
     private final String routeId;
 
@@ -85,28 +85,54 @@ public final class UnitOfWorkProcessor extends DelegateAsyncProcessor {
         }
 
         if (exchange.getUnitOfWork() == null) {
+            UnitOfWork unitOfWork;
             // If there is no existing UoW, then we should start one and
             // terminate it once processing is completed for the exchange.
-            final DefaultUnitOfWork uow = new DefaultUnitOfWork(exchange);
+            if (exchange.getContext().isUseMDCLogging()) {
+                unitOfWork = new MDCUnitOfWork(exchange);
+            } else {
+                unitOfWork = new DefaultUnitOfWork(exchange);
+            }
+            final UnitOfWork uow = unitOfWork;
+
             exchange.setUnitOfWork(uow);
             try {
                 uow.start();
             } catch (Exception e) {
-                throw wrapRuntimeCamelException(e);
+                callback.done(true);
+                exchange.setException(e);
+                return true;
             }
 
             // process the exchange
-            return processor.process(exchange, new AsyncCallback() {
-                public void done(boolean doneSync) {
-                    // Order here matters. We need to complete the callbacks
-                    // since they will likely update the exchange with some final results.
-                    try {
-                        callback.done(doneSync);
-                    } finally {
-                        doneUow(uow, exchange);
+            try {
+                return processor.process(exchange, new AsyncCallback() {
+                    public void done(boolean doneSync) {
+                        // Order here matters. We need to complete the callbacks
+                        // since they will likely update the exchange with some final results.
+                        try {
+                            callback.done(doneSync);
+                        } finally {
+                            doneUow(uow, exchange);
+                        }
                     }
+                });
+            } catch (Throwable e) {
+                LOG.warn("Caught unhandled exception while processing ExchangeId: " + exchange.getExchangeId(), e);
+
+                // fallback and catch any exceptions the process may not have caught
+                // we must ensure to done the UoW in all cases and issue done on the callback
+                exchange.setException(e);
+
+                // Order here matters. We need to complete the callbacks
+                // since they will likely update the exchange with some final results.
+                try {
+                    callback.done(true);
+                } finally {
+                    doneUow(uow, exchange);
                 }
-            });
+                return true;
+            }
         } else {
             // There was an existing UoW, so we should just pass through..
             // so that the guy the initiated the UoW can terminate it.
@@ -114,7 +140,7 @@ public final class UnitOfWorkProcessor extends DelegateAsyncProcessor {
         }
     }
 
-    private void doneUow(DefaultUnitOfWork uow, Exchange exchange) {
+    private void doneUow(UnitOfWork uow, Exchange exchange) {
         // unit of work is done
         try {
             if (exchange.getUnitOfWork() != null) {

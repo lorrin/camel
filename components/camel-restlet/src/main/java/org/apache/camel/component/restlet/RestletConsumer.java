@@ -21,19 +21,19 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.impl.DefaultConsumer;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.restlet.Request;
+import org.restlet.Response;
 import org.restlet.Restlet;
-import org.restlet.data.Request;
-import org.restlet.data.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A Restlet consumer acts as a server to listen client requests.
  *
- * @version $Revision$
+ * @version 
  */
 public class RestletConsumer extends DefaultConsumer {
-    private static final Log LOG = LogFactory.getLog(RestletConsumer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RestletConsumer.class);
     private Restlet restlet;
 
     public RestletConsumer(Endpoint endpoint, Processor processor) 

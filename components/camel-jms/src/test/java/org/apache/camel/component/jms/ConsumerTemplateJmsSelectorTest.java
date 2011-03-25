@@ -26,7 +26,7 @@ import org.junit.Test;
 import static org.apache.camel.component.jms.JmsComponent.jmsComponentTransacted;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class ConsumerTemplateJmsSelectorTest extends CamelTestSupport {
 
@@ -48,7 +48,7 @@ public class ConsumerTemplateJmsSelectorTest extends CamelTestSupport {
         CamelContext camelContext = super.createCamelContext();
 
         // must be persistent to rember the messages
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=true&broker.useJmx=false");
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createPersistentConnectionFactory();
         JmsComponent component = jmsComponentTransacted(connectionFactory);
         camelContext.addComponent("activemq", component);
         return camelContext;

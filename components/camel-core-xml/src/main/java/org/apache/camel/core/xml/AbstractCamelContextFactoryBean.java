@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
@@ -41,7 +42,6 @@ import org.apache.camel.management.DefaultManagementLifecycleStrategy;
 import org.apache.camel.management.DefaultManagementStrategy;
 import org.apache.camel.management.ManagedManagementStrategy;
 import org.apache.camel.model.ContextScanDefinition;
-import org.apache.camel.model.FromDefinition;
 import org.apache.camel.model.IdentifiedType;
 import org.apache.camel.model.InterceptDefinition;
 import org.apache.camel.model.InterceptFromDefinition;
@@ -49,14 +49,12 @@ import org.apache.camel.model.InterceptSendToEndpointDefinition;
 import org.apache.camel.model.OnCompletionDefinition;
 import org.apache.camel.model.OnExceptionDefinition;
 import org.apache.camel.model.PackageScanDefinition;
-import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.model.RouteBuilderDefinition;
 import org.apache.camel.model.RouteContainer;
 import org.apache.camel.model.RouteContextRefDefinition;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.RouteDefinitionHelper;
 import org.apache.camel.model.ThreadPoolProfileDefinition;
-import org.apache.camel.model.TransactedDefinition;
 import org.apache.camel.model.config.PropertiesDefinition;
 import org.apache.camel.model.dataformat.DataFormatsDefinition;
 import org.apache.camel.processor.interceptor.Delayer;
@@ -65,6 +63,7 @@ import org.apache.camel.processor.interceptor.TraceFormatter;
 import org.apache.camel.processor.interceptor.Tracer;
 import org.apache.camel.spi.ClassResolver;
 import org.apache.camel.spi.Debugger;
+import org.apache.camel.spi.EndpointStrategy;
 import org.apache.camel.spi.EventFactory;
 import org.apache.camel.spi.EventNotifier;
 import org.apache.camel.spi.ExecutorServiceStrategy;
@@ -72,6 +71,7 @@ import org.apache.camel.spi.FactoryFinderResolver;
 import org.apache.camel.spi.InflightRepository;
 import org.apache.camel.spi.InterceptStrategy;
 import org.apache.camel.spi.LifecycleStrategy;
+import org.apache.camel.spi.ManagementNamingStrategy;
 import org.apache.camel.spi.ManagementStrategy;
 import org.apache.camel.spi.PackageScanClassResolver;
 import org.apache.camel.spi.PackageScanFilter;
@@ -80,10 +80,9 @@ import org.apache.camel.spi.ShutdownStrategy;
 import org.apache.camel.spi.ThreadPoolProfile;
 import org.apache.camel.spi.UuidGenerator;
 import org.apache.camel.util.CamelContextHelper;
-import org.apache.camel.util.EndpointHelper;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A factory to create and initialize a
@@ -91,11 +90,11 @@ import org.apache.commons.logging.LogFactory;
  * or found by searching the classpath for Java classes which extend
  * {@link org.apache.camel.builder.RouteBuilder}.
  *
- * @version $Revision: 938746 $
+ * @version 
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> extends IdentifiedType implements RouteContainer {
-    private static final Log LOG = LogFactory.getLog(AbstractCamelContextFactoryBean.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractCamelContextFactoryBean.class);
 
     @XmlTransient
     private List<RoutesBuilder> builders = new ArrayList<RoutesBuilder>();
@@ -211,6 +210,11 @@ public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> ex
             LOG.info("Using custom ManagementStrategy: " + managementStrategy);
             getContext().setManagementStrategy(managementStrategy);
         }
+        ManagementNamingStrategy managementNamingStrategy = getBeanForType(ManagementNamingStrategy.class);
+        if (managementNamingStrategy != null) {
+            LOG.info("Using custom ManagementNamingStrategy: " + managementNamingStrategy);
+            getContext().getManagementStrategy().setManagementNamingStrategy(managementNamingStrategy);
+        }
         EventFactory eventFactory = getBeanForType(EventFactory.class);
         if (eventFactory != null) {
             LOG.info("Using custom EventFactory: " + eventFactory);
@@ -219,15 +223,25 @@ public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> ex
         // set the event notifier strategies if defined
         Map<String, EventNotifier> eventNotifiers = getContext().getRegistry().lookupByType(EventNotifier.class);
         if (eventNotifiers != null && !eventNotifiers.isEmpty()) {
-            for (String id : eventNotifiers.keySet()) {
-                EventNotifier notifier = eventNotifiers.get(id);
+            for (Entry<String, EventNotifier> entry : eventNotifiers.entrySet()) {
+                EventNotifier notifier = entry.getValue();
                 // do not add if already added, for instance a tracer that is also an InterceptStrategy class
                 if (!getContext().getManagementStrategy().getEventNotifiers().contains(notifier)) {
-                    LOG.info("Using custom EventNotifier with id: " + id + " and implementation: " + notifier);
+                    LOG.info("Using custom EventNotifier with id: " + entry.getKey() + " and implementation: " + notifier);
                     getContext().getManagementStrategy().addEventNotifier(notifier);
                 }
             }
         }
+        // set endpoint strategies if defined
+        Map<String, EndpointStrategy> endpointStrategies = getContext().getRegistry().lookupByType(EndpointStrategy.class);
+        if (endpointStrategies != null && !endpointStrategies.isEmpty()) {
+            for (Entry<String, EndpointStrategy> entry : endpointStrategies.entrySet()) {
+                EndpointStrategy strategy = entry.getValue();
+                LOG.info("Using custom EndpointStrategy with id: " + entry.getKey() + " and implementation: " + strategy);
+                getContext().addRegisterEndpointCallback(strategy);
+            }
+        }
+        // shutdown
         ShutdownStrategy shutdownStrategy = getBeanForType(ShutdownStrategy.class);
         if (shutdownStrategy != null) {
             LOG.info("Using custom ShutdownStrategy: " + shutdownStrategy);
@@ -236,11 +250,11 @@ public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> ex
         // add global interceptors
         Map<String, InterceptStrategy> interceptStrategies = getContext().getRegistry().lookupByType(InterceptStrategy.class);
         if (interceptStrategies != null && !interceptStrategies.isEmpty()) {
-            for (String id : interceptStrategies.keySet()) {
-                InterceptStrategy strategy = interceptStrategies.get(id);
+            for (Entry<String, InterceptStrategy> entry : interceptStrategies.entrySet()) {
+                InterceptStrategy strategy = entry.getValue();
                 // do not add if already added, for instance a tracer that is also an InterceptStrategy class
                 if (!getContext().getInterceptStrategies().contains(strategy)) {
-                    LOG.info("Using custom InterceptStrategy with id: " + id + " and implementation: " + strategy);
+                    LOG.info("Using custom InterceptStrategy with id: " + entry.getKey() + " and implementation: " + strategy);
                     getContext().addInterceptStrategy(strategy);
                 }
             }
@@ -248,11 +262,11 @@ public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> ex
         // set the lifecycle strategy if defined
         Map<String, LifecycleStrategy> lifecycleStrategies = getContext().getRegistry().lookupByType(LifecycleStrategy.class);
         if (lifecycleStrategies != null && !lifecycleStrategies.isEmpty()) {
-            for (String id : lifecycleStrategies.keySet()) {
-                LifecycleStrategy strategy = lifecycleStrategies.get(id);
+            for (Entry<String, LifecycleStrategy> entry : lifecycleStrategies.entrySet()) {
+                LifecycleStrategy strategy = entry.getValue();
                 // do not add if already added, for instance a tracer that is also an InterceptStrategy class
                 if (!getContext().getLifecycleStrategies().contains(strategy)) {
-                    LOG.info("Using custom LifecycleStrategy with id: " + id + " and implementation: " + strategy);
+                    LOG.info("Using custom LifecycleStrategy with id: " + entry.getKey() + " and implementation: " + strategy);
                     getContext().addLifecycleStrategy(strategy);
                 }
             }
@@ -292,163 +306,26 @@ public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> ex
      */
     private void prepareRoutes() {
         for (RouteDefinition route : getRoutes()) {
+            // leverage logic from route definition helper to prepare the route
+            RouteDefinitionHelper.prepareRoute(getContext(), route, getOnExceptions(), getIntercepts(), getInterceptFroms(),
+                    getInterceptSendToEndpoints(), getOnCompletions());
 
-            // at first init the parent
-            RouteDefinitionHelper.initParent(route);
-
-            // abstracts is the cross cutting concerns
-            List<ProcessorDefinition> abstracts = new ArrayList<ProcessorDefinition>();
-
-            // upper is the cross cutting concerns such as interceptors, error handlers etc
-            List<ProcessorDefinition> upper = new ArrayList<ProcessorDefinition>();
-
-            // lower is the regular route
-            List<ProcessorDefinition> lower = new ArrayList<ProcessorDefinition>();
-
-            RouteDefinitionHelper.prepareRouteForInit(route, abstracts, lower);
-
-            // interceptors should be first for the cross cutting concerns
-            initInterceptors(route, upper);
-            // then on completion
-            initOnCompletions(abstracts, upper);
-            // then transactions
-            initTransacted(abstracts, lower);
-            // then on exception
-            initOnExceptions(abstracts, upper);
-
-            // rebuild route as upper + lower
-            route.clearOutput();
-            route.getOutputs().addAll(lower);
-            route.getOutputs().addAll(0, upper);
-
-            // mark as custom prepared
-            route.customPrepared();
+            // mark the route as prepared now
+            route.markPrepared();
         }
     }
 
     protected abstract void initCustomRegistry(T context);
 
-    private void initOnExceptions(List<ProcessorDefinition> abstracts, List<ProcessorDefinition> upper) {
-        // add global on exceptions if any
-        List<OnExceptionDefinition> onExceptions = getOnExceptions();
-        if (onExceptions != null && !onExceptions.isEmpty()) {
-            // init the parent
-            for (OnExceptionDefinition global : onExceptions) {
-                RouteDefinitionHelper.initParent(global);
-            }
-            abstracts.addAll(onExceptions);
-        }
-
-        // now add onExceptions to the route
-        for (ProcessorDefinition output : abstracts) {
-            if (output instanceof OnExceptionDefinition) {
-                // on exceptions must be added at top, so the route flow is correct as
-                // on exceptions should be the first outputs
-                upper.add(0, output);
-            }
-        }
-    }
-
-    private void initInterceptors(RouteDefinition route, List<ProcessorDefinition> upper) {
-        // configure intercept
-        for (InterceptDefinition intercept : getIntercepts()) {
-            intercept.afterPropertiesSet();
-            // init the parent
-            RouteDefinitionHelper.initParent(intercept);
-            // add as first output so intercept is handled before the actual route and that gives
-            // us the needed head start to init and be able to intercept all the remaining processing steps
-            upper.add(0, intercept);
-        }
-
-        // configure intercept from
-        for (InterceptFromDefinition intercept : getInterceptFroms()) {
-
-            // should we only apply interceptor for a given endpoint uri
-            boolean match = true;
-            if (intercept.getUri() != null) {
-                match = false;
-                for (FromDefinition input : route.getInputs()) {
-                    if (EndpointHelper.matchEndpoint(input.getUri(), intercept.getUri())) {
-                        match = true;
-                        break;
-                    }
-                }
-            }
-
-            if (match) {
-                intercept.afterPropertiesSet();
-                // init the parent
-                RouteDefinitionHelper.initParent(intercept);
-                // add as first output so intercept is handled before the actual route and that gives
-                // us the needed head start to init and be able to intercept all the remaining processing steps
-                upper.add(0, intercept);
-            }
-        }
-
-        // configure intercept send to endpoint
-        for (InterceptSendToEndpointDefinition intercept : getInterceptSendToEndpoints()) {
-            intercept.afterPropertiesSet();
-            // init the parent
-            RouteDefinitionHelper.initParent(intercept);
-            // add as first output so intercept is handled before the actual route and that gives
-            // us the needed head start to init and be able to intercept all the remaining processing steps
-            upper.add(0, intercept);
-        }
-    }
-
-    private void initOnCompletions(List<ProcessorDefinition> abstracts, List<ProcessorDefinition> upper) {
-        List<OnCompletionDefinition> completions = new ArrayList<OnCompletionDefinition>();
-
-        // find the route scoped onCompletions
-        for (ProcessorDefinition out : abstracts) {
-            if (out instanceof OnCompletionDefinition) {
-                completions.add((OnCompletionDefinition) out);
-            }
-        }
-
-        // only add global onCompletion if there are no route already
-        if (completions.isEmpty()) {
-            completions = getOnCompletions();
-            // init the parent
-            for (OnCompletionDefinition global : completions) {
-                RouteDefinitionHelper.initParent(global);
-            }
-        }
-
-        // are there any completions to init at all?
-        if (completions.isEmpty()) {
-            return;
-        }
-
-        upper.addAll(completions);
-    }
-
-    private void initTransacted(List<ProcessorDefinition> abstracts, List<ProcessorDefinition> lower) {
-        TransactedDefinition transacted = null;
-
-        // add to correct type
-        for (ProcessorDefinition type : abstracts) {
-            if (type instanceof TransactedDefinition) {
-                if (transacted == null) {
-                    transacted = (TransactedDefinition) type;
-                } else {
-                    throw new IllegalArgumentException("The route can only have one transacted defined");
-                }
-            }
-        }
-
-        if (transacted != null) {
-            // the outputs should be moved to the transacted policy
-            transacted.getOutputs().addAll(lower);
-            // and add it as the single output
-            lower.clear();
-            lower.add(transacted);
-        }
-    }
-
-    private void initJMXAgent() throws Exception {
+    protected void initJMXAgent() throws Exception {
         CamelJMXAgentDefinition camelJMXAgent = getCamelJMXAgent();
-        if (camelJMXAgent != null && camelJMXAgent.isAgentDisabled()) {
+
+        boolean disabled = false;
+        if (camelJMXAgent != null) {
+            disabled = CamelContextHelper.parseBoolean(getContext(), camelJMXAgent.getDisabled());
+        }
+
+        if (disabled) {
             LOG.info("JMXAgent disabled");
             // clear the existing lifecycle strategies define by the DefaultCamelContext constructor
             getContext().getLifecycleStrategies().clear();
@@ -465,6 +342,8 @@ public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> ex
             agent.setServiceUrlPath(CamelContextHelper.parseText(getContext(), camelJMXAgent.getServiceUrlPath()));
             agent.setUsePlatformMBeanServer(CamelContextHelper.parseBoolean(getContext(), camelJMXAgent.getUsePlatformMBeanServer()));
             agent.setOnlyRegisterProcessorWithCustomId(CamelContextHelper.parseBoolean(getContext(), camelJMXAgent.getOnlyRegisterProcessorWithCustomId()));
+            agent.setRegisterAlways(CamelContextHelper.parseBoolean(getContext(), camelJMXAgent.getRegisterAlways()));
+            agent.setRegisterNewRoutes(CamelContextHelper.parseBoolean(getContext(), camelJMXAgent.getRegisterNewRoutes()));
 
             ManagementStrategy managementStrategy = new ManagedManagementStrategy(agent);
             getContext().setManagementStrategy(managementStrategy);
@@ -479,7 +358,7 @@ public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> ex
         }
     }
 
-    private void initPropertyPlaceholder() throws Exception {
+    protected void initPropertyPlaceholder() throws Exception {
         if (getCamelPropertyPlaceholder() != null) {
             CamelPropertyPlaceholderDefinition def = getCamelPropertyPlaceholder();
 
@@ -505,7 +384,7 @@ public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> ex
         }
     }
 
-    private void initRouteRefs() throws Exception {
+    protected void initRouteRefs() throws Exception {
         // add route refs to existing routes
         if (getRouteRefs() != null) {
             for (RouteContextRefDefinition ref : getRouteRefs()) {
@@ -538,6 +417,10 @@ public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> ex
 
     public abstract List<RouteDefinition> getRoutes();
 
+    public abstract List<? extends AbstractCamelEndpointFactoryBean> getEndpoints();
+
+    public abstract List<? extends AbstractCamelRedeliveryPolicyFactoryBean> getRedeliveryPolicies();
+
     public abstract List<InterceptDefinition> getIntercepts();
 
     public abstract List<InterceptFromDefinition> getInterceptFroms();
@@ -567,6 +450,8 @@ public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> ex
     public abstract String getHandleFault();
 
     public abstract String getAutoStartup();
+
+    public abstract String getUseMDCLogging();
 
     public abstract Boolean getLazyLoadTypeConverters();
 
@@ -620,6 +505,9 @@ public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> ex
         if (getAutoStartup() != null) {
             ctx.setAutoStartup(CamelContextHelper.parseBoolean(getContext(), getAutoStartup()));
         }
+        if (getUseMDCLogging() != null) {
+            ctx.setUseMDCLogging(CamelContextHelper.parseBoolean(getContext(), getUseMDCLogging()));
+        }
         if (getShutdownRoute() != null) {
             ctx.setShutdownRoute(getShutdownRoute());
         }
@@ -631,19 +519,19 @@ public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> ex
         }
     }
 
-    private void initThreadPoolProfiles(T context) {
+    protected void initThreadPoolProfiles(T context) throws Exception {
         Set<String> defaultIds = new HashSet<String>();
 
         // lookup and use custom profiles from the registry
         Map<String, ThreadPoolProfile> profiles = context.getRegistry().lookupByType(ThreadPoolProfile.class);
         if (profiles != null && !profiles.isEmpty()) {
-            for (String id : profiles.keySet()) {
-                ThreadPoolProfile profile = profiles.get(id);
+            for (Entry<String, ThreadPoolProfile> entry : profiles.entrySet()) {
+                ThreadPoolProfile profile = entry.getValue();
                 // do not add if already added, for instance a tracer that is also an InterceptStrategy class
                 if (profile.isDefaultProfile()) {
-                    LOG.info("Using custom default ThreadPoolProfile with id: " + id + " and implementation: " + profile);
+                    LOG.info("Using custom default ThreadPoolProfile with id: " + entry.getKey() + " and implementation: " + profile);
                     context.getExecutorServiceStrategy().setDefaultThreadPoolProfile(profile);
-                    defaultIds.add(id);
+                    defaultIds.add(entry.getKey());
                 } else {
                     context.getExecutorServiceStrategy().registerThreadPoolProfile(profile);
                 }
@@ -655,10 +543,10 @@ public abstract class AbstractCamelContextFactoryBean<T extends CamelContext> ex
             for (ThreadPoolProfileDefinition profile : getThreadPoolProfiles()) {
                 if (profile.isDefaultProfile()) {
                     LOG.info("Using custom default ThreadPoolProfile with id: " + profile.getId() + " and implementation: " + profile);
-                    context.getExecutorServiceStrategy().setDefaultThreadPoolProfile(profile);
+                    context.getExecutorServiceStrategy().setDefaultThreadPoolProfile(profile.asThreadPoolProfile(context));
                     defaultIds.add(profile.getId());
                 } else {
-                    context.getExecutorServiceStrategy().registerThreadPoolProfile(profile);
+                    context.getExecutorServiceStrategy().registerThreadPoolProfile(profile.asThreadPoolProfile(context));
                 }
             }
         }

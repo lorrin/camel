@@ -29,8 +29,6 @@ import org.apache.camel.impl.DefaultHeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jivesoftware.smack.AccountManager;
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.XMPPConnection;
@@ -39,14 +37,16 @@ import org.jivesoftware.smack.filter.PacketFilter;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
 import org.jivesoftware.smackx.muc.MultiUserChat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A XMPP Endpoint
  *
- * @version $Revision:520964 $
+ * @version 
  */
 public class XmppEndpoint extends DefaultEndpoint implements HeaderFilterStrategyAware {
-    private static final transient Log LOG = LogFactory.getLog(XmppEndpoint.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(XmppEndpoint.class);
     private HeaderFilterStrategy headerFilterStrategy = new DefaultHeaderFilterStrategy();
     private XmppBinding binding;
     private String host;

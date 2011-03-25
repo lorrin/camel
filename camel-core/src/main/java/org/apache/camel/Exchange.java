@@ -86,17 +86,19 @@ public interface Exchange {
     String BEAN_MULTI_PARAMETER_ARRAY = "CamelBeanMultiParameterArray";
     String BINDING                    = "CamelBinding";
 
-    String CHARSET_NAME     = "CamelCharsetName";
-    String CONTENT_ENCODING = "Content-Encoding";
-    String CONTENT_TYPE     = "Content-Type";
-    String CORRELATION_ID   = "CamelCorrelationId";
+    String CHARSET_NAME      = "CamelCharsetName";
+    String CREATED_TIMESTAMP = "CamelCreatedTimestamp";
+    String CONTENT_ENCODING  = "Content-Encoding";
+    String CONTENT_TYPE      = "Content-Type";
+    String CORRELATION_ID    = "CamelCorrelationId";
 
     String DATASET_INDEX             = "CamelDataSetIndex";
     String DEFAULT_CHARSET_PROPERTY  = "org.apache.camel.default.charset";
+    String DESTINATION_OVERRIDE_URL = "CamelDestinationOverrideUrl";
     String DISABLE_HTTP_STREAM_CACHE = "CamelDisableHttpStreamCache";
 
-    String EXCEPTION_CAUGHT     = "CamelExceptionCaught";
     String ERRORHANDLER_HANDLED = "CamelErrorHandlerHandled";
+    String EXCEPTION_CAUGHT     = "CamelExceptionCaught";
 
     String FAILURE_HANDLED      = "CamelFailureHandled";
     String FAILURE_ENDPOINT     = "CamelFailureEndpoint";
@@ -141,12 +143,14 @@ public interface Exchange {
 
     String ON_COMPLETION = "CamelOnCompletion";
 
-    String REDELIVERED          = "CamelRedelivered";
-    String REDELIVERY_COUNTER   = "CamelRedeliveryCounter";
-    String REDELIVERY_EXHAUSTED = "CamelRedeliveryExhausted";
-    String ROLLBACK_ONLY        = "CamelRollbackOnly";
-    String ROLLBACK_ONLY_LAST   = "CamelRollbackOnlyLast";
-    String ROUTE_STOP           = "CamelRouteStop";
+    String RECEIVED_TIMESTAMP      = "CamelReceivedTimestamp";
+    String REDELIVERED             = "CamelRedelivered";
+    String REDELIVERY_COUNTER      = "CamelRedeliveryCounter";
+    String REDELIVERY_MAX_COUNTER  = "CamelRedeliveryMaxCounter";
+    String REDELIVERY_EXHAUSTED    = "CamelRedeliveryExhausted";
+    String ROLLBACK_ONLY           = "CamelRollbackOnly";
+    String ROLLBACK_ONLY_LAST      = "CamelRollbackOnlyLast";
+    String ROUTE_STOP              = "CamelRouteStop";
 
     String SOAP_ACTION        = "CamelSoapAction";
     String SKIP_GZIP_ENCODING = "CamelSkipGzipEncoding";

@@ -27,18 +27,18 @@ import java.nio.ByteBuffer;
 import org.apache.camel.Converter;
 import org.apache.camel.Exchange;
 import org.apache.camel.util.IOHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Some core java.nio based
  * <a href="http://camel.apache.org/type-converter.html">Type Converters</a>
  *
- * @version $Revision$
+ * @version 
  */
 @Converter
 public final class NIOConverter {
-    private static final transient Log LOG = LogFactory.getLog(NIOConverter.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(NIOConverter.class);
 
     /**
      * Utility classes should not have a public constructor.

@@ -16,15 +16,19 @@
  */
 package org.apache.camel.model.language;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  * For EL expressions and predicates
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "el")
+@XmlAccessorType(XmlAccessType.FIELD)
 public class ELExpression extends ExpressionDefinition {
+
     public ELExpression() {
     }
 

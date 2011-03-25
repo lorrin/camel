@@ -31,22 +31,22 @@ import org.apache.camel.Processor;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.examples.SendEmail;
 import org.apache.camel.impl.DefaultCamelContext;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.orm.jpa.JpaCallback;
 import org.springframework.orm.jpa.JpaTemplate;
 
 import static org.apache.camel.util.ServiceHelper.startServices;
 import static org.apache.camel.util.ServiceHelper.stopServices;
 /**
- * @version $Revision$
+ * @version 
  */
 public class JpaTest extends Assert {
-    private static final transient Log LOG = LogFactory.getLog(JpaTest.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(JpaTest.class);
     protected CamelContext camelContext = new DefaultCamelContext();
     protected ProducerTemplate template;
     protected JpaEndpoint endpoint;

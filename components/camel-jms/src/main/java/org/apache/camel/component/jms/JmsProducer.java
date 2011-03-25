@@ -34,17 +34,18 @@ import org.apache.camel.impl.DefaultAsyncProducer;
 import org.apache.camel.spi.UuidGenerator;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.ValueHolder;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jms.core.JmsOperations;
 import org.springframework.jms.core.MessageCreator;
 
+import static org.apache.camel.component.jms.JmsMessageHelper.normalizeDestinationName;
+
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmsProducer extends DefaultAsyncProducer {
-    private static final transient Log LOG = LogFactory.getLog(JmsProducer.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(JmsProducer.class);
     private final JmsEndpoint endpoint;
     private final AtomicBoolean started = new AtomicBoolean(false);
     private JmsOperations inOnlyTemplate;
@@ -66,16 +67,10 @@ public class JmsProducer extends DefaultAsyncProducer {
                 try {
                     if (endpoint.getReplyTo() != null) {
                         replyManager = endpoint.getReplyManager(endpoint.getReplyTo());
-                        if (LOG.isInfoEnabled()) {
-                            LOG.info("Using JmsReplyManager: " + replyManager + " to process replies from: " + endpoint.getReplyTo()
-                                    + " queue with " + endpoint.getConcurrentConsumers() + " concurrent consumers.");
-                        }
+                        LOG.info("Using JmsReplyManager: " + replyManager + " to process replies from: " + endpoint.getReplyTo());
                     } else {
                         replyManager = endpoint.getReplyManager();
-                        if (LOG.isInfoEnabled()) {
-                            LOG.info("Using JmsReplyManager: " + replyManager + " to process replies from temporary queue with "
-                                    + endpoint.getConcurrentConsumers() + " concurrent consumers.");
-                        }
+                        LOG.info("Using JmsReplyManager: " + replyManager + " to process replies from temporary queue");
                     }
                 } catch (Exception e) {
                     throw new FailedToCreateProducerException(endpoint, e);
@@ -128,13 +123,6 @@ public class JmsProducer extends DefaultAsyncProducer {
 
         initReplyManager();
 
-        // note due to JMS transaction semantics we cannot use a single transaction
-        // for sending the request and receiving the response
-        final Destination replyTo = replyManager.getReplyTo();
-        if (replyTo == null) {
-            throw new RuntimeExchangeException("Failed to resolve replyTo destination", exchange);
-        }
-
         // when using message id as correlation id, we need at first to use a provisional correlation id
         // which we then update to the real JMSMessageID when the message has been sent
         // this is done with the help of the MessageSentCallback
@@ -154,7 +142,13 @@ public class JmsProducer extends DefaultAsyncProducer {
         MessageCreator messageCreator = new MessageCreator() {
             public Message createMessage(Session session) throws JMSException {
                 Message message = endpoint.getBinding().makeJmsMessage(exchange, in, session, null);
-                message.setJMSReplyTo(replyTo);
+
+                // get the reply to destination to be used from the reply manager
+                Destination replyTo = replyManager.getReplyTo();
+                if (replyTo == null) {
+                    throw new RuntimeExchangeException("Failed to resolve replyTo destination", exchange);
+                }
+                JmsMessageHelper.setJMSReplyTo(message, replyTo);
                 replyManager.setReplyToSelectorHeader(in, message);
 
                 String correlationId = determineCorrelationId(message, provisionalCorrelationId);
@@ -222,55 +216,90 @@ public class JmsProducer extends DefaultAsyncProducer {
             // prefer to use destination over destination name
             destinationName = null;
         }
-
-        // we must honor these special flags to preserve QoS
-        if (!endpoint.isPreserveMessageQos() && !endpoint.isExplicitQosEnabled()) {
-            Object replyTo = exchange.getIn().getHeader("JMSReplyTo");
-            if (replyTo != null) {
-                // we are routing an existing JmsMessage, origin from another JMS endpoint
-                // then we need to remove the existing JMSReplyTo
-                // as we are not out capable and thus do not expect a reply, and therefore
-                // the consumer of this message we send should not return a reply
-                String to = destinationName != null ? destinationName : "" + destination;
-                LOG.warn("Disabling JMSReplyTo as this Exchange is not OUT capable with JMSReplyTo: " + replyTo
-                        + " for destination: " + to + ". Use preserveMessageQos=true to force Camel to keep the JMSReplyTo."
-                        + " Exchange: " + exchange);
-                exchange.getIn().setHeader("JMSReplyTo", null);
-            }
-        }
+        final String to = destinationName != null ? destinationName : "" + destination;
 
         MessageCreator messageCreator = new MessageCreator() {
             public Message createMessage(Session session) throws JMSException {
                 Message answer = endpoint.getBinding().makeJmsMessage(exchange, in, session, null);
 
-                // if the binding did not create the reply to then we have to try to create it here
-                String replyTo = exchange.getIn().getHeader("JMSReplyTo", String.class);
-                if (replyTo != null && answer.getJMSReplyTo() == null) {
-                    Destination destination = null;
+                // when in InOnly mode the JMSReplyTo is a bit complicated
+                // we only want to set the JMSReplyTo on the answer if
+                // there is a JMSReplyTo from the header/endpoint and
+                // we have been told to preserveMessageQos
+
+                Object jmsReplyTo = JmsMessageHelper.getJMSReplyTo(answer);
+                if (endpoint.isDisableReplyTo()) {
+                    // honor disable reply to configuration
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("ReplyTo is disabled on endpoint: " + endpoint);
+                    }
+                    JmsMessageHelper.setJMSReplyTo(answer, null);
+                } else {
+                    // if the binding did not create the reply to then we have to try to create it here
+                    if (jmsReplyTo == null) {
+                        // prefer reply to from header over endpoint configured
+                        jmsReplyTo = exchange.getIn().getHeader("JMSReplyTo", String.class);
+                        if (jmsReplyTo == null) {
+                            jmsReplyTo = endpoint.getReplyTo();
+                        }
+                    }
+                }
+
+                // we must honor these special flags to preserve QoS
+                // as we are not OUT capable and thus do not expect a reply, and therefore
+                // the consumer of this message should not return a reply so we remove it
+                // unless we use preserveMessageQos=true to tell that we still want to use JMSReplyTo
+                if (jmsReplyTo != null && !(endpoint.isPreserveMessageQos() || endpoint.isExplicitQosEnabled())) {
+                    // log at debug what we are doing, as higher level may cause noise in production logs
+                    // this behavior is also documented at the camel website
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Disabling JMSReplyTo: " + jmsReplyTo + " for destination: " + to
+                            + ". Use preserveMessageQos=true to force Camel to keep the JMSReplyTo on endpoint: " + endpoint);
+                    }
+                    jmsReplyTo = null;
+                }
+
+                // the reply to is a String, so we need to look up its Destination instance
+                // and if needed create the destination using the session if needed to
+                if (jmsReplyTo != null && jmsReplyTo instanceof String) {
+                    // must normalize the destination name
+                    String replyTo = normalizeDestinationName((String) jmsReplyTo);
+                    // we need to null it as we use the String to resolve it as a Destination instance
+                    jmsReplyTo = null;
+
                     // try using destination resolver to lookup the destination
                     if (endpoint.getDestinationResolver() != null) {
-                        destination = endpoint.getDestinationResolver().resolveDestinationName(session, replyTo, endpoint.isPubSubDomain());
+                        jmsReplyTo = endpoint.getDestinationResolver().resolveDestinationName(session, replyTo, endpoint.isPubSubDomain());
                     }
-                    if (destination == null) {
+                    if (jmsReplyTo == null) {
                         // okay then fallback and create the queue
                         if (endpoint.isPubSubDomain()) {
                             if (LOG.isDebugEnabled()) {
                                 LOG.debug("Creating JMSReplyTo topic: " + replyTo);
                             }
-                            destination = session.createTopic(replyTo);
+                            jmsReplyTo = session.createTopic(replyTo);
                         } else {
                             if (LOG.isDebugEnabled()) {
                                 LOG.debug("Creating JMSReplyTo queue: " + replyTo);
                             }
-                            destination = session.createQueue(replyTo);
+                            jmsReplyTo = session.createQueue(replyTo);
                         }
                     }
-                    if (destination != null) {
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Using JMSReplyTo destination: " + destination);
-                        }
-                        answer.setJMSReplyTo(destination);
+                }
+
+                // set the JMSReplyTo on the answer if we are to use it
+                Destination replyTo = null;
+                if (jmsReplyTo instanceof Destination) {
+                    replyTo = (Destination) jmsReplyTo;
+                }
+                if (replyTo != null) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Using JMSReplyTo destination: " + replyTo);
                     }
+                    JmsMessageHelper.setJMSReplyTo(answer, replyTo);
+                } else {
+                    // do not use JMSReplyTo
+                    JmsMessageHelper.setJMSReplyTo(answer, null);
                 }
 
                 return answer;

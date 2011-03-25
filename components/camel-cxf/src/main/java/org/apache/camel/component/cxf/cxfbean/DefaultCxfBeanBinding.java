@@ -22,54 +22,37 @@ import java.util.Map;
 import org.apache.camel.Exchange;
 import org.apache.camel.component.cxf.util.CxfMessageHelper;
 import org.apache.camel.spi.HeaderFilterStrategy;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.helpers.CastUtils;
 import org.apache.cxf.message.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
- * @version $Revision$
+ * @version 
  */
 public class DefaultCxfBeanBinding implements CxfBeanBinding {
-    private static final Log LOG = LogFactory.getLog(DefaultCxfBeanBinding.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultCxfBeanBinding.class);
 
     public Message createCxfMessageFromCamelExchange(Exchange camelExchange, 
             HeaderFilterStrategy headerFilterStrategy) {
         
+        org.apache.cxf.message.Message answer = 
+            CxfMessageHelper.getCxfInMessage(headerFilterStrategy, camelExchange, false);
+        
         org.apache.camel.Message camelMessage = camelExchange.getIn();
-
-        // request content types
         String requestContentType = getRequestContentType(camelMessage); 
         
-        // accept content types
         String acceptContentTypes = camelMessage.getHeader("Accept", String.class);
         if (acceptContentTypes == null) {
             acceptContentTypes = "*/*";
         }
         
         String enc = getCharacterEncoding(camelMessage); 
-        
-        // path
         String path = getPath(camelMessage);
-
-        // base path
         String basePath = getBasePath(camelExchange);
-        
-        // verb
         String verb = getVerb(camelMessage);
-        
         String queryString = getQueryString(camelMessage);
-        
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("Processing " + camelExchange + ", requestContentType = " + requestContentType 
-                    + ", acceptContentTypes = " + acceptContentTypes + ", encoding = " + enc
-                    + ", path = " + path + ", basePath = " + basePath + ", verb = " + verb); 
-        }
-        
-    
-        org.apache.cxf.message.Message answer = 
-            CxfMessageHelper.getCxfInMessage(headerFilterStrategy, camelExchange, false);
         
         answer.put(org.apache.cxf.message.Message.REQUEST_URI, path);
         answer.put(org.apache.cxf.message.Message.BASE_PATH, basePath);
@@ -81,10 +64,16 @@ public class DefaultCxfBeanBinding implements CxfBeanBinding {
         answer.put(org.apache.cxf.message.Message.QUERY_STRING, queryString);
         
         // TODO propagate security context
+        
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("Processing " + camelExchange + ", requestContentType = " + requestContentType 
+                    + ", acceptContentTypes = " + acceptContentTypes + ", encoding = " + enc
+                    + ", path = " + path + ", basePath = " + basePath + ", verb = " + verb); 
+        }
 
         return answer;
     }
-    
+
     public void propagateResponseHeadersToCamel(Message cxfMessage, Exchange exchange,
                                                 HeaderFilterStrategy strategy) {
 

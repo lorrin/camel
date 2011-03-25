@@ -29,7 +29,7 @@ import org.apache.camel.spi.RouteContext;
 /**
  * Represents an XML &lt;filter/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "filter")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -68,7 +68,7 @@ public class FilterDefinition extends ExpressionNode {
      * Set the expression that this FilterType will use
      * @return the builder
      */
-    public ExpressionClause<FilterDefinition> expression() {
+    public ExpressionClause<? extends FilterDefinition> expression() {
         return ExpressionClause.createAndSetExpression(this);
     }
 }

@@ -38,8 +38,8 @@ import org.apache.camel.impl.DefaultEndpoint;
 import org.apache.camel.spring.util.ReflectionUtils;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.ServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanInstantiationException;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -61,12 +61,12 @@ import org.springframework.context.ApplicationContextAware;
  * then one of these bean post processors is implicitly installed and configured for you. So you should never have to
  * explicitly create or configure one of these instances.
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "beanPostProcessor")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class CamelBeanPostProcessor implements BeanPostProcessor, ApplicationContextAware {
-    private static final transient Log LOG = LogFactory.getLog(CamelBeanPostProcessor.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(CamelBeanPostProcessor.class);
     @XmlTransient
     Set<String> prototypeBeans = new LinkedHashSet<String>();
     @XmlTransient
@@ -91,19 +91,16 @@ public class CamelBeanPostProcessor implements BeanPostProcessor, ApplicationCon
             return bean;
         }
 
-        if (camelContext == null && applicationContext.containsBean(camelId)) {
-            setCamelContext((CamelContext) applicationContext.getBean(camelId));
-        }
-
         injectFields(bean, beanName);
         injectMethods(bean, beanName);
 
         if (bean instanceof CamelContextAware && canSetCamelContext(bean, beanName)) {
             CamelContextAware contextAware = (CamelContextAware)bean;
-            if (camelContext == null) {
-                LOG.warn("No CamelContext defined yet so cannot inject into: " + bean);
+            CamelContext context = getOrLookupCamelContext();
+            if (context == null) {
+                LOG.warn("No CamelContext defined yet so cannot inject into bean: " + beanName);
             } else {
-                contextAware.setCamelContext(camelContext);
+                contextAware.setCamelContext(context);
             }
         }
 
@@ -141,36 +138,6 @@ public class CamelBeanPostProcessor implements BeanPostProcessor, ApplicationCon
 
     public void setCamelContext(CamelContext camelContext) {
         this.camelContext = camelContext;
-        postProcessor = new CamelPostProcessorHelper(camelContext) {
-            @Override
-            protected RuntimeException createProxyInstantiationRuntimeException(Class<?> type, Endpoint endpoint, Exception e) {
-                return new BeanInstantiationException(type, "Could not instantiate proxy of type " + type.getName() + " on endpoint " + endpoint, e);
-            }
-
-            protected boolean isSingleton(Object bean, String beanName) {
-                // no application context has been injected which means the bean
-                // has not been enlisted in Spring application context
-                if (applicationContext == null || beanName == null) {
-                    return super.isSingleton(bean, beanName);
-                } else {
-                    return applicationContext.isSingleton(beanName);
-                }
-            }
-
-            protected void startService(Service service, Object bean, String beanName) throws Exception {
-                if (isSingleton(bean, beanName)) {
-                    getCamelContext().addService(service);
-                } else {
-                    // only start service and do not add it to CamelContext
-                    ServiceHelper.startService(service);
-                    if (prototypeBeans.add(beanName)) {
-                        // do not spam the log with WARN so do this only once per bean name
-                        LOG.warn("The bean with id [" + beanName + "] is prototype scoped and cannot stop the injected service when bean is destroyed: "
-                                + service + ". You may want to stop the service manually from the bean.");
-                    }
-                }
-            }
-        };
     }
 
     public String getCamelId() {
@@ -204,20 +171,18 @@ public class CamelBeanPostProcessor implements BeanPostProcessor, ApplicationCon
     
     
     protected boolean canSetCamelContext(Object bean, String beanName) {
-        boolean answer = true;
         if (bean instanceof CamelContextAware) {
             CamelContextAware camelContextAware = (CamelContextAware) bean;
             CamelContext context = camelContextAware.getCamelContext();
             if (context != null) {
                 if (LOG.isTraceEnabled()) {
-                    LOG.trace("The camel context of " + beanName + " is set, so we skip inject the camel context of it.");
+                    LOG.trace("CamelContext already set on bean with id [" + beanName + "]. Will keep existing CamelContext on bean.");
                 }
-                answer = false;
+                return false;
             }
-        } else {
-            answer = false;
         }
-        return answer;
+
+        return true;
     }
 
     /**
@@ -230,12 +195,12 @@ public class CamelBeanPostProcessor implements BeanPostProcessor, ApplicationCon
         ReflectionUtils.doWithFields(bean.getClass(), new ReflectionUtils.FieldCallback() {
             public void doWith(Field field) throws IllegalArgumentException, IllegalAccessException {
                 EndpointInject endpointInject = field.getAnnotation(EndpointInject.class);
-                if (endpointInject != null && postProcessor.matchContext(endpointInject.context())) {
+                if (endpointInject != null && getPostProcessor().matchContext(endpointInject.context())) {
                     injectField(field, endpointInject.uri(), endpointInject.ref(), bean, beanName);
                 }
 
                 Produce produce = field.getAnnotation(Produce.class);
-                if (produce != null && postProcessor.matchContext(produce.context())) {
+                if (produce != null && getPostProcessor().matchContext(produce.context())) {
                     injectField(field, produce.uri(), produce.ref(), bean, beanName);
                 }
             }
@@ -257,12 +222,12 @@ public class CamelBeanPostProcessor implements BeanPostProcessor, ApplicationCon
 
     protected void setterInjection(Method method, Object bean, String beanName) {
         EndpointInject endpointInject = method.getAnnotation(EndpointInject.class);
-        if (endpointInject != null && postProcessor.matchContext(endpointInject.context())) {
+        if (endpointInject != null && getPostProcessor().matchContext(endpointInject.context())) {
             setterInjection(method, bean, beanName, endpointInject.uri(), endpointInject.ref());
         }
 
         Produce produce = method.getAnnotation(Produce.class);
-        if (produce != null && postProcessor.matchContext(produce.context())) {
+        if (produce != null && getPostProcessor().matchContext(produce.context())) {
             setterInjection(method, bean, beanName, produce.uri(), produce.ref());
         }
     }
@@ -280,8 +245,57 @@ public class CamelBeanPostProcessor implements BeanPostProcessor, ApplicationCon
         }
     }
 
+    protected CamelContext getOrLookupCamelContext() {
+        if (camelContext == null && applicationContext.containsBean(camelId)) {
+            camelContext = (CamelContext) applicationContext.getBean(camelId);
+        }
+        return camelContext;
+    }
+
     public CamelPostProcessorHelper getPostProcessor() {
-        ObjectHelper.notNull(postProcessor, "postProcessor");
+        // lets lazily create the post processor
+        if (postProcessor == null) {
+            postProcessor = new CamelPostProcessorHelper() {
+
+                @Override
+                public CamelContext getCamelContext() {
+                    // lets lazily lookup the camel context here
+                    // as doing this will cause this context to be started immediately
+                    // breaking the lifecycle ordering of different camel contexts
+                    // so we only want to do this on demand
+                    return getOrLookupCamelContext();
+                }
+
+                @Override
+                protected RuntimeException createProxyInstantiationRuntimeException(Class<?> type, Endpoint endpoint, Exception e) {
+                    return new BeanInstantiationException(type, "Could not instantiate proxy of type " + type.getName() + " on endpoint " + endpoint, e);
+                }
+
+                protected boolean isSingleton(Object bean, String beanName) {
+                    // no application context has been injected which means the bean
+                    // has not been enlisted in Spring application context
+                    if (applicationContext == null || beanName == null) {
+                        return super.isSingleton(bean, beanName);
+                    } else {
+                        return applicationContext.isSingleton(beanName);
+                    }
+                }
+
+                protected void startService(Service service, Object bean, String beanName) throws Exception {
+                    if (isSingleton(bean, beanName)) {
+                        getCamelContext().addService(service);
+                    } else {
+                        // only start service and do not add it to CamelContext
+                        ServiceHelper.startService(service);
+                        if (prototypeBeans.add(beanName)) {
+                            // do not spam the log with WARN so do this only once per bean name
+                            LOG.warn("The bean with id [" + beanName + "] is prototype scoped and cannot stop the injected service when bean is destroyed: "
+                                    + service + ". You may want to stop the service manually from the bean.");
+                        }
+                    }
+                }
+            };
+        }
         return postProcessor;
     }
 

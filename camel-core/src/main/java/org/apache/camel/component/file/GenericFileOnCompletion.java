@@ -20,8 +20,9 @@ import org.apache.camel.Exchange;
 import org.apache.camel.impl.LoggingExceptionHandler;
 import org.apache.camel.spi.ExceptionHandler;
 import org.apache.camel.spi.Synchronization;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.camel.util.ObjectHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * On completion strategy that performs the required work after the {@link Exchange} has been processed.
@@ -29,11 +30,11 @@ import org.apache.commons.logging.LogFactory;
  * The work is for example to move the processed file into a backup folder, delete the file or
  * in case of processing failure do a rollback. 
  *
- * @version $Revision$
+ * @version 
  */
 public class GenericFileOnCompletion<T> implements Synchronization {
 
-    private final transient Log log = LogFactory.getLog(GenericFileOnCompletion.class);
+    private final transient Logger log = LoggerFactory.getLogger(GenericFileOnCompletion.class);
     private GenericFileEndpoint<T> endpoint;
     private GenericFileOperations<T> operations;
     private ExceptionHandler exceptionHandler;
@@ -114,6 +115,26 @@ public class GenericFileOnCompletion<T> implements Synchronization {
             endpoint.getIdempotentRepository().add(absoluteFileName);
         }
 
+        // delete done file if used
+        if (endpoint.getDoneFileName() != null) {
+            // done file must be in same path as the original input file
+            String doneFileName = endpoint.createDoneFileName(absoluteFileName);
+            ObjectHelper.notEmpty(doneFileName, "doneFileName", endpoint);
+
+            try {
+                // delete done file
+                boolean deleted = operations.deleteFile(doneFileName);
+                if (log.isTraceEnabled()) {
+                    log.trace("Done file: " + doneFileName + " was deleted: " + deleted);
+                }
+                if (!deleted) {
+                    log.warn("Done file: " + doneFileName + " could not be deleted");
+                }
+            } catch (Exception e) {
+                handleException(e);
+            }
+        }
+
         try {
             if (log.isTraceEnabled()) {
                 log.trace("Commit file strategy: " + processStrategy + " for file: " + file);
@@ -122,6 +143,7 @@ public class GenericFileOnCompletion<T> implements Synchronization {
         } catch (Exception e) {
             handleException(e);
         }
+
     }
 
     /**

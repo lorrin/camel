@@ -22,8 +22,8 @@ import org.apache.camel.component.file.GenericFileEndpoint;
 import org.apache.camel.component.file.GenericFileExclusiveReadLockStrategy;
 import org.apache.camel.component.file.GenericFileOperations;
 import org.apache.camel.util.StopWatch;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Acquires exclusive read lock to the given file. Will wait until the lock is granted.
@@ -31,8 +31,9 @@ import org.apache.commons.logging.LogFactory;
  * consuming the file its not currently in progress of being written by third party.
  */
 public class GenericFileRenameExclusiveReadLockStrategy<T> implements GenericFileExclusiveReadLockStrategy<T> {
-    private static final transient Log LOG = LogFactory.getLog(GenericFileRenameExclusiveReadLockStrategy.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(GenericFileRenameExclusiveReadLockStrategy.class);
     private long timeout;
+    private long checkInterval;
 
     public void prepareOnStartup(GenericFileOperations<T> operations, GenericFileEndpoint<T> endpoint) throws Exception {
         // noop
@@ -55,7 +56,7 @@ public class GenericFileRenameExclusiveReadLockStrategy<T> implements GenericFil
 
         boolean exclusive = false;
         while (!exclusive) {
-             // timeout check
+            // timeout check
             if (timeout > 0) {
                 long delta = watch.taken();
                 if (delta > timeout) {
@@ -64,8 +65,8 @@ public class GenericFileRenameExclusiveReadLockStrategy<T> implements GenericFil
                     return false;
                 }
             }
-            
-            exclusive = operations.renameFile(file.getAbsoluteFilePath(), newFile.getAbsoluteFilePath());           
+
+            exclusive = operations.renameFile(file.getAbsoluteFilePath(), newFile.getAbsoluteFilePath());
             if (exclusive) {
                 if (LOG.isTraceEnabled()) {
                     LOG.trace("Acquired exclusive read lock to file: " + file);
@@ -89,14 +90,14 @@ public class GenericFileRenameExclusiveReadLockStrategy<T> implements GenericFil
         // noop
     }
 
-    private boolean sleep() {  
+    private boolean sleep() {
         if (LOG.isTraceEnabled()) {
-            LOG.trace("Exclusive read lock not granted. Sleeping for 1000 millis.");
+            LOG.trace("Exclusive read lock not granted. Sleeping for " + checkInterval + " millis.");
         }
         try {
-            Thread.sleep(1000);
+            Thread.sleep(checkInterval);
             return false;
-        } catch (InterruptedException e) {            
+        } catch (InterruptedException e) {
             LOG.debug("Sleep interrupted while waiting for exclusive read lock, so breaking out");
             return true;
         }
@@ -108,5 +109,9 @@ public class GenericFileRenameExclusiveReadLockStrategy<T> implements GenericFil
 
     public void setTimeout(long timeout) {
         this.timeout = timeout;
+    }
+
+    public void setCheckInterval(long checkInterval) {
+        this.checkInterval = checkInterval;
     }
 }

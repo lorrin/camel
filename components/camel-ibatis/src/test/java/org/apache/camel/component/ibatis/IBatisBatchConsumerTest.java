@@ -22,7 +22,7 @@ import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.Test;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class IBatisBatchConsumerTest extends IBatisTestSupport {
 
@@ -44,8 +44,7 @@ public class IBatisBatchConsumerTest extends IBatisTestSupport {
         return new RouteBuilder() {
             @Override
             public void configure() throws Exception {
-                from("ibatis:selectAllAccounts?statementType=QueryForList")
-                        .to("mock:result");
+                from("ibatis:selectAllAccounts").to("mock:result");
             }
         };
     }

@@ -18,18 +18,18 @@ package org.apache.camel.management;
 
 import java.util.EventObject;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Logging event notifier that only notifies if <tt>INFO</tt> log level has
  * been configured for its logger.
  *
- * @version $Revision$
+ * @version 
  */
 public class LoggingEventNotifier extends EventNotifierSupport {
 
-    private Log log = LogFactory.getLog(LoggingEventNotifier.class);
+    private Logger log = LoggerFactory.getLogger(LoggingEventNotifier.class);
     private String logName;
 
     public void notify(EventObject event) throws Exception {
@@ -55,7 +55,7 @@ public class LoggingEventNotifier extends EventNotifierSupport {
 
     protected void doStart() throws Exception {
         if (logName != null) {
-            log = LogFactory.getLog(logName);
+            log = LoggerFactory.getLogger(logName);
         }
     }
 

@@ -26,7 +26,7 @@ import org.apache.camel.spi.ShutdownAware;
 /**
  * The direct consumer.
  *
- * @version $Revision$
+ * @version 
  */
 public class DirectConsumer extends DefaultConsumer implements ShutdownAware, SuspendableService {
 
@@ -75,5 +75,9 @@ public class DirectConsumer extends DefaultConsumer implements ShutdownAware, Su
         // return 0 as we do not have an internal memory queue with a variable size
         // of inflight messages. 
         return 0;
+    }
+
+    public void prepareShutdown() {
+        // noop
     }
 }

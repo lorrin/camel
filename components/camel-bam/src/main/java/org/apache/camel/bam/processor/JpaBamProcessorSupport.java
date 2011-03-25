@@ -30,8 +30,8 @@ import org.apache.camel.bam.QueryUtils;
 import org.apache.camel.bam.model.ProcessDefinition;
 import org.apache.camel.bam.rules.ActivityRules;
 import org.apache.camel.util.IntrospectionSupport;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.orm.jpa.JpaTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -40,10 +40,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * instance information which allows derived classes to specialise the process
  * instance entity.
  *
- * @version $Revision$
+ * @version 
  */
 public class JpaBamProcessorSupport<T> extends BamProcessorSupport<T> {
-    private static final transient Log LOG = LogFactory.getLog(JpaBamProcessorSupport.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(JpaBamProcessorSupport.class);
 
     private static final Lock LOCK = new ReentrantLock(); // lock used for concurrency issues
 

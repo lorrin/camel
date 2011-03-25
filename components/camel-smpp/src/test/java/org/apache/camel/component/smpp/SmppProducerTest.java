@@ -49,7 +49,7 @@ import static org.junit.Assert.assertSame;
 /**
  * JUnit test class for <code>org.apache.camel.component.smpp.SmppProducer</code>
  * 
- * @version $Revision$
+ * @version 
  * @author muellerc
  */
 public class SmppProducerTest {
@@ -144,7 +144,7 @@ public class SmppProducerTest {
             .andReturn("smpp://smppclient@localhost:2775")
             .times(2);
         session.removeSessionStateListener(isA(SessionStateListener.class));
-        session.close();
+        session.unbindAndClose();
         expect(endpoint.getConnectionString())
             .andReturn("smpp://smppclient@localhost:2775");
         

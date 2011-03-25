@@ -35,13 +35,14 @@ import org.apache.camel.WaitForTaskToComplete;
 import org.apache.camel.impl.DefaultEndpoint;
 import org.apache.camel.processor.MulticastProcessor;
 import org.apache.camel.spi.BrowsableEndpoint;
+import org.apache.camel.util.ServiceHelper;
 
 /**
  * An implementation of the <a
  * href="http://camel.apache.org/queue.html">Queue components</a> for
  * asynchronous SEDA exchanges on a {@link BlockingQueue} within a CamelContext
  *
- * @version $Revision$
+ * @version 
  */
 public class SedaEndpoint extends DefaultEndpoint implements BrowsableEndpoint, MultipleConsumersSupport {
     private volatile BlockingQueue<Exchange> queue;
@@ -53,7 +54,8 @@ public class SedaEndpoint extends DefaultEndpoint implements BrowsableEndpoint, 
     private long timeout = 30000;
     private volatile Set<SedaProducer> producers = new CopyOnWriteArraySet<SedaProducer>();
     private volatile Set<SedaConsumer> consumers = new CopyOnWriteArraySet<SedaConsumer>();
-    private volatile MulticastProcessor conumserMulticastProcessor;
+    private volatile MulticastProcessor consumerMulticastProcessor;
+    private volatile boolean multicastStarted;
 
     public SedaEndpoint() {
     }
@@ -99,26 +101,43 @@ public class SedaEndpoint extends DefaultEndpoint implements BrowsableEndpoint, 
         return queue;
     }
     
-    protected synchronized MulticastProcessor getConumserMulticastProcessor() {
-        return conumserMulticastProcessor;
+    protected synchronized MulticastProcessor getConsumerMulticastProcessor() throws Exception {
+        if (!multicastStarted && consumerMulticastProcessor != null) {
+            // only start it on-demand to avoid starting it during stopping
+            ServiceHelper.startService(consumerMulticastProcessor);
+            multicastStarted = true;
+        }
+        return consumerMulticastProcessor;
     }
     
-    protected synchronized void updateMulticastProcessor() {
+    protected synchronized void updateMulticastProcessor() throws Exception {
+        if (consumerMulticastProcessor != null) {
+            ServiceHelper.stopService(consumerMulticastProcessor);
+        }
+
         int size = getConsumers().size();
         if (size == 0 && multicastExecutor != null) {
-            // stop the multicastExecutor
+            // stop the multicast executor as its not needed anymore when size is zero
             getCamelContext().getExecutorServiceStrategy().shutdown(multicastExecutor);
             multicastExecutor = null;
         }
-        if (size == 1 && multicastExecutor == null) {
-            multicastExecutor = getCamelContext().getExecutorServiceStrategy().newDefaultThreadPool(this, getEndpointUri() + "(multicast)");
+        if (size > 1) {
+            if (multicastExecutor == null) {
+                // create multicast executor as we need it when we have more than 1 processor
+                multicastExecutor = getCamelContext().getExecutorServiceStrategy().newDefaultThreadPool(this, getEndpointUri() + "(multicast)");
+            }
+            // create list of consumers to multicast to
+            List<Processor> processors = new ArrayList<Processor>(size);
+            for (SedaConsumer consumer : getConsumers()) {
+                processors.add(consumer.getProcessor());
+            }
+            // create multicast processor
+            multicastStarted = false;
+            consumerMulticastProcessor = new MulticastProcessor(getCamelContext(), processors, null, true, multicastExecutor, false, false, 0);
+        } else {
+            // not needed
+            consumerMulticastProcessor = null;
         }
-        List<Processor> processors = new ArrayList<Processor>(size);
-        for (SedaConsumer consumer : getConsumers()) {
-            processors.add(consumer.getProcessor());
-        }
-        conumserMulticastProcessor = new MulticastProcessor(getCamelContext(), processors, null, true, multicastExecutor, false, false, 0);
-   
     }
 
     public void setQueue(BlockingQueue<Exchange> queue) {
@@ -203,14 +222,18 @@ public class SedaEndpoint extends DefaultEndpoint implements BrowsableEndpoint, 
         producers.remove(producer);
     }
 
-    void onStarted(SedaConsumer consumer) {
+    void onStarted(SedaConsumer consumer) throws Exception {
         consumers.add(consumer);
-        updateMulticastProcessor();
+        if (isMultipleConsumers()) {
+            updateMulticastProcessor();
+        }
     }
 
-    void onStopped(SedaConsumer consumer) {
+    void onStopped(SedaConsumer consumer) throws Exception {
         consumers.remove(consumer);
-        updateMulticastProcessor();
+        if (isMultipleConsumers()) {
+            updateMulticastProcessor();
+        }
     }
 
 }

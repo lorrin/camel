@@ -22,8 +22,6 @@ import java.util.List;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import org.apache.camel.model.LoadBalancerDefinition;
@@ -32,6 +30,7 @@ import org.apache.camel.processor.loadbalancer.WeightedLoadBalancer;
 import org.apache.camel.processor.loadbalancer.WeightedRandomLoadBalancer;
 import org.apache.camel.processor.loadbalancer.WeightedRoundRobinLoadBalancer;
 import org.apache.camel.spi.RouteContext;
+import org.apache.camel.util.ObjectHelper;
 
 /**
  * Represents an XML &lt;weighted/&gt; element
@@ -39,19 +38,19 @@ import org.apache.camel.spi.RouteContext;
 @XmlRootElement(name = "weighted")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class WeightedLoadBalancerDefinition extends LoadBalancerDefinition {
-    
-    @XmlAttribute(name = "roundRobin", required = false)
-    private Boolean roundRobin = Boolean.FALSE;
-    
-    @XmlAttribute(name = "distributionRatio", required = true)
+    @XmlAttribute
+    private Boolean roundRobin;
+    @XmlAttribute(required = true)
     private String distributionRatio;
-    
-    @XmlAttribute(name = "distributionRatioDelimiter", required = false)
+    @XmlAttribute
     private String distributionRatioDelimiter;
-    
+
+    public WeightedLoadBalancerDefinition() {
+    }
+
     @Override
     protected LoadBalancer createLoadBalancer(RouteContext routeContext) {
-        WeightedLoadBalancer loadBalancer = null;
+        WeightedLoadBalancer loadBalancer;
         List<Integer> distributionRatioList = new ArrayList<Integer>();
         
         try {
@@ -64,18 +63,19 @@ public class WeightedLoadBalancerDefinition extends LoadBalancerDefinition {
                 distributionRatioList.add(new Integer(ratio.trim()));
             }
             
-            if (!roundRobin) {
+            if (!isRoundRobin()) {
                 loadBalancer = new WeightedRandomLoadBalancer(distributionRatioList);
             } else {
                 loadBalancer = new WeightedRoundRobinLoadBalancer(distributionRatioList);
             }
         } catch (Exception e) {
-            
+            throw ObjectHelper.wrapRuntimeCamelException(e);
         }
+
         return loadBalancer;
     }
 
-    public Boolean isRoundRobin() {
+    public Boolean getRoundRobin() {
         return roundRobin;
     }
 
@@ -83,17 +83,29 @@ public class WeightedLoadBalancerDefinition extends LoadBalancerDefinition {
         this.roundRobin = roundRobin;
     }
 
+    public boolean isRoundRobin() {
+        return roundRobin != null && roundRobin;
+    }
+
     public String getDistributionRatio() {
         return distributionRatio;
     }
 
-    public void setDistributionRatioList(String distributionRatio) {
+    public void setDistributionRatio(String distributionRatio) {
         this.distributionRatio = distributionRatio;
+    }
+
+    public String getDistributionRatioDelimiter() {
+        return distributionRatioDelimiter;
+    }
+
+    public void setDistributionRatioDelimiter(String distributionRatioDelimiter) {
+        this.distributionRatioDelimiter = distributionRatioDelimiter;
     }
 
     @Override
     public String toString() {
-        if (!roundRobin) { 
+        if (!isRoundRobin()) {
             return "WeightedRandomLoadBalancer[" + distributionRatio + "]";
         } else {
             return "WeightedRoundRobinLoadBalancer[" + distributionRatio + "]";

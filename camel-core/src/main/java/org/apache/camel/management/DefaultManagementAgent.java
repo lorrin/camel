@@ -32,9 +32,6 @@ import javax.management.MBeanServerFactory;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectInstance;
 import javax.management.ObjectName;
-import javax.management.modelmbean.InvalidTargetObjectTypeException;
-import javax.management.modelmbean.ModelMBeanInfo;
-import javax.management.modelmbean.RequiredModelMBean;
 import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
@@ -44,10 +41,8 @@ import org.apache.camel.CamelContextAware;
 import org.apache.camel.impl.ServiceSupport;
 import org.apache.camel.spi.ManagementAgent;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.springframework.jmx.export.annotation.AnnotationJmxAttributeSource;
-import org.springframework.jmx.export.assembler.MetadataMBeanInfoAssembler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Default implementation of the Camel JMX service agent
@@ -59,13 +54,13 @@ public class DefaultManagementAgent extends ServiceSupport implements Management
     public static final int DEFAULT_REGISTRY_PORT = 1099;
     public static final int DEFAULT_CONNECTION_PORT = -1;
     public static final String DEFAULT_SERVICE_URL_PATH = "/jmxrmi/camel";
-    private static final transient Log LOG = LogFactory.getLog(DefaultManagementAgent.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(DefaultManagementAgent.class);
 
     private CamelContext camelContext;
     private ExecutorService executorService;
     private MBeanServer server;
     private final Set<ObjectName> mbeansRegistered = new HashSet<ObjectName>();
-    private MetadataMBeanInfoAssembler assembler;
+    private JmxMBeanAssembler assembler;
     private JMXConnectorServer cs;
 
     private Integer registryPort;
@@ -76,6 +71,8 @@ public class DefaultManagementAgent extends ServiceSupport implements Management
     private Boolean usePlatformMBeanServer = true;
     private Boolean createConnector;
     private Boolean onlyRegisterProcessorWithCustomId;
+    private Boolean registerAlways;
+    private Boolean registerNewRoutes = true;
 
     public DefaultManagementAgent() {
     }
@@ -85,74 +82,76 @@ public class DefaultManagementAgent extends ServiceSupport implements Management
     }
 
     protected void finalizeSettings() {
+        // TODO: System properties ought to take precedence, over configured options
+
         if (registryPort == null) {
             registryPort = Integer.getInteger(JmxSystemPropertyKeys.REGISTRY_PORT, DEFAULT_REGISTRY_PORT);
         }
-
         if (connectorPort == null) {
             connectorPort = Integer.getInteger(JmxSystemPropertyKeys.CONNECTOR_PORT, DEFAULT_CONNECTION_PORT);
         }
-
         if (mBeanServerDefaultDomain == null) {
             mBeanServerDefaultDomain = System.getProperty(JmxSystemPropertyKeys.DOMAIN, DEFAULT_DOMAIN);
         }
-
         if (mBeanObjectDomainName == null) {
             mBeanObjectDomainName = System.getProperty(JmxSystemPropertyKeys.MBEAN_DOMAIN, DEFAULT_DOMAIN);
         }
-
         if (serviceUrlPath == null) {
             serviceUrlPath = System.getProperty(JmxSystemPropertyKeys.SERVICE_URL_PATH, DEFAULT_SERVICE_URL_PATH);
         }
-
         if (createConnector == null) {
             createConnector = Boolean.getBoolean(JmxSystemPropertyKeys.CREATE_CONNECTOR);
         }
-
+        if (onlyRegisterProcessorWithCustomId == null) {
+            onlyRegisterProcessorWithCustomId = Boolean.getBoolean(JmxSystemPropertyKeys.ONLY_REGISTER_PROCESSOR_WITH_CUSTOM_ID);
+        }
         // "Use platform mbean server" is true by default
         if (System.getProperty(JmxSystemPropertyKeys.USE_PLATFORM_MBS) != null) {
             usePlatformMBeanServer = Boolean.getBoolean(JmxSystemPropertyKeys.USE_PLATFORM_MBS);
         }
 
-        if (onlyRegisterProcessorWithCustomId == null) {
-            onlyRegisterProcessorWithCustomId = Boolean.getBoolean(JmxSystemPropertyKeys.ONLY_REGISTER_PROCESSOR_WITH_CUSTOM_ID);
+        if (System.getProperty(JmxSystemPropertyKeys.REGISTER_ALWAYS) != null) {
+            registerAlways = Boolean.getBoolean(JmxSystemPropertyKeys.REGISTER_ALWAYS);
+        }
+        if (System.getProperty(JmxSystemPropertyKeys.REGISTER_NEW_ROUTES) != null) {
+            registerNewRoutes = Boolean.getBoolean(JmxSystemPropertyKeys.REGISTER_NEW_ROUTES);
         }
     }
 
-    public void setRegistryPort(Integer value) {
-        registryPort = value;
+    public void setRegistryPort(Integer port) {
+        registryPort = port;
     }
 
     public Integer getRegistryPort() {
         return registryPort;
     }
 
-    public void setConnectorPort(Integer value) {
-        connectorPort = value;
+    public void setConnectorPort(Integer port) {
+        connectorPort = port;
     }
 
     public Integer getConnectorPort() {
         return connectorPort;
     }
 
-    public void setMBeanServerDefaultDomain(String value) {
-        mBeanServerDefaultDomain = value;
+    public void setMBeanServerDefaultDomain(String domain) {
+        mBeanServerDefaultDomain = domain;
     }
 
     public String getMBeanServerDefaultDomain() {
         return mBeanServerDefaultDomain;
     }
 
-    public void setMBeanObjectDomainName(String value) {
-        mBeanObjectDomainName = value;
+    public void setMBeanObjectDomainName(String domainName) {
+        mBeanObjectDomainName = domainName;
     }
 
     public String getMBeanObjectDomainName() {
         return mBeanObjectDomainName;
     }
 
-    public void setServiceUrlPath(String value) {
-        serviceUrlPath = value;
+    public void setServiceUrlPath(String url) {
+        serviceUrlPath = url;
     }
 
     public String getServiceUrlPath() {
@@ -191,6 +190,22 @@ public class DefaultManagementAgent extends ServiceSupport implements Management
         return server;
     }
 
+    public Boolean getRegisterAlways() {
+        return registerAlways != null && registerAlways;
+    }
+
+    public void setRegisterAlways(Boolean registerAlways) {
+        this.registerAlways = registerAlways;
+    }
+
+    public Boolean getRegisterNewRoutes() {
+        return registerNewRoutes != null && registerNewRoutes;
+    }
+
+    public void setRegisterNewRoutes(Boolean registerNewRoutes) {
+        this.registerNewRoutes = registerNewRoutes;
+    }
+
     public ExecutorService getExecutorService() {
         return executorService;
     }
@@ -216,15 +231,8 @@ public class DefaultManagementAgent extends ServiceSupport implements Management
             registerMBeanWithServer(obj, name, forceRegistration);
         } catch (NotCompliantMBeanException e) {
             // If this is not a "normal" MBean, then try to deploy it using JMX annotations
-            ModelMBeanInfo mbi;
-            mbi = assembler.getMBeanInfo(obj, name.toString());
-            RequiredModelMBean mbean = (RequiredModelMBean)server.instantiate(RequiredModelMBean.class.getName());
-            mbean.setModelMBeanInfo(mbi);
-            try {
-                mbean.setManagedResource(obj, "ObjectReference");
-            } catch (InvalidTargetObjectTypeException itotex) {
-                throw new JMException(itotex.getMessage());
-            }
+            Object mbean = assembler.assemble(obj, name);
+            // and register the mbean
             registerMBeanWithServer(mbean, name, forceRegistration);
         }
     }
@@ -245,14 +253,14 @@ public class DefaultManagementAgent extends ServiceSupport implements Management
 
     protected void doStart() throws Exception {
         ObjectHelper.notNull(camelContext, "CamelContext");
-        assembler = new MetadataMBeanInfoAssembler();
-        assembler.setAttributeSource(new AnnotationJmxAttributeSource());
 
         // create mbean server if is has not be injected.
         if (server == null) {
             finalizeSettings();
             createMBeanServer();
         }
+
+        assembler = new JmxMBeanAssembler(server);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Starting JMX agent on server: " + getMBeanServer());

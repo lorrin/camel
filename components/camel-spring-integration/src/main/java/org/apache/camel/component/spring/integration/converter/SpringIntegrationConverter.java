@@ -20,15 +20,15 @@ import org.apache.camel.Converter;
 import org.apache.camel.Endpoint;
 import org.apache.camel.component.spring.integration.SpringIntegrationEndpoint;
 import org.apache.camel.component.spring.integration.SpringIntegrationMessage;
-import org.springframework.integration.core.MessageChannel;
-import org.springframework.integration.core.MessageHeaders;
+import org.springframework.integration.MessageChannel;
+import org.springframework.integration.MessageHeaders;
 import org.springframework.integration.message.GenericMessage;
 
 /**
  * The <a href="http://camel.apache.org/type-converter.html">Type Converters</a>
  * for turning the Spring Integration types into Camel native type.
  *
- * @version $Revision$
+ * @version 
  */
 @Converter
 public final class SpringIntegrationConverter {
@@ -37,28 +37,18 @@ public final class SpringIntegrationConverter {
         // Helper class
     }
 
-    /**
-     * @param Spring Integration MessageChannel
-     * @return an Camel Endpoint
-     * @throws Exception
-     */
     @Converter
     public static Endpoint toEndpoint(final MessageChannel channel) throws Exception {
-        if (channel == null) {
-            throw new IllegalArgumentException("The MessageChannel is null");
-        }
-        Endpoint answer = new SpringIntegrationEndpoint("URL", channel, null);
-        // check the channel
+        Endpoint answer = new SpringIntegrationEndpoint("spring-integration://" + channel.toString(), channel, null);
         return answer;
     }
 
-
     @SuppressWarnings("unchecked")
     @Converter
-    public static org.springframework.integration.core.Message toSpringMessage(final org.apache.camel.Message camelMessage) throws Exception {
+    public static org.springframework.integration.Message toSpringMessage(final org.apache.camel.Message camelMessage) throws Exception {
         if (camelMessage instanceof SpringIntegrationMessage) {
             SpringIntegrationMessage siMessage = (SpringIntegrationMessage)camelMessage;
-            org.springframework.integration.core.Message message =  siMessage.getMessage();
+            org.springframework.integration.Message message =  siMessage.getMessage();
             if (message != null) {
                 return message;
             }
@@ -70,10 +60,8 @@ public final class SpringIntegrationConverter {
     }
 
     @Converter
-    public static org.apache.camel.Message toCamelMessage(final org.springframework.integration.core.Message springMessage) throws Exception {
+    public static org.apache.camel.Message toCamelMessage(final org.springframework.integration.Message springMessage) throws Exception {
         return new SpringIntegrationMessage(springMessage);
     }
-
-
 
 }

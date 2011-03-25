@@ -29,18 +29,18 @@ import org.apache.camel.impl.ServiceSupport;
 import org.apache.camel.impl.converter.AsyncProcessorTypeConverter;
 import org.apache.camel.util.AsyncProcessorHelper;
 import org.apache.camel.util.ServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implements a Choice structure where one or more predicates are used which if
  * they are true their processors are used, with a default otherwise clause used
  * if none match.
  * 
- * @version $Revision$
+ * @version 
  */
 public class ChoiceProcessor extends ServiceSupport implements AsyncProcessor, Navigate<Processor>, Traceable {
-    private static final transient Log LOG = LogFactory.getLog(ChoiceProcessor.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(ChoiceProcessor.class);
     private final List<FilterProcessor> filters;
     private final AsyncProcessor otherwise;
 

@@ -19,8 +19,8 @@ package org.apache.camel.component.snmp;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.impl.ScheduledPollConsumer;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.snmp4j.CommunityTarget;
 import org.snmp4j.PDU;
 import org.snmp4j.Snmp;
@@ -36,11 +36,12 @@ import org.snmp4j.smi.GenericAddress;
 import org.snmp4j.smi.OID;
 import org.snmp4j.smi.OctetString;
 import org.snmp4j.smi.VariableBinding;
+import org.snmp4j.transport.DefaultTcpTransportMapping;
 import org.snmp4j.transport.DefaultUdpTransportMapping;
 
 public class SnmpOIDPoller extends ScheduledPollConsumer implements ResponseListener {
 
-    private static final transient Log LOG = LogFactory.getLog(SnmpOIDPoller.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(SnmpOIDPoller.class);
 
     private Address targetAddress;
     private TransportMapping transport;
@@ -61,9 +62,17 @@ public class SnmpOIDPoller extends ScheduledPollConsumer implements ResponseList
     protected void doStart() throws Exception {
         super.doStart();
 
-        LOG.debug("Activating oid poller");
         this.targetAddress = GenericAddress.parse(this.endpoint.getAddress());
-        this.transport = new DefaultUdpTransportMapping();
+
+        // either tcp or udp
+        if ("tcp".equals(endpoint.getProtocol())) {
+            this.transport = new DefaultTcpTransportMapping();
+        } else if ("udp".equals(endpoint.getProtocol())) {
+            this.transport = new DefaultUdpTransportMapping();
+        } else {
+            throw new IllegalArgumentException("Unknown protocol: " + endpoint.getProtocol());
+        }
+
         this.snmp = new Snmp(this.transport);
         this.usm = new USM(SecurityProtocols.getInstance(), new OctetString(MPv3.createLocalEngineID()), 0);
         SecurityModels.getInstance().addSecurityModel(usm);
@@ -78,22 +87,31 @@ public class SnmpOIDPoller extends ScheduledPollConsumer implements ResponseList
 
         // creating PDU
         this.pdu = new PDU();
+
         // listen to the transport
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Starting OID poller on " + endpoint.getAddress() + " using " + endpoint.getProtocol() + " protocol");
+        }
         this.transport.listen();
+        LOG.info("Started OID poller on " + endpoint.getAddress() + " using " + endpoint.getProtocol() + " protocol");
     }
 
     @Override
     protected void doStop() throws Exception {
         // stop listening to the transport
-        if (this.transport.isListening()) {
+        if (this.transport != null && this.transport.isListening()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.info("Stopping OID poller on " + targetAddress);
+            }
             this.transport.close();
+            LOG.info("Stopped OID poller on " + targetAddress);
         }
 
         super.doStop();
     }
 
     @Override
-    protected void poll() throws Exception {
+    protected int poll() throws Exception {
         this.pdu.clear();
         this.pdu.setType(PDU.GET);
 
@@ -104,19 +122,20 @@ public class SnmpOIDPoller extends ScheduledPollConsumer implements ResponseList
 
         // send the request
         snmp.send(pdu, target, null, this);
+
+        return 1;
     }
 
     public void onResponse(ResponseEvent event) {
         // Always cancel async request when response has been received
         // otherwise a memory leak is created! Not canceling a request
-        // immediately can be useful when sending a request to a broadcast
-        // address.
+        // immediately can be useful when sending a request to a broadcast address.
         ((Snmp)event.getSource()).cancel(event.getRequest(), this);
 
         // check for valid response
         if (event.getRequest() == null || event.getResponse() == null) {
             // ignore null requests/responses
-            LOG.debug("Received invalid snmp event. Request: " + event.getRequest() + " / Response: " + event.getResponse());
+            LOG.debug("Received invalid SNMP event. Request: " + event.getRequest() + " / Response: " + event.getResponse());
             return;
         }
         
@@ -136,8 +155,8 @@ public class SnmpOIDPoller extends ScheduledPollConsumer implements ResponseList
         Exchange exchange = endpoint.createExchange(pdu);
         try {
             getProcessor().process(exchange);
-        } catch (Exception ex) {
-            exchange.setException(ex);
+        } catch (Exception e) {
+            getExceptionHandler().handleException(e);
         }
     }
 

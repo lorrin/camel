@@ -20,18 +20,18 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Predicate;
 import org.apache.camel.Processor;
 import org.apache.camel.processor.Traceable;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A processor which validates the content of the inbound message body
  * against a predicate.
  * 
- * @version $Revision$
+ * @version 
  */
 public class PredicateValidatingProcessor implements Processor, Traceable {
     
-    private static final Log LOG = LogFactory.getLog(PredicateValidatingProcessor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PredicateValidatingProcessor.class);
 
     private final Predicate predicate;
     

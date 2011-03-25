@@ -37,14 +37,14 @@ import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.view.ModelFileGenerator;
 import org.apache.camel.view.RouteDotGenerator;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public abstract class MainSupport extends ServiceSupport {
-    protected static final Log LOG = LogFactory.getLog(MainSupport.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(MainSupport.class);
     protected String dotOutputDir;
     protected final List<Option> options = new ArrayList<Option>();
     protected final CountDownLatch latch = new CountDownLatch(1);
@@ -57,6 +57,28 @@ public abstract class MainSupport extends ServiceSupport {
     protected List<RouteBuilder> routeBuilders = new ArrayList<RouteBuilder>();
     protected final List<CamelContext> camelContexts = new ArrayList<CamelContext>();
     protected ProducerTemplate camelTemplate;
+
+    /**
+     * A class for intercepting the hang up signal and do a graceful shutdown of the Camel.
+     */
+    private final class HangupInterceptor extends Thread {
+        Logger log = LoggerFactory.getLogger(this.getClass());
+        MainSupport mainInstance;
+
+        public HangupInterceptor(MainSupport main) {
+            mainInstance = main;
+        }
+
+        @Override
+        public void run() {
+            log.info("Received hang up - stopping the main instance.");
+            try {
+                mainInstance.stop();
+            } catch (Exception ex) {
+                log.warn("Error during stopping the main instance.", ex);
+            }
+        }
+    }
 
     protected MainSupport() {
         addOption(new Option("h", "help", "Displays the help screen") {
@@ -106,7 +128,7 @@ public abstract class MainSupport extends ServiceSupport {
     }
 
     /**
-     * Runs this process with the given arguments
+     * Runs this process with the given arguments, and will wait until completed, or the JVM terminates.
      */
     public void run() throws Exception {
         if (!completed.get()) {
@@ -122,6 +144,15 @@ public abstract class MainSupport extends ServiceSupport {
                 LOG.error("Failed: " + e, e);
             }
         }
+    }
+
+    /**
+     * Enables the hangup support. Gracefully stops by calling stop() on a
+     * Hangup signal.
+     */
+    public void enableHangupSupport() {
+        HangupInterceptor interceptor = new HangupInterceptor(this);
+        Runtime.getRuntime().addShutdownHook(interceptor);
     }
 
     /**

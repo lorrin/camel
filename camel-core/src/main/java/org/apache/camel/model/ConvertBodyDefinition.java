@@ -16,9 +16,6 @@
  */
 package org.apache.camel.model;
 
-import java.util.Collections;
-import java.util.List;
-
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
@@ -29,6 +26,7 @@ import org.apache.camel.Processor;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.converter.IOConverter;
 import org.apache.camel.processor.ConvertBodyProcessor;
+import org.apache.camel.spi.Required;
 import org.apache.camel.spi.RouteContext;
 
 /**
@@ -36,10 +34,10 @@ import org.apache.camel.spi.RouteContext;
  */
 @XmlRootElement(name = "convertBodyTo")
 @XmlAccessorType(XmlAccessType.FIELD)
-public class ConvertBodyDefinition extends ProcessorDefinition<ConvertBodyDefinition> {
-    @XmlAttribute
+public class ConvertBodyDefinition extends NoOutputDefinition<ConvertBodyDefinition> {
+    @XmlAttribute(required = true)
     private String type;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String charset;
     @XmlTransient
     private Class<?> typeClass;
@@ -89,16 +87,11 @@ public class ConvertBodyDefinition extends ProcessorDefinition<ConvertBodyDefini
         return new ConvertBodyProcessor(getTypeClass(), getCharset());
     }
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public List<ProcessorDefinition> getOutputs() {
-        return Collections.EMPTY_LIST;
-    }
-
     public String getType() {
         return type;
     }
 
+    @Required
     public void setType(String type) {
         this.type = type;
     }

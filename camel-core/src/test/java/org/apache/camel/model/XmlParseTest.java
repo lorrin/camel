@@ -27,7 +27,7 @@ import org.apache.camel.model.loadbalancer.StickyLoadBalancerDefinition;
 import org.apache.camel.model.loadbalancer.TopicLoadBalancerDefinition;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class XmlParseTest extends XmlTestSupport {
 
@@ -242,6 +242,11 @@ public class XmlParseTest extends XmlTestSupport {
 
     public void testParseXStreamDataFormat() throws Exception {
         RouteDefinition route = assertOneRoute("routeWithXStreamDataFormat.xml");
+        assertFrom(route, "seda:a");
+    }
+
+    public void testParseJibxDataFormat() throws Exception {
+        RouteDefinition route = assertOneRoute("routeWithJibxDataFormat.xml");
         assertFrom(route, "seda:a");
     }
 

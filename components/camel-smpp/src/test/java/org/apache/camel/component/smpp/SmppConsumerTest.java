@@ -33,7 +33,7 @@ import static org.junit.Assert.assertSame;
 /**
  * JUnit test class for <code>org.apache.camel.component.smpp.SmppConsumer</code>
  * 
- * @version $Revision$
+ * @version 
  * @author muellerc
  */
 public class SmppConsumerTest {
@@ -113,7 +113,7 @@ public class SmppConsumerTest {
             .andReturn("smpp://smppclient@localhost:2775")
             .times(3);
         session.removeSessionStateListener(isA(SessionStateListener.class));
-        session.close();
+        session.unbindAndClose();
         
         replay(session, endpoint);
         

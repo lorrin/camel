@@ -27,7 +27,7 @@ import org.apache.camel.component.mock.MockEndpoint;
 /**
  * Unit test to verify that error handling using async() also works as expected.
  *
- * @version $Revision$
+ * @version 
  */
 public class AsyncDeadLetterChannelTest extends ContextTestSupport {
 
@@ -60,6 +60,7 @@ public class AsyncDeadLetterChannelTest extends ContextTestSupport {
         mock.expectedMessageCount(1);
         mock.message(0).header(Exchange.REDELIVERED).isEqualTo(Boolean.TRUE);
         mock.message(0).header(Exchange.REDELIVERY_COUNTER).isEqualTo(2);
+        mock.message(0).header(Exchange.REDELIVERY_MAX_COUNTER).isEqualTo(2);
 
         try {
             template.requestBody("direct:in", "Hello World");

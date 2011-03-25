@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
@@ -40,36 +41,29 @@ import org.apache.camel.util.ObjectHelper;
 /**
  * Represents the XStream XML {@link org.apache.camel.spi.DataFormat}
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "xstream")
 @XmlAccessorType(XmlAccessType.NONE)
 public class XStreamDataFormat extends DataFormatDefinition {
     @XmlAttribute
     private String encoding;
-
     @XmlAttribute
     private String driver = "xml";
-
     @XmlAttribute
     private String driverRef;
-
     @XmlJavaTypeAdapter(ConvertersAdapter.class)
     @XmlElement(name = "converters")
     private List<String> converters;
-
     @XmlJavaTypeAdapter(AliasAdapter.class)
     @XmlElement(name = "aliases")
     private Map<String, String> aliases;
-
     @XmlJavaTypeAdapter(OmitFieldsAdapter.class)
     @XmlElement(name = "omitFields")
     private Map<String, String[]> omitFields;
-
     @XmlJavaTypeAdapter(ImplicitCollectionsAdapter.class)
     @XmlElement(name = "implicitCollections")
     private Map<String, String[]> implicitCollections;
-
 
     public XStreamDataFormat() {
         super("xstream");
@@ -220,7 +214,6 @@ public class XStreamDataFormat extends DataFormatDefinition {
         public void setClsName(String clsName) {
             this.clsName = clsName;
         }
-
     }
 
     @XmlTransient
@@ -230,8 +223,8 @@ public class XStreamDataFormat extends DataFormatDefinition {
         @Override
         public ImplicitCollectionList marshal(Map<String, String[]> v) throws Exception {
             List<ImplicitCollectionEntry> list = new ArrayList<ImplicitCollectionEntry>();
-            for (String clsName : v.keySet()) {
-                ImplicitCollectionEntry entry = new ImplicitCollectionEntry(clsName, v.get(clsName));
+            for (Entry<String, String[]> e : v.entrySet()) {
+                ImplicitCollectionEntry entry = new ImplicitCollectionEntry(e.getKey(), e.getValue());
                 list.add(entry);
             }
 
@@ -329,7 +322,6 @@ public class XStreamDataFormat extends DataFormatDefinition {
             }
             return answer;
         }
-
     }
 
     @XmlAccessorType(XmlAccessType.NONE)
@@ -392,8 +384,8 @@ public class XStreamDataFormat extends DataFormatDefinition {
         @Override
         public OmitFieldList marshal(Map<String, String[]> v) throws Exception {
             List<OmitFieldEntry> list = new ArrayList<OmitFieldEntry>();
-            for (String clsName : v.keySet()) {
-                OmitFieldEntry entry = new OmitFieldEntry(clsName, v.get(clsName));
+            for (Entry<String, String[]> e : v.entrySet()) {
+                OmitFieldEntry entry = new OmitFieldEntry(e.getKey(), e.getValue());
                 list.add(entry);
             }
 
@@ -465,4 +457,5 @@ public class XStreamDataFormat extends DataFormatDefinition {
             return "OmitField[" + clsName + ", fields=" + Arrays.asList(this.fields) + "]";
         }
     }
+
 }

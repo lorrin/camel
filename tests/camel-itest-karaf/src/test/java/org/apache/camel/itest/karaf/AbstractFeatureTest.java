@@ -20,14 +20,14 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.impl.DefaultRouteContext;
 import org.apache.camel.model.DataFormatDefinition;
 import org.apache.camel.osgi.CamelContextFactory;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.ops4j.pax.exam.Inject;
 import org.ops4j.pax.exam.Option;
 import org.ops4j.pax.exam.options.UrlReference;
 import org.osgi.framework.BundleContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.assertNotNull;
 import static org.ops4j.pax.exam.CoreOptions.equinox;
@@ -40,7 +40,7 @@ import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.workingDirectory
 
 public abstract class AbstractFeatureTest {
 
-    protected final transient Log log = LogFactory.getLog(getClass());
+    protected final transient Logger log = LoggerFactory.getLogger(getClass());
 
     @Inject
     protected BundleContext bundleContext;
@@ -134,18 +134,19 @@ public abstract class AbstractFeatureTest {
     public static UrlReference getCamelKarafFeatureUrl() {
         String springVersion = System.getProperty("springVersion");
         System.out.println("*** The spring version is " + springVersion + " ***");
-        String type = "xml/features"; 
-        if (springVersion != null && springVersion.startsWith("2")) {
-            type = "xml/features-spring2";
-        }
+
+        String type = "xml/features";
         return mavenBundle().groupId("org.apache.camel.karaf").
             artifactId("apache-camel").versionAsInProject().type(type);
     }
     
     public static UrlReference getKarafFeatureUrl() {
+        String karafVersion = "2.1.4";
+        System.out.println("*** The karaf version is " + karafVersion + " ***");
+
         String type = "xml/features";
         return mavenBundle().groupId("org.apache.karaf").
-            artifactId("apache-karaf").version("2.1.0").type(type);
+            artifactId("apache-karaf").version(karafVersion).type(type);
     }
 
     public static Option[] configure(String feature) {
@@ -173,7 +174,5 @@ public abstract class AbstractFeatureTest {
 
         return options;
     }
-
-    
 
 }

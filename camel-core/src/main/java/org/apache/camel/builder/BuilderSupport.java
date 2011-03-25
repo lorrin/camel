@@ -27,14 +27,14 @@ import org.apache.camel.LoggingLevel;
 import org.apache.camel.NoSuchEndpointException;
 import org.apache.camel.builder.xml.XPathBuilder;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base class for implementation inheritance for different clauses in the <a
  * href="http://camel.apache.org/dsl.html">Java DSL</a>
  *
- * @version $Revision$
+ * @version 
  */
 public abstract class BuilderSupport {
     private CamelContext context;
@@ -322,7 +322,7 @@ public abstract class BuilderSupport {
      * @return the builder
      */
     public LoggingErrorHandlerBuilder loggingErrorHandler(String log) {
-        return loggingErrorHandler(LogFactory.getLog(log));
+        return loggingErrorHandler(LoggerFactory.getLogger(log));
     }
 
     /**
@@ -331,7 +331,7 @@ public abstract class BuilderSupport {
      *
      * @return the builder
      */
-    public LoggingErrorHandlerBuilder loggingErrorHandler(Log log) {
+    public LoggingErrorHandlerBuilder loggingErrorHandler(Logger log) {
         return new LoggingErrorHandlerBuilder(log);
     }
 
@@ -341,7 +341,7 @@ public abstract class BuilderSupport {
      *
      * @return the builder
      */
-    public LoggingErrorHandlerBuilder loggingErrorHandler(Log log, LoggingLevel level) {
+    public LoggingErrorHandlerBuilder loggingErrorHandler(Logger log, LoggingLevel level) {
         return new LoggingErrorHandlerBuilder(log, level);
     }
 

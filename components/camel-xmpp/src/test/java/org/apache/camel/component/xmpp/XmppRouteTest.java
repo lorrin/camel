@@ -22,7 +22,6 @@ import java.util.concurrent.TimeUnit;
 import junit.framework.Assert;
 import junit.framework.TestCase;
 import junit.textui.TestRunner;
-
 import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
@@ -31,22 +30,21 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.converter.ObjectConverter;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.ProducerCache;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import org.jivesoftware.smack.packet.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An integration test which requires a Jabber server to be running, by default on localhost.
  * <p/>
  * You can overload the <b>xmpp.url</b> system property to define the jabber connection URI
  * to something like <b>xmpp://camel@localhost/?login=false&room=</b>
- * @version $Revision$
+ * @version 
  */
 public class XmppRouteTest extends TestCase {
     protected static boolean enabled;
     protected static String xmppUrl;
-    private static final transient Log LOG = LogFactory.getLog(XmppRouteTest.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(XmppRouteTest.class);
     protected Exchange receivedExchange;
     protected CamelContext container = new DefaultCamelContext();
     protected CountDownLatch latch = new CountDownLatch(1);

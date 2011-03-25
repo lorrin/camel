@@ -23,10 +23,10 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.test.junit4.CamelTestSupport;
 import org.junit.Test;
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentClientAcknowledge;
+import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmsComponentTest extends CamelTestSupport {
 
@@ -45,7 +45,6 @@ public class JmsComponentTest extends CamelTestSupport {
         assertEquals(1, endpoint.getCacheLevel());
         assertEquals("foo", endpoint.getClientId());
         assertEquals(2, endpoint.getConcurrentConsumers());
-        assertEquals(ConsumerType.Simple, endpoint.getConsumerType());
         assertEquals(true, endpoint.isDeliveryPersistent());
         assertEquals(true, endpoint.isExplicitQosEnabled());
         assertEquals(20, endpoint.getIdleTaskExecutionLimit());
@@ -62,8 +61,8 @@ public class JmsComponentTest extends CamelTestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
 
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false");
-        JmsComponent comp = jmsComponentClientAcknowledge(connectionFactory);
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
+        JmsComponent comp = jmsComponentAutoAcknowledge(connectionFactory);
 
         comp.setAcceptMessagesWhileStopping(true);
         comp.setAlwaysCopyMessage(true);
@@ -72,7 +71,6 @@ public class JmsComponentTest extends CamelTestSupport {
         comp.setCacheLevel(1);
         comp.setClientId("foo");
         comp.setConcurrentConsumers(2);
-        comp.setConsumerType(ConsumerType.Simple);
         comp.setDeliveryPersistent(true);
         comp.setExplicitQosEnabled(true);
         comp.setIdleTaskExecutionLimit(20);

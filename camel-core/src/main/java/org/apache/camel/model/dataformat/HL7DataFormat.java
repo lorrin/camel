@@ -27,20 +27,24 @@ import org.apache.camel.spi.DataFormat;
 /**
  * Represents a <a href="http://camel.apache.org/hl7.html">HL7</a> {@link org.apache.camel.spi.DataFormat}.
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "hl7")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class HL7DataFormat extends DataFormatDefinition {
-
-    @XmlAttribute(required = false)
-    private Boolean validate = Boolean.TRUE;
+    @XmlAttribute
+    private Boolean validate;
 
     public HL7DataFormat() {
         super("hl7");
     }
 
-    public Boolean isValidate() {
+    public boolean isValidate() {
+        // defaults to true if not configured
+        return validate != null ? validate : true;
+    }
+
+    public Boolean getValidate() {
         return validate;
     }
 
@@ -50,11 +54,7 @@ public class HL7DataFormat extends DataFormatDefinition {
 
     @Override
     protected void configureDataFormat(DataFormat dataFormat) {
-        if (validate != null) {
-            setProperty(dataFormat, "validate", validate);
-        }
+        setProperty(dataFormat, "validate", isValidate());
     }
-
-
 
 }

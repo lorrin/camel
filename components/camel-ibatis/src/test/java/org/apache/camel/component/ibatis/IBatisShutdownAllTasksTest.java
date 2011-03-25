@@ -23,7 +23,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class IBatisShutdownAllTasksTest extends IBatisTestSupport {
 
@@ -108,7 +108,7 @@ public class IBatisShutdownAllTasksTest extends IBatisTestSupport {
         return new RouteBuilder() {
             @Override
             public void configure() throws Exception {
-                from("ibatis:selectAllAccounts?statementType=QueryForList").noAutoStartup().routeId("route1")
+                from("ibatis:selectAllAccounts").noAutoStartup().routeId("route1")
                      // let it complete all tasks
                      .shutdownRunningTask(ShutdownRunningTask.CompleteAllTasks)
                      .delay(1000).to("seda:foo");

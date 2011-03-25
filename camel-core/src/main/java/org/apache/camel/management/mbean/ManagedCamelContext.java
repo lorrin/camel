@@ -28,12 +28,11 @@ import org.springframework.jmx.export.annotation.ManagedOperation;
 import org.springframework.jmx.export.annotation.ManagedResource;
 
 /**
- * @version $Revision$
+ * @version 
  */
 @ManagedResource(description = "Managed CamelContext")
 public class ManagedCamelContext {
-
-    private CamelContext context;
+    private final CamelContext context;
 
     public ManagedCamelContext(CamelContext context) {
         this.context = context;

@@ -18,21 +18,21 @@ package org.apache.camel.component.lucene;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.converter.IOConverter;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.store.NIOFSDirectory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LuceneIndexer {
-    private static final transient Log LOG = LogFactory.getLog(LuceneIndexer.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(LuceneIndexer.class);
     private File sourceDirectory;
     private Analyzer analyzer;
     private NIOFSDirectory niofsDirectory;
@@ -66,12 +66,12 @@ public class LuceneIndexer {
         openIndexWriter();
         Map<String, Object> headers = exchange.getIn().getHeaders();
         add("exchangeId", exchange.getExchangeId(), true);
-        Iterator<String> iterator = headers.keySet().iterator();
-        while (iterator.hasNext()) {
-            String field = iterator.next();
-            String value = (String) headers.get(field);
+        for (Entry<String, Object> entry : headers.entrySet()) {
+            String field = entry.getKey();
+            String value = exchange.getContext().getTypeConverter().convertTo(String.class, entry.getValue());
             add(field, value, true);
         }
+
         add("contents", exchange.getIn().getMandatoryBody(String.class), true);
         closeIndexWriter();
     }
@@ -140,7 +140,7 @@ public class LuceneIndexer {
                 }
             }
         } else {
-            LOG.warn("Directory/File " + file.getAbsolutePath() + "could not be read."
+            LOG.warn("Directory/File " + file.getAbsolutePath() + " could not be read."
                 + " This directory will not be indexed. Please check permissions and rebuild indexes.");
         }
     }

@@ -33,8 +33,8 @@ import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.util.Time;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.camel.util.ServiceHelper.startServices;
 import static org.apache.camel.util.ServiceHelper.stopServices;
@@ -42,10 +42,10 @@ import static org.apache.camel.util.ServiceHelper.stopServices;
 /**
  * A temporal rule for use within BAM
  *
- * @version $Revision$
+ * @version 
  */
 public class TemporalRule extends ServiceSupport {
-    private static final transient Log LOG = LogFactory.getLog(TemporalRule.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(TemporalRule.class);
     private TimeExpression first;
     private TimeExpression second;
     private long expectedMillis;

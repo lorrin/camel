@@ -20,8 +20,8 @@ import org.apache.camel.Exchange;
 import org.apache.camel.spi.IdempotentRepository;
 import org.apache.camel.spi.Synchronization;
 import org.apache.camel.util.ExchangeHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * On completion strategy for {@link org.apache.camel.processor.idempotent.IdempotentConsumer}.
@@ -29,10 +29,10 @@ import org.apache.commons.logging.LogFactory;
  * This strategy adds the message id to the idempotent repository in cast the exchange
  * was processed successfully. In case of failure the message id is <b>not</b> added.
  *
- * @version $Revision$
+ * @version 
  */
 public class IdempotentOnCompletion implements Synchronization {
-    private static final transient Log LOG = LogFactory.getLog(IdempotentOnCompletion.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(IdempotentOnCompletion.class);
     private final IdempotentRepository<String> idempotentRepository;
     private final String messageId;
     private final boolean eager;

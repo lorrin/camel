@@ -18,6 +18,7 @@ package org.apache.camel.component.mail;
 
 import java.util.LinkedList;
 import java.util.Queue;
+
 import javax.mail.Flags;
 import javax.mail.Folder;
 import javax.mail.FolderNotFoundException;
@@ -35,21 +36,20 @@ import org.apache.camel.spi.ShutdownAware;
 import org.apache.camel.spi.Synchronization;
 import org.apache.camel.util.CastUtils;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 
 /**
  * A {@link org.apache.camel.Consumer Consumer} which consumes messages from JavaMail using a
  * {@link javax.mail.Transport Transport} and dispatches them to the {@link Processor}
  *
- * @version $Revision$
+ * @version 
  */
 public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer, ShutdownAware {
     public static final long DEFAULT_CONSUMER_DELAY = 60 * 1000L;
-    private static final transient Log LOG = LogFactory.getLog(MailConsumer.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(MailConsumer.class);
 
-    private final MailEndpoint endpoint;
     private final JavaMailSenderImpl sender;
     private Folder folder;
     private Store store;
@@ -59,7 +59,6 @@ public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer
 
     public MailConsumer(MailEndpoint endpoint, Processor processor, JavaMailSenderImpl sender) {
         super(endpoint, processor);
-        this.endpoint = endpoint;
         this.sender = sender;
     }
 
@@ -80,25 +79,26 @@ public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer
         super.doStop();
     }
 
-    protected void poll() throws Exception {
+    protected int poll() throws Exception {
         // must reset for each poll
         shutdownRunningTask = null;
         pendingExchanges = 0;
+        int polledMessages = 0;
 
         ensureIsConnected();
 
         if (store == null || folder == null) {
             throw new IllegalStateException("MailConsumer did not connect properly to the MailStore: "
-                    + endpoint.getConfiguration().getMailStoreLogInformation());
+                    + getEndpoint().getConfiguration().getMailStoreLogInformation());
         }
 
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Polling mailfolder: " + endpoint.getConfiguration().getMailStoreLogInformation());
+            LOG.debug("Polling mailfolder: " + getEndpoint().getConfiguration().getMailStoreLogInformation());
         }
 
-        if (endpoint.getConfiguration().getFetchSize() == 0) {
+        if (getEndpoint().getConfiguration().getFetchSize() == 0) {
             LOG.warn("Fetch size is 0 meaning the configuration is set to poll no new messages at all. Camel will skip this poll.");
-            return;
+            return 0;
         }
 
         // ensure folder is open
@@ -112,13 +112,13 @@ public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer
                 Message[] messages;
 
                 // should we process all messages or only unseen messages
-                if (endpoint.getConfiguration().isUnseen()) {
+                if (getEndpoint().getConfiguration().isUnseen()) {
                     messages = folder.search(new FlagTerm(new Flags(Flags.Flag.SEEN), false));
                 } else {
                     messages = folder.getMessages();
                 }
 
-                processBatch(CastUtils.cast(createExchanges(messages)));
+                polledMessages = processBatch(CastUtils.cast(createExchanges(messages)));
             } else if (count == -1) {
                 throw new MessagingException("Folder: " + folder.getFullName() + " is closed");
             }
@@ -135,13 +135,15 @@ public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer
                 LOG.debug("Could not close mailbox folder: " + folder.getName(), e);
             }
         }
+
+        return polledMessages;
     }
 
     public void setMaxMessagesPerPoll(int maxMessagesPerPoll) {
         this.maxMessagesPerPoll = maxMessagesPerPoll;
     }
 
-    public void processBatch(Queue<Object> exchanges) throws Exception {
+    public int processBatch(Queue<Object> exchanges) throws Exception {
         int total = exchanges.size();
 
         // limit if needed
@@ -185,6 +187,8 @@ public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer
             // process the exchange
             processExchange(exchange);
         }
+
+        return total;
     }
 
     public boolean deferShutdown(ShutdownRunningTask shutdownRunningTask) {
@@ -201,6 +205,10 @@ public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer
         } else {
             return 0;
         }
+    }
+
+    public void prepareShutdown() {
+        // noop
     }
 
     public boolean isBatchAllowed() {
@@ -222,7 +230,7 @@ public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer
     protected Queue<Exchange> createExchanges(Message[] messages) throws MessagingException {
         Queue<Exchange> answer = new LinkedList<Exchange>();
 
-        int fetchSize = endpoint.getConfiguration().getFetchSize();
+        int fetchSize = getEndpoint().getConfiguration().getFetchSize();
         int count = fetchSize == -1 ? messages.length : Math.min(fetchSize, messages.length);
 
         if (LOG.isDebugEnabled()) {
@@ -232,7 +240,7 @@ public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer
         for (int i = 0; i < count; i++) {
             Message message = messages[i];
             if (!message.getFlags().contains(Flags.Flag.DELETED)) {
-                Exchange exchange = endpoint.createExchange(message);
+                Exchange exchange = getEndpoint().createExchange(message);
                 answer.add(exchange);
             } else {
                 if (LOG.isDebugEnabled()) {
@@ -263,7 +271,7 @@ public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer
      */
     protected void processCommit(Message mail, Exchange exchange) {
         try {
-            if (endpoint.getConfiguration().isDelete()) {
+            if (getEndpoint().getConfiguration().isDelete()) {
                 LOG.debug("Exchange processed, so flagging message as DELETED");
                 mail.setFlag(Flags.Flag.DELETED, true);
             } else {
@@ -292,7 +300,7 @@ public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer
     }
 
     private void ensureIsConnected() throws MessagingException {
-        MailConfiguration config = endpoint.getConfiguration();
+        MailConfiguration config = getEndpoint().getConfiguration();
 
         boolean connected = false;
         try {
@@ -301,7 +309,7 @@ public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer
             }
         } catch (Exception e) {
             LOG.debug("Exception while testing for is connected to MailStore: "
-                    + endpoint.getConfiguration().getMailStoreLogInformation()
+                    + getEndpoint().getConfiguration().getMailStoreLogInformation()
                     + ". Caused by: " + e.getMessage(), e);
         }
 
@@ -311,7 +319,7 @@ public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer
             folder = null;
 
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Connecting to MailStore: " + endpoint.getConfiguration().getMailStoreLogInformation());
+                LOG.debug("Connecting to MailStore: " + getEndpoint().getConfiguration().getMailStoreLogInformation());
             }
             store = sender.getSession().getStore(config.getProtocol());
             store.connect(config.getHost(), config.getPort(), config.getUsername(), config.getPassword());
@@ -328,4 +336,8 @@ public class MailConsumer extends ScheduledPollConsumer implements BatchConsumer
         }
     }
 
+    @Override
+    public MailEndpoint getEndpoint() {
+        return (MailEndpoint) super.getEndpoint();
+    }
 }

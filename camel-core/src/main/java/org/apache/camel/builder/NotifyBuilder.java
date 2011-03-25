@@ -26,6 +26,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.camel.CamelContext;
+import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.Expression;
 import org.apache.camel.Predicate;
@@ -49,9 +50,11 @@ import org.apache.camel.util.ServiceHelper;
  * The idea is that you can build an expression that explains when the test is done. For example when Camel
  * have finished routing 5 messages. You can then in your test await for this condition to occur.
  *
- * @version $Revision$
+ * @version 
  */
 public class NotifyBuilder {
+
+    private final CamelContext context;
 
     // notifier to hook into Camel to listen for events
     private final EventNotifier eventNotifier;
@@ -65,6 +68,7 @@ public class NotifyBuilder {
     // the current state while building an event predicate where we use a stack and the operation
     private final Stack<EventPredicate> stack = new Stack<EventPredicate>();
     private EventOperation operation;
+    private boolean created;
 
     // computed value whether all the predicates matched
     private boolean matches;
@@ -75,6 +79,7 @@ public class NotifyBuilder {
      * @param context the Camel context
      */
     public NotifyBuilder(CamelContext context) {
+        this.context = context;
         eventNotifier = new ExchangeNotifier();
         try {
             ServiceHelper.startService(eventNotifier);
@@ -1001,6 +1006,7 @@ public class NotifyBuilder {
      */
     public NotifyBuilder create() {
         doCreate(EventOperation.and);
+        created = true;
         return this;
     }
 
@@ -1012,6 +1018,9 @@ public class NotifyBuilder {
      * @return <tt>true</tt> if matching, <tt>false</tt> otherwise
      */
     public boolean matches() {
+        if (!created) {
+            throw new IllegalStateException("NotifyBuilder has not been created. Invoke the create() method before matching.");
+        }
         return matches;
     }
 
@@ -1026,12 +1035,51 @@ public class NotifyBuilder {
      * @return <tt>true</tt> if matching, <tt>false</tt> otherwise due to timeout
      */
     public boolean matches(long timeout, TimeUnit timeUnit) {
+        if (!created) {
+            throw new IllegalStateException("NotifyBuilder has not been created. Invoke the create() method before matching.");
+        }
         try {
             latch.await(timeout, timeUnit);
         } catch (InterruptedException e) {
             throw ObjectHelper.wrapRuntimeCamelException(e);
         }
         return matches();
+    }
+
+    /**
+     * Does all the expression match?
+     * <p/>
+     * This operation will wait until the match is <tt>true</tt> or otherwise a timeout occur
+     * which means <tt>false</tt> will be returned.
+     * <p/>
+     * The timeout value is by default 10 seconds. But it will use the highest <i>maximum result wait time</i>
+     * from the configured mocks, if such a value has been configured.
+     * <p/>
+     * This method is convenient to use in unit tests to have it adhere and wait
+     * as long as the mock endpoints.
+     *
+     * @return <tt>true</tt> if matching, <tt>false</tt> otherwise due to timeout
+     */
+    public boolean matchesMockWaitTime() {
+        if (!created) {
+            throw new IllegalStateException("NotifyBuilder has not been created. Invoke the create() method before matching.");
+        }
+        long timeout = 0;
+        for (Endpoint endpoint : context.getEndpoints()) {
+            if (endpoint instanceof MockEndpoint) {
+                long waitTime = ((MockEndpoint) endpoint).getResultWaitTime();
+                if (waitTime > 0) {
+                    timeout = Math.max(timeout, waitTime);
+                }
+            }
+        }
+
+        // use 10 sec as default
+        if (timeout == 0) {
+            timeout = 10000;
+        }
+
+        return matches(timeout, TimeUnit.MILLISECONDS);
     }
 
     /**

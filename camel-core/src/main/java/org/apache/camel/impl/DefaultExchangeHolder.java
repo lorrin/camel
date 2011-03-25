@@ -21,8 +21,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.apache.camel.Exchange;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Holder object for sending an exchange over a remote wire as a serialized object.
@@ -43,12 +43,12 @@ import org.apache.commons.logging.LogFactory;
  * </ul>
  * Any object that is not serializable will be skipped and Camel will log this at WARN level.
  *
- * @version $Revision$
+ * @version 
  */
 public class DefaultExchangeHolder implements Serializable {
 
     private static final long serialVersionUID = 2L;
-    private static final transient Log LOG = LogFactory.getLog(DefaultExchangeHolder.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(DefaultExchangeHolder.class);
 
     private String exchangeId;
     private Object inBody;
@@ -203,12 +203,15 @@ public class DefaultExchangeHolder implements Serializable {
 
         Map<String, Object> result = new LinkedHashMap<String, Object>();
         for (Map.Entry<String, Object> entry : map.entrySet()) {
-            Serializable converted = exchange.getContext().getTypeConverter().convertTo(Serializable.class, exchange, entry.getValue());
-            if (converted != null) {
-                result.put(entry.getKey(), converted);
-            } else {
-                LOG.warn(type + " containing object: " + entry.getValue() + " with key: " + entry.getKey()
-                        + " cannot be serialized, it will be excluded by the holder.");
+            // silently skip any values which is null
+            if (entry.getValue() != null) {
+                Serializable converted = exchange.getContext().getTypeConverter().convertTo(Serializable.class, exchange, entry.getValue());
+                if (converted != null) {
+                    result.put(entry.getKey(), converted);
+                } else {
+                    LOG.warn(type + " containing object: " + entry.getValue() + " with key: " + entry.getKey()
+                            + " cannot be serialized, it will be excluded by the holder.");
+                }
             }
         }
 

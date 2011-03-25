@@ -24,6 +24,7 @@ import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import net.sf.flatpack.DataSet;
 import net.sf.flatpack.DefaultParserFactory;
@@ -33,11 +34,12 @@ import net.sf.flatpack.writer.DelimiterWriterFactory;
 import net.sf.flatpack.writer.FixedWriterFactory;
 import net.sf.flatpack.writer.Writer;
 import org.apache.camel.Exchange;
+import org.apache.camel.converter.IOConverter;
 import org.apache.camel.spi.DataFormat;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jdom.JDOMException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 
 /**
@@ -50,10 +52,10 @@ import org.springframework.core.io.Resource;
  * </ul>
  * <b>Notice:</b> The Flatpack library does currently not support header and trailers for the marshal operation.
  *
- * @version $Revision$
+ * @version 
  */
 public class FlatpackDataFormat implements DataFormat {
-    private static final transient Log LOG = LogFactory.getLog(FlatpackDataFormat.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(FlatpackDataFormat.class);
     private ParserFactory parserFactory = DefaultParserFactory.getInstance();
     private char delimiter = ',';
     private char textQualifier = '"';
@@ -82,8 +84,8 @@ public class FlatpackDataFormat implements DataFormat {
                     first = false;
                     continue;
                 }
-                for (String key : row.keySet()) {
-                    writer.addRecordEntry(key, row.get(key));
+                for (Entry<String, Object> entry : row.entrySet()) {
+                    writer.addRecordEntry(entry.getKey(), entry.getValue());
                 }
                 writer.nextRecord();
             }
@@ -95,7 +97,7 @@ public class FlatpackDataFormat implements DataFormat {
     }
 
     public Object unmarshal(Exchange exchange, InputStream stream) throws Exception {
-        InputStreamReader reader = new InputStreamReader(stream);
+        InputStreamReader reader = new InputStreamReader(stream, IOConverter.getCharsetName(exchange));
         try {
             Parser parser = createParser(exchange, reader);
             DataSet dataSet = parser.parse();
@@ -163,13 +165,14 @@ public class FlatpackDataFormat implements DataFormat {
         if (isFixed()) {
             Resource resource = getDefinition();
             ObjectHelper.notNull(resource, "resource");
-            return getParserFactory().newFixedLengthParser(new InputStreamReader(resource.getInputStream()), bodyReader);
+            return getParserFactory().newFixedLengthParser(new InputStreamReader(resource.getInputStream(), IOConverter.getCharsetName(exchange)), bodyReader);
         } else {
             Resource resource = getDefinition();
             if (resource == null) {
                 return getParserFactory().newDelimitedParser(bodyReader, delimiter, textQualifier);
             } else {
-                return getParserFactory().newDelimitedParser(new InputStreamReader(resource.getInputStream()), bodyReader, delimiter, textQualifier, ignoreFirstRecord);
+                return getParserFactory().newDelimitedParser(new InputStreamReader(resource.getInputStream(), IOConverter.getCharsetName(exchange)), 
+                                                             bodyReader, delimiter, textQualifier, ignoreFirstRecord);
             }
         }
     }
@@ -178,8 +181,8 @@ public class FlatpackDataFormat implements DataFormat {
         if (isFixed()) {
             Resource resource = getDefinition();
             ObjectHelper.notNull(resource, "resource");
-            FixedWriterFactory factory = new FixedWriterFactory(new InputStreamReader(resource.getInputStream()));
-            return factory.createWriter(new OutputStreamWriter(stream));
+            FixedWriterFactory factory = new FixedWriterFactory(new InputStreamReader(resource.getInputStream(), IOConverter.getCharsetName(exchange)));
+            return factory.createWriter(new OutputStreamWriter(stream, IOConverter.getCharsetName(exchange)));
         } else {
             Resource resource = getDefinition();
             if (resource == null) {
@@ -188,13 +191,11 @@ public class FlatpackDataFormat implements DataFormat {
                 for (String key : firstRow.keySet()) {
                     factory.addColumnTitle(key);
                 }
-                return factory.createWriter(new OutputStreamWriter(stream));
+                return factory.createWriter(new OutputStreamWriter(stream, IOConverter.getCharsetName(exchange)));
             } else {
-                DelimiterWriterFactory factory = new DelimiterWriterFactory(new InputStreamReader(resource.getInputStream()), delimiter, textQualifier);
-                return factory.createWriter(new OutputStreamWriter(stream));
+                DelimiterWriterFactory factory = new DelimiterWriterFactory(new InputStreamReader(resource.getInputStream(), IOConverter.getCharsetName(exchange)), delimiter, textQualifier);
+                return factory.createWriter(new OutputStreamWriter(stream, IOConverter.getCharsetName(exchange)));
             }
         }
     }
-
-
 }

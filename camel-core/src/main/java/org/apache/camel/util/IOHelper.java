@@ -23,17 +23,17 @@ import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * IO helper class.
  *
- * @version $Revision$
+ * @version 
  */
 public final class IOHelper {
     
-    private static final transient Log LOG = LogFactory.getLog(IOHelper.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(IOHelper.class);
     private static final int DEFAULT_BUFFER_SIZE = 1024 * 4;
     private static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
 
@@ -67,7 +67,10 @@ public final class IOHelper {
     /**
      * A factory method which creates an {@link IOException} from the given
      * exception and message
+     *
+     * @deprecated IOException support nested exception in Java 1.6.
      */
+    @Deprecated
     public static IOException createIOException(Throwable cause) {
         return createIOException(cause.getMessage(), cause);
     }
@@ -75,7 +78,10 @@ public final class IOHelper {
     /**
      * A factory method which creates an {@link IOException} from the given
      * exception and message
+     *
+     * @deprecated IOException support nested exception in Java 1.6.
      */
+    @Deprecated
     public static IOException createIOException(String message, Throwable cause) {
         IOException answer = new IOException(message);
         answer.initCause(cause);
@@ -125,7 +131,7 @@ public final class IOHelper {
      * @param name the name of the resource
      * @param log the log to use when reporting closure warnings
      */
-    public static void close(Closeable closeable, String name, Log log) {
+    public static void close(Closeable closeable, String name, Logger log) {
         if (closeable != null) {
             try {
                 closeable.close();

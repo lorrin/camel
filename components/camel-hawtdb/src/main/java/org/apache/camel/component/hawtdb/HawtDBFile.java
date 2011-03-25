@@ -17,8 +17,6 @@
 package org.apache.camel.component.hawtdb;
 
 import org.apache.camel.Service;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.fusesource.hawtbuf.Buffer;
 import org.fusesource.hawtbuf.codec.BufferCodec;
 import org.fusesource.hawtbuf.codec.IntegerCodec;
@@ -29,6 +27,8 @@ import org.fusesource.hawtdb.api.SortedIndex;
 import org.fusesource.hawtdb.api.Transaction;
 import org.fusesource.hawtdb.api.TxPageFile;
 import org.fusesource.hawtdb.api.TxPageFileFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Manages access to a shared <a href="http://hawtdb.fusesource.org/">HawtDB</a> file.
@@ -38,7 +38,7 @@ import org.fusesource.hawtdb.api.TxPageFileFactory;
  */
 public class HawtDBFile extends TxPageFileFactory implements Service {
 
-    private static final transient Log LOG = LogFactory.getLog(HawtDBFile.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(HawtDBFile.class);
 
     // the root which contains an index with name -> page for the real indexes
     private static final BTreeIndexFactory<String, Integer> ROOT_INDEXES_FACTORY = new BTreeIndexFactory<String, Integer>();
@@ -84,6 +84,11 @@ public class HawtDBFile extends TxPageFileFactory implements Service {
                             + " containing " + indexes.size() + " repositories.");
                 }
                 return true;
+            }
+
+            @Override
+            public String toString() {
+                return "Allocation repository file: " + getFile();
             }
         });
     }
@@ -156,7 +161,12 @@ public class HawtDBFile extends TxPageFileFactory implements Service {
                 }
                 attempt++;
 
+                // execute and get answer
                 answer = work.execute(tx);
+
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("TX is read only: " + tx.isReadOnly() + " for executed work: " + work);
+                }
                 // commit work
                 tx.commit();
                 // and flush so we ensure data is spooled to disk
@@ -165,11 +175,11 @@ public class HawtDBFile extends TxPageFileFactory implements Service {
                 done = true;
             } catch (OptimisticUpdateException e) {
                 // retry as we hit an optimistic update error
-                LOG.warn("OptimisticUpdateException occurred at attempt " + attempt + " executing work " + work + " will do rollback and retry.");
+                LOG.warn("OptimisticUpdateException occurred at attempt " + attempt + " executing work " + work + ". Will do rollback and retry.");
                 // no harm doing rollback before retry and no wait is needed
                 tx.rollback();
             } catch (RuntimeException e) {
-                LOG.warn("Error executing work " + work + " will do rollback.", e);
+                LOG.warn("Error executing work " + work + ". Will do rollback.", e);
                 tx.rollback();
                 throw e;
             }

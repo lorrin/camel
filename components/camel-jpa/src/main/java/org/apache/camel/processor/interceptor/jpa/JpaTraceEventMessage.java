@@ -21,7 +21,10 @@ import java.util.Date;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.Lob;
 import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
 import javax.persistence.Transient;
 
 import org.apache.camel.Exchange;
@@ -67,6 +70,7 @@ public class JpaTraceEventMessage implements TraceEventMessage, Serializable {
         this.id = id;
     }
 
+    @Temporal(TemporalType.TIMESTAMP)
     public Date getTimestamp() {
         return timestamp;
     }
@@ -123,6 +127,7 @@ public class JpaTraceEventMessage implements TraceEventMessage, Serializable {
         this.exchangePattern = exchangePattern;
     }
 
+    @Lob
     public String getProperties() {
         return properties;
     }
@@ -131,6 +136,7 @@ public class JpaTraceEventMessage implements TraceEventMessage, Serializable {
         this.properties = properties;
     }
 
+    @Lob
     public String getHeaders() {
         return headers;
     }
@@ -139,6 +145,7 @@ public class JpaTraceEventMessage implements TraceEventMessage, Serializable {
         this.headers = headers;
     }
 
+    @Lob
     public String getBody() {
         return body;
     }
@@ -155,6 +162,7 @@ public class JpaTraceEventMessage implements TraceEventMessage, Serializable {
         this.bodyType = bodyType;
     }
 
+    @Lob
     public String getOutBody() {
         return outBody;
     }
@@ -171,6 +179,7 @@ public class JpaTraceEventMessage implements TraceEventMessage, Serializable {
         this.outBodyType = outBodyType;
     }
 
+    @Lob
     public String getOutHeaders() {
         return outHeaders;
     }
@@ -179,6 +188,7 @@ public class JpaTraceEventMessage implements TraceEventMessage, Serializable {
         this.outHeaders = outHeaders;
     }
 
+    @Lob
     public String getCausedByException() {
         return causedByException;
     }

@@ -21,19 +21,19 @@ import java.net.SocketAddress;
 import org.apache.camel.CamelExchangeException;
 import org.apache.camel.Exchange;
 import org.apache.camel.NoTypeConversionAvailableException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Helper class used internally by camel-netty using Netty.
  *
- * @version $Revision$
+ * @version 
  */
 public final class NettyHelper {
 
-    private static final transient Log LOG = LogFactory.getLog(NettyHelper.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(NettyHelper.class);
 
     private NettyHelper() {
         // Utility class

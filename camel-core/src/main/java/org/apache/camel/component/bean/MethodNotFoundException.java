@@ -16,20 +16,29 @@
  */
 package org.apache.camel.component.bean;
 
+import java.util.List;
+
 import org.apache.camel.CamelExchangeException;
 import org.apache.camel.Exchange;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class MethodNotFoundException extends CamelExchangeException {
     private static final long serialVersionUID = -7411465307141051012L;
 
-    private final String methodName;
     private final Object bean;
+    private final String methodName;
+    @SuppressWarnings("rawtypes")
 
     public MethodNotFoundException(Exchange exchange, Object pojo, String methodName) {
         super("Method with name: " + methodName + " not found on bean: " + pojo, exchange);
+        this.methodName = methodName;
+        this.bean = pojo;
+    }
+
+    public MethodNotFoundException(Object pojo, String methodName, Throwable cause) {
+        super("Method with name: " + methodName + " not found on bean: " + pojo, null, cause);
         this.methodName = methodName;
         this.bean = pojo;
     }

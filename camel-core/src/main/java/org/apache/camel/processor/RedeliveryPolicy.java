@@ -23,8 +23,8 @@ import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.Predicate;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The policy used to decide how many times to redeliver and the time between
@@ -71,12 +71,12 @@ import org.apache.commons.logging.LogFactory;
  * If you want to set a starting delay, then use 0 as the first limit, eg: <tt>0:1000;5:5000</tt> will use 1 sec delay
  * until attempt number 5 where it will use 5 seconds going forward.
  *
- * @version $Revision$
+ * @version 
  */
 public class RedeliveryPolicy implements Cloneable, Serializable {
     protected static transient Random randomNumberGenerator;
     private static final long serialVersionUID = -338222777701473252L;
-    private static final transient Log LOG = LogFactory.getLog(RedeliveryPolicy.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(RedeliveryPolicy.class);
 
     protected long redeliveryDelay = 1000L;
     protected int maximumRedeliveries;
@@ -220,7 +220,8 @@ public class RedeliveryPolicy implements Cloneable, Serializable {
             redeliveryDelayResult += redeliveryDelayResult * variance;
         }
 
-        if (maximumRedeliveryDelay > 0 && redeliveryDelay > maximumRedeliveryDelay) {
+        // ensure the calculated result is not bigger than the max delay (if configured)
+        if (maximumRedeliveryDelay > 0 && redeliveryDelayResult > maximumRedeliveryDelay) {
             redeliveryDelayResult = maximumRedeliveryDelay;
         }
 

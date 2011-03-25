@@ -27,12 +27,11 @@ import org.apache.camel.spi.EventNotifier;
 import org.apache.camel.spi.ManagementStrategy;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class ManagedEventNotifier extends NotificationBroadcasterSupport implements ManagedEventNotifierMBean {
-
-    private CamelContext context;
-    private EventNotifier eventNotifier;
+    private final CamelContext context;
+    private final EventNotifier eventNotifier;
 
     public ManagedEventNotifier(CamelContext context, EventNotifier eventNotifier) {
         this.context = context;

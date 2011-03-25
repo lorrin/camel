@@ -22,6 +22,7 @@ import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -47,16 +48,16 @@ import org.apache.camel.Message;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.TypeConverter;
 import org.apache.camel.component.file.GenericFile;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A number of useful helper methods for working with Objects
  *
- * @version $Revision$
+ * @version 
  */
 public final class ObjectHelper {
-    private static final transient Log LOG = LogFactory.getLog(ObjectHelper.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(ObjectHelper.class);
 
     /**
      * Utility classes should not have a public constructor.
@@ -476,9 +477,8 @@ public final class ObjectHelper {
             return Collections.emptyList().iterator();
         } else if (value instanceof Iterator) {
             return (Iterator)value;
-        } else if (value instanceof Collection) {
-            Collection collection = (Collection)value;
-            return collection.iterator();
+        } else if (value instanceof Iterable) {
+            return ((Iterable)value).iterator();
         } else if (value.getClass().isArray()) {
             // TODO we should handle primitive array types?
             List<Object> list = Arrays.asList((Object[])value);
@@ -1002,8 +1002,7 @@ public final class ObjectHelper {
     }
 
     /**
-     * Returns true if the given collection of annotations matches the given
-     * type
+     * Returns true if the given collection of annotations matches the given type
      */
     public static boolean hasAnnotation(Annotation[] annotations, Class<?> type) {
         for (Annotation annotation : annotations) {
@@ -1024,7 +1023,7 @@ public final class ObjectHelper {
      * @deprecated use {@link org.apache.camel.util.IOHelper#close(java.io.Closeable, String, org.apache.commons.logging.Log)}
      */
     @Deprecated
-    public static void close(Closeable closeable, String name, Log log) {
+    public static void close(Closeable closeable, String name, Logger log) {
         IOHelper.close(closeable, name, log);
     }
 
@@ -1268,6 +1267,32 @@ public final class ObjectHelper {
 
     public static String getIdentityHashCode(Object object) {
         return "0x" + Integer.toHexString(System.identityHashCode(object));
+    }
+
+    /**
+     * Lookup the constant field on the given class with the given name
+     *
+     * @param clazz  the class
+     * @param name   the name of the field to lookup
+     * @return the value of the constant field, or <tt>null</tt> if not found
+     */
+    public static String lookupConstantFieldValue(Class clazz, String name) {
+        if (clazz == null) {
+            return null;
+        }
+
+        for (Field field : clazz.getFields()) {
+            if (field.getName().equals(name)) {
+                try {
+                    return (String) field.get(null);
+                } catch (IllegalAccessException e) {
+                    // ignore
+                    return null;
+                }
+            }
+        }
+
+        return null;
     }
 
     private static final class ExceptionIterator implements Iterator<Throwable> {

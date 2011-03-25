@@ -27,6 +27,7 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Component;
 import org.apache.camel.Exchange;
 import org.apache.camel.Expression;
+import org.apache.camel.ExpressionIllegalSyntaxException;
 import org.apache.camel.Message;
 import org.apache.camel.Processor;
 import org.apache.camel.converter.IOConverter;
@@ -39,8 +40,8 @@ import org.apache.camel.spi.Language;
 import org.apache.camel.util.FileUtil;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.StringHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Generic FileEndpoint
@@ -50,7 +51,7 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint {
     protected static final transient String DEFAULT_STRATEGYFACTORY_CLASS = "org.apache.camel.component.file.strategy.GenericFileProcessStrategyFactory";
     protected static final transient int DEFAULT_IDEMPOTENT_CACHE_SIZE = 1000;
 
-    protected final transient Log log = LogFactory.getLog(getClass());
+    protected final transient Logger log = LoggerFactory.getLogger(getClass());
 
     protected GenericFileProcessStrategy<T> processStrategy;
     protected GenericFileConfiguration configuration;
@@ -83,9 +84,11 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint {
     protected Comparator<GenericFile<T>> sorter;
     protected Comparator<Exchange> sortBy;
     protected String readLock = "none";
+    protected long readLockCheckInterval = 1000;
     protected long readLockTimeout = 10000;
     protected GenericFileExclusiveReadLockStrategy<T> exclusiveReadLockStrategy;
     protected boolean keepLastModified;
+    protected String doneFileName;
 
     public GenericFileEndpoint() {
     }
@@ -105,11 +108,11 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint {
     public abstract Exchange createExchange(GenericFile<T> file);
 
     public abstract String getScheme();
-    
+
     public abstract char getFileSeparator();
-    
+
     public abstract boolean isAbsolute(String name);
-    
+
     /**
      * Return the file name that will be auto-generated for the given message if
      * none is provided
@@ -136,6 +139,9 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint {
         Class<?> factory = null;
         try {
             FactoryFinder finder = getCamelContext().getFactoryFinder("META-INF/services/org/apache/camel/component/");
+            if (log.isTraceEnabled()) {
+                log.trace("Using FactoryFinder: " + finder);
+            }
             factory = finder.findClass(getScheme(), "strategy.factory.");
         } catch (ClassNotFoundException e) {
             if (log.isTraceEnabled()) {
@@ -149,7 +155,28 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint {
 
         if (factory == null) {
             // use default
-            factory = this.getCamelContext().getClassResolver().resolveClass(DEFAULT_STRATEGYFACTORY_CLASS);
+            try {
+                if (log.isTraceEnabled()) {
+                    log.trace("Using ClassResolver to resolve class: " + DEFAULT_STRATEGYFACTORY_CLASS);
+                }
+                factory = this.getCamelContext().getClassResolver().resolveClass(DEFAULT_STRATEGYFACTORY_CLASS);
+            } catch (Exception e) {
+                if (log.isTraceEnabled()) {
+                    log.trace("Cannot load class: " + DEFAULT_STRATEGYFACTORY_CLASS, e);
+                }
+            }
+            // fallback and us this class loader
+            try {
+                if (log.isTraceEnabled()) {
+                    log.trace("Using classloader: " + this.getClass().getClassLoader() + " to resolve class: " + DEFAULT_STRATEGYFACTORY_CLASS);
+                }
+                factory = this.getCamelContext().getClassResolver().resolveClass(DEFAULT_STRATEGYFACTORY_CLASS, this.getClass().getClassLoader());
+            } catch (Exception e) {
+                if (log.isTraceEnabled()) {
+                    log.trace("Cannot load class: " + DEFAULT_STRATEGYFACTORY_CLASS + " using classloader: " + this.getClass().getClassLoader(), e);
+                }
+            }
+
             if (factory == null) {
                 throw new TypeNotPresentException(DEFAULT_STRATEGYFACTORY_CLASS + " class not found", null);
             }
@@ -278,14 +305,27 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint {
         this.fileName = createFileLanguageExpression(fileLanguageExpression);
     }
 
+    public String getDoneFileName() {
+        return doneFileName;
+    }
+
+    /**
+     * Sets the done file name.
+     * <p/>
+     * Only ${file.name} and ${file.name.noext} is supported as dynamic placeholders.
+     */
+    public void setDoneFileName(String doneFileName) {
+        this.doneFileName = doneFileName;
+    }
+
     public Boolean isIdempotent() {
         return idempotent != null ? idempotent : false;
     }
-    
+
     public String getCharset() {
         return charset;
     }
-    
+
     public void setCharset(String charset) {
         IOConverter.validateCharset(charset);
         this.charset = charset;
@@ -398,6 +438,14 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint {
 
     public void setReadLock(String readLock) {
         this.readLock = readLock;
+    }
+
+    public long getReadLockCheckInterval() {
+        return readLockCheckInterval;
+    }
+
+    public void setReadLockCheckInterval(long readLockCheckInterval) {
+        this.readLockCheckInterval = readLockCheckInterval;
     }
 
     public long getReadLockTimeout() {
@@ -515,9 +563,10 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint {
             message.setHeader(Exchange.FILE_NAME, name);
         }
     }
-    
+
     /**
      * Set up the exchange properties with the options of the file endpoint
+     *
      * @param exchange
      */
     public void configureExchange(Exchange exchange) {
@@ -530,6 +579,7 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint {
     /**
      * Strategy to configure the move or premove option based on a String input.
      * <p/>
+     *
      * @param expression the original string input
      * @return configured string or the original if no modifications is needed
      */
@@ -582,6 +632,9 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint {
         if (readLock != null) {
             params.put("readLock", readLock);
         }
+        if (readLockCheckInterval > 0) {
+            params.put("readLockCheckInterval", readLockCheckInterval);
+        }
         if (readLockTimeout > 0) {
             params.put("readLockTimeout", readLockTimeout);
         }
@@ -599,4 +652,84 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint {
         }
         return language.createExpression(expression);
     }
+
+    /**
+     * Creates the associated name of the done file based on the given file name.
+     * <p/>
+     * This method should only be invoked if a done filename property has been set on this endpoint.
+     *
+     * @param fileName the file name
+     * @return name of the associated done file name
+     */
+    protected String createDoneFileName(String fileName) {
+        String pattern = getDoneFileName();
+        ObjectHelper.notEmpty(pattern, "doneFileName", pattern);
+
+        // we only support ${file:name} or ${file:name.noext} as dynamic placeholders for done files
+        String path = FileUtil.onlyPath(fileName);
+        String onlyName = FileUtil.stripPath(fileName);
+
+        pattern = pattern.replaceFirst("\\$\\{file:name\\}", onlyName);
+        pattern = pattern.replaceFirst("\\$simple\\{file:name\\}", onlyName);
+        pattern = pattern.replaceFirst("\\$\\{file:name.noext\\}", FileUtil.stripExt(onlyName));
+        pattern = pattern.replaceFirst("\\$simple\\{file:name.noext\\}", FileUtil.stripExt(onlyName));
+
+        // must be able to resolve all placeholders supported
+        if (SimpleLanguage.hasStartToken(pattern)) {
+            throw new ExpressionIllegalSyntaxException(fileName + ". Cannot resolve reminder: " + pattern);
+        }
+
+        String answer = pattern;
+        if (ObjectHelper.isNotEmpty(path) && ObjectHelper.isNotEmpty(pattern)) {
+            // done file must always be in same directory as the real file name
+            answer = path + File.separator + pattern;
+        }
+
+        if (getConfiguration().needToNormalize()) {
+            // must normalize path to cater for Windows and other OS
+            answer = FileUtil.normalizePath(answer);
+        }
+
+        return answer;
+    }
+
+    /**
+     * Is the given file a done file?
+     * <p/>
+     * This method should only be invoked if a done filename property has been set on this endpoint.
+     *
+     * @param fileName the file name
+     * @return <tt>true</tt> if its a done file, <tt>false</tt> otherwise
+     */
+    protected boolean isDoneFile(String fileName) {
+        String pattern = getDoneFileName();
+        ObjectHelper.notEmpty(pattern, "doneFileName", pattern);
+
+        if (!SimpleLanguage.hasStartToken(pattern)) {
+            // no tokens, so just match names directly
+            return pattern.equals(fileName);
+        }
+
+        // the static part of the pattern, is that a prefix or suffix?
+        // its a prefix if ${ start token is not at the start of the pattern
+        boolean prefix = pattern.indexOf("${") > 0;
+
+        // remove dynamic parts of the pattern so we only got the static part left
+        pattern = pattern.replaceFirst("\\$\\{file:name\\}", "");
+        pattern = pattern.replaceFirst("\\$simple\\{file:name\\}", "");
+        pattern = pattern.replaceFirst("\\$\\{file:name.noext\\}", "");
+        pattern = pattern.replaceFirst("\\$simple\\{file:name.noext\\}", "");
+
+        // must be able to resolve all placeholders supported
+        if (SimpleLanguage.hasStartToken(pattern)) {
+            throw new ExpressionIllegalSyntaxException(fileName + ". Cannot resolve reminder: " + pattern);
+        }
+
+        if (prefix) {
+            return fileName.startsWith(pattern);
+        } else {
+            return fileName.endsWith(pattern);
+        }
+    }
+
 }

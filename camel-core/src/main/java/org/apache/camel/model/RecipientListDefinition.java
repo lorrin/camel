@@ -35,31 +35,30 @@ import org.apache.camel.util.concurrent.ExecutorServiceHelper;
 /**
  * Represents an XML &lt;recipientList/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "recipientList")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class RecipientListDefinition<Type extends ProcessorDefinition> extends NoOutputExpressionNode implements ExecutorServiceAwareDefinition<RecipientListDefinition> {
-
     @XmlTransient
     private AggregationStrategy aggregationStrategy;
     @XmlTransient
     private ExecutorService executorService;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String delimiter;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Boolean parallelProcessing;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String strategyRef;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String executorServiceRef;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Boolean stopOnException;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Boolean ignoreInvalidEndpoints;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Boolean streaming;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Long timeout;
 
     public RecipientListDefinition() {
@@ -192,8 +191,13 @@ public class RecipientListDefinition<Type extends ProcessorDefinition> extends N
     }
 
     /**
-     * Will now stop further processing if an exception occurred during processing of an
+     * Will now stop further processing if an exception or failure occurred during processing of an
      * {@link org.apache.camel.Exchange} and the caused exception will be thrown.
+     * <p/>
+     * Will also stop if processing the exchange failed (has a fault message) or an exception
+     * was thrown and handled by the error handler (such as using onException). In all situations
+     * the recipient list will stop further processing. This is the same behavior as in pipeline, which
+     * is used by the routing engine.
      * <p/>
      * The default behavior is to <b>not</b> stop but continue processing till the end
      *
@@ -236,12 +240,16 @@ public class RecipientListDefinition<Type extends ProcessorDefinition> extends N
         this.delimiter = delimiter;
     }
 
-    public boolean isParallelProcessing() {
-        return parallelProcessing != null && parallelProcessing;
+    public Boolean getParallelProcessing() {
+        return parallelProcessing;
     }
 
-    public void setParallelProcessing(boolean parallelProcessing) {
+    public void setParallelProcessing(Boolean parallelProcessing) {
         this.parallelProcessing = parallelProcessing;
+    }
+
+    public boolean isParallelProcessing() {
+        return parallelProcessing != null && parallelProcessing;
     }
 
     public String getStrategyRef() {
@@ -259,8 +267,8 @@ public class RecipientListDefinition<Type extends ProcessorDefinition> extends N
     public void setExecutorServiceRef(String executorServiceRef) {
         this.executorServiceRef = executorServiceRef;
     }
-    
-    public Boolean isIgnoreInvalidEndpoints() {
+
+    public Boolean getIgnoreInvalidEndpoints() {
         return ignoreInvalidEndpoints;
     }
 
@@ -268,12 +276,20 @@ public class RecipientListDefinition<Type extends ProcessorDefinition> extends N
         this.ignoreInvalidEndpoints = ignoreInvalidEndpoints;
     }
 
-    public Boolean isStopOnException() {
+    public boolean isIgnoreInvalidEndpoints() {
+        return ignoreInvalidEndpoints != null && ignoreInvalidEndpoints;
+    }
+
+    public Boolean getStopOnException() {
         return stopOnException;
     }
 
     public void setStopOnException(Boolean stopOnException) {
         this.stopOnException = stopOnException;
+    }
+
+    public boolean isStopOnException() {
+        return stopOnException != null && stopOnException;
     }
 
     public AggregationStrategy getAggregationStrategy() {
@@ -292,12 +308,16 @@ public class RecipientListDefinition<Type extends ProcessorDefinition> extends N
         this.executorService = executorService;
     }
 
-    public void setStreaming(boolean streaming) {
+    public Boolean getStreaming() {
+        return streaming;
+    }
+
+    public void setStreaming(Boolean streaming) {
         this.streaming = streaming;
     }
 
     public boolean isStreaming() {
-        return streaming != null ? streaming : false;
+        return streaming != null && streaming;
     }
 
     public Long getTimeout() {

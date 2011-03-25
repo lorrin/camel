@@ -17,6 +17,7 @@
 package org.apache.camel.component.snmp;
 
 import java.net.URI;
+
 import org.apache.camel.Consumer;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
@@ -24,8 +25,8 @@ import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.impl.DefaultPollingEndpoint;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.snmp4j.PDU;
 import org.snmp4j.mp.SnmpConstants;
 
@@ -36,11 +37,11 @@ public class SnmpEndpoint extends DefaultPollingEndpoint {
     public static final int DEFAULT_SNMP_RETRIES = 2;
     public static final int DEFAULT_SNMP_TIMEOUT = 1500;
 
-    private static final Log LOG = LogFactory.getLog(SnmpEndpoint.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SnmpEndpoint.class);
 
     private OIDList oids = new OIDList();
     private String address;
-    private String protocol;
+    private String protocol = "udp";
     private int retries = DEFAULT_SNMP_RETRIES;
     private int timeout = DEFAULT_SNMP_TIMEOUT;
     private int snmpVersion = DEFAULT_SNMP_VERSION;
@@ -203,5 +204,11 @@ public class SnmpEndpoint extends DefaultPollingEndpoint {
 
     public void setProtocol(String protocol) {
         this.protocol = protocol;
+    }
+
+    @Override
+    public String toString() {
+        // only show address to avoid user and password details to be shown
+        return "SnmpEndpoint[" + address + "]";
     }
 }

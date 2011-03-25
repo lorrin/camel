@@ -26,13 +26,13 @@ import org.apache.camel.component.mock.MockEndpoint;
 /**
  * A unit test which verifies disabling of JMX instrumentation.
  *
- * @version $Revision$
+ * @version 
  */
 public class JmxInstrumentationDisableOnCamelContextTest extends JmxInstrumentationUsingPropertiesTest {
 
     @Override
     protected boolean useJmx() {
-        return true;
+        return false;
     }
 
     @Override
@@ -44,8 +44,6 @@ public class JmxInstrumentationDisableOnCamelContextTest extends JmxInstrumentat
 
     @Override
     public void testMBeansRegistered() throws Exception {
-        assertDefaultDomain();
-
         resolveMandatoryEndpoint("mock:end", MockEndpoint.class);
 
         Set<ObjectName> s = mbsc.queryNames(new ObjectName(domainName + ":type=endpoints,*"), null);

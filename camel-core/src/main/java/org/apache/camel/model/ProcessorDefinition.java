@@ -19,7 +19,6 @@ package org.apache.camel.model;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -30,11 +29,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlAnyAttribute;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlTransient;
+import javax.xml.namespace.QName;
 
 import org.apache.camel.Channel;
 import org.apache.camel.Endpoint;
+import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.Expression;
 import org.apache.camel.LoggingLevel;
@@ -47,6 +49,7 @@ import org.apache.camel.builder.ErrorHandlerBuilderRef;
 import org.apache.camel.builder.ExpressionBuilder;
 import org.apache.camel.builder.ExpressionClause;
 import org.apache.camel.builder.ProcessorBuilder;
+import org.apache.camel.component.properties.PropertiesComponent;
 import org.apache.camel.model.language.ConstantExpression;
 import org.apache.camel.model.language.ExpressionDefinition;
 import org.apache.camel.model.language.LanguageExpression;
@@ -66,19 +69,20 @@ import org.apache.camel.spi.Policy;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.spi.TransactedPolicy;
 import org.apache.camel.util.IntrospectionSupport;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.camel.util.ObjectHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.camel.builder.Builder.body;
 
 /**
  * Base class for processor types that most XML types extend.
  *
- * @version $Revision$
+ * @version 
  */
 @XmlAccessorType(XmlAccessType.PROPERTY)
 public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>> extends OptionalIdentifiedDefinition implements Block {
-    protected final transient Log log = LogFactory.getLog(getClass());
+    protected final transient Logger log = LoggerFactory.getLogger(getClass());
     protected ErrorHandlerBuilder errorHandlerBuilder;
     protected String errorHandlerRef;
     protected Boolean inheritErrorHandler;
@@ -87,8 +91,13 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     private ProcessorDefinition<?> parent;
     private final List<InterceptStrategy> interceptStrategies = new ArrayList<InterceptStrategy>();
 
+    // use xs:any to support optional property placeholders
+    private Map<QName, Object> otherAttributes;
+
     // else to use an optional attribute in JAXB2
     public abstract List<ProcessorDefinition> getOutputs();
+
+    public abstract boolean isOutputSupported();
 
     /**
      * Whether this model is abstract or not.
@@ -389,6 +398,9 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
         // resolve properties before we create the processor
         resolvePropertyPlaceholders(routeContext, this);
 
+        // resolve constant fields (eg Exchange.FILE_NAME)
+        resolveKnownConstantFields(this);
+
         // at first use custom factory
         if (routeContext.getCamelContext().getProcessorFactory() != null) {
             processor = routeContext.getCamelContext().getProcessorFactory().createProcessor(routeContext, this);
@@ -422,6 +434,75 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
             log.trace("Resolving property placeholders for: " + definition);
         }
 
+        // find all getter/setter which we can use for property placeholders
+        Map<Object, Object> properties = new HashMap<Object, Object>();
+        IntrospectionSupport.getProperties(definition, properties, null);
+
+        // include additional properties which have the Camel placeholder QName
+        // and when the definition parameter is this (otherAttributes belong to this)
+        if (definition.getOtherAttributes() != null) {
+            for (Object key : definition.getOtherAttributes().keySet()) {
+                QName qname = (QName) key;
+                if (Constants.PLACEHOLDER_QNAME.equals(qname.getNamespaceURI())) {
+                    String local = qname.getLocalPart();
+                    Object value = definition.getOtherAttributes().get(key);
+                    if (value != null && value instanceof String) {
+                        // value must be enclosed with placeholder tokens
+                        String s = (String) value;
+                        if (!s.startsWith(PropertiesComponent.PREFIX_TOKEN)) {
+                            s = PropertiesComponent.PREFIX_TOKEN + s;
+                        }
+                        if (!s.endsWith(PropertiesComponent.SUFFIX_TOKEN)) {
+                            s = s + PropertiesComponent.SUFFIX_TOKEN;
+                        }
+                        value = s;
+                    }
+                    properties.put(local, value);
+                }
+            }
+        }
+
+        if (!properties.isEmpty()) {
+            if (log.isTraceEnabled()) {
+                log.trace("There are " + properties.size() + " properties on: " + definition);
+            }
+            // lookup and resolve properties for String based properties
+            for (Map.Entry entry : properties.entrySet()) {
+                // the name is always a String
+                String name = (String) entry.getKey();
+                Object value = entry.getValue();
+                if (value instanceof String) {
+                    // value must be a String, as a String is the key for a property placeholder
+                    String text = (String) value;
+                    text = routeContext.getCamelContext().resolvePropertyPlaceholders(text);
+                    if (text != value) {
+                        // invoke setter as the text has changed
+                        boolean changed = IntrospectionSupport.setProperty(routeContext.getCamelContext().getTypeConverter(), definition, name, text);
+                        if (!changed) {
+                            throw new IllegalArgumentException("No setter to set property: " + name + " to: " + text + " on: " + definition);
+                        }
+                        if (log.isDebugEnabled()) {
+                            log.debug("Changed property [" + name + "] from: " + value + " to: " + text);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Inspects the given processor definition and resolves known fields
+     * <p/>
+     * This implementation will check all the getter/setter pairs on this instance and for all the values
+     * (which is a String type) will check if it refers to a known field (such as on Exchange).
+     *
+     * @param definition   the processor definition
+     */
+    protected void resolveKnownConstantFields(ProcessorDefinition definition) throws Exception {
+        if (log.isTraceEnabled()) {
+            log.trace("Resolving known fields for: " + definition);
+        }
+
         // find all String getter/setter
         Map<Object, Object> properties = new HashMap<Object, Object>();
         IntrospectionSupport.getProperties(definition, properties, null);
@@ -431,7 +512,7 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
                 log.trace("There are " + properties.size() + " properties on: " + definition);
             }
 
-            // lookup and resolve properties for String based properties
+            // lookup and resolve known constant fields for String based properties
             for (Map.Entry entry : properties.entrySet()) {
                 // the name is always a String
                 String name = (String) entry.getKey();
@@ -439,12 +520,19 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
                 if (value instanceof String) {
                     // we can only resolve String typed values
                     String text = (String) value;
-                    text = routeContext.getCamelContext().resolvePropertyPlaceholders(text);
-                    if (text != value) {
-                        // invoke setter as the text has changed
-                        IntrospectionSupport.setProperty(definition, name, text);
-                        if (log.isDebugEnabled()) {
-                            log.debug("Changed property [" + name + "] from: " + value + " to: " + text);
+
+                    // is the value a known field (currently we only support constants from Exchange.class)
+                    if (text.startsWith("Exchange.")) {
+                        String field = ObjectHelper.after(text, "Exchange.");
+                        String constant = ObjectHelper.lookupConstantFieldValue(Exchange.class, field);
+                        if (constant != null) {
+                            // invoke setter as the text has changed
+                            IntrospectionSupport.setProperty(definition, name, constant);
+                            if (log.isDebugEnabled()) {
+                                log.debug("Changed property [" + name + "] from: " + value + " to: " + constant);
+                            }
+                        } else {
+                            throw new IllegalArgumentException("Constant field with name: " + field + " not found on Exchange.class");
                         }
                     }
                 }
@@ -468,6 +556,35 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
 
     // Fluent API
     // -------------------------------------------------------------------------
+
+    /**
+     * Adds a placeholder for the given option
+     * <p/>
+     * Requires using the {@link org.apache.camel.component.properties.PropertiesComponent}
+     *
+     * @param option  the name of the option
+     * @param key     the placeholder key
+     * @return the builder
+     */
+    public Type placeholder(String option, String key) {
+        QName name = new QName(Constants.PLACEHOLDER_QNAME, option);
+        return attribute(name, key);
+    }
+
+    /**
+     * Adds an optional attribute
+     *
+     * @param name    the name of the attribute
+     * @param value   the value
+     * @return the builder
+     */
+    public Type attribute(QName name, Object value) {
+        if (otherAttributes == null) {
+            otherAttributes = new HashMap<QName, Object>();
+        }
+        otherAttributes.put(name, value);
+        return (Type) this;
+    }
 
     /**
      * Sends the exchange to the given endpoint
@@ -999,6 +1116,15 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     }
 
     /**
+     * Ends the current block and returns back to the {@link ChoiceDefinition choice()} DSL.
+     *
+     * @return the builder
+     */
+    public ChoiceDefinition endChoice() {
+        return (ChoiceDefinition) end();
+    }
+
+    /**
      * <a href="http://camel.apache.org/idempotent-consumer.html">Idempotent consumer EIP:</a>
      * Creates an {@link org.apache.camel.processor.idempotent.IdempotentConsumer IdempotentConsumer}
      * to avoid duplicate messages
@@ -1048,7 +1174,7 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      *
      * @return the clause used to create the filter expression
      */
-    public ExpressionClause<FilterDefinition> filter() {
+    public ExpressionClause<? extends FilterDefinition> filter() {
         FilterDefinition filter = new FilterDefinition();
         addOutput(filter);
         return ExpressionClause.createAndSetExpression(filter);
@@ -1483,11 +1609,28 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     }
 
     /**
+     * <a href="http://camel.apache.org/sampling.html">Sampling Throttler</a>
+     * Creates a sampling throttler allowing you to extract a sample of exchanges
+     * from the traffic through a route. It is configured with a sampling message frequency
+     * during which only a single exchange is allowed to pass through.
+     * All other exchanges will be stopped.
+     *
+     * @param messageFrequency this is the sample message frequency, only one exchange is 
+     *              allowed through for this many messages received
+     * @return the builder
+     */
+    public SamplingDefinition sample(long messageFrequency) {
+        SamplingDefinition answer = new SamplingDefinition(messageFrequency);
+        addOutput(answer);
+        return answer;
+    }
+
+    /**
      * <a href="http://camel.apache.org/splitter.html">Splitter EIP:</a>
      * Creates a splitter allowing you split a message into a number of pieces and process them individually.
      * <p>
-     * This splitter responds with the latest message returned from destination
-     * endpoint.
+     * This splitter responds with the original input message. You can use a custom {@link AggregationStrategy} to
+     * control what to respond from the splitter.
      *
      * @return the expression clause builder for the expression on which to split
      */
@@ -1501,8 +1644,8 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      * <a href="http://camel.apache.org/splitter.html">Splitter EIP:</a>
      * Creates a splitter allowing you split a message into a number of pieces and process them individually.
      * <p>
-     * This splitter responds with the latest message returned from destination
-     * endpoint.
+     * This splitter responds with the original input message. You can use a custom {@link AggregationStrategy} to
+     * control what to respond from the splitter.
      *
      * @param expression  the expression on which to split the message
      * @return the builder
@@ -1539,9 +1682,7 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     public ExpressionClause<ResequenceDefinition> resequence() {
         ResequenceDefinition answer = new ResequenceDefinition();
         addOutput(answer);
-        ExpressionClause<ResequenceDefinition> clause = new ExpressionClause<ResequenceDefinition>(answer);
-        answer.expression(clause);
-        return clause;
+        return answer.createAndSetExpression();
     }
 
     /**
@@ -1552,33 +1693,10 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      * @return the builder
      */
     public ResequenceDefinition resequence(Expression expression) {
-        return resequence(Collections.<Expression>singletonList(expression));
-    }
-
-    /**
-     * <a href="http://camel.apache.org/resequencer.html">Resequencer EIP:</a>
-     * Creates a resequencer allowing you to reorganize messages based on some comparator.
-     *
-     * @param expressions the list of expressions on which to compare messages in order
-     * @return the builder
-     */
-    public ResequenceDefinition resequence(List<Expression> expressions) {
-        ResequenceDefinition answer = new ResequenceDefinition(expressions);
+        ResequenceDefinition answer = new ResequenceDefinition();
+        answer.setExpression(new ExpressionDefinition(expression));
         addOutput(answer);
         return answer;
-    }
-
-    /**
-     * <a href="http://camel.apache.org/resequencer.html">Resequencer EIP:</a>
-     * Creates a splitter allowing you to reorganise messages based on some comparator.
-     *
-     * @param expressions the list of expressions on which to compare messages in order
-     * @return the builder
-     */
-    public ResequenceDefinition resequence(Expression... expressions) {
-        List<Expression> list = new ArrayList<Expression>();
-        list.addAll(Arrays.asList(expressions));
-        return resequence(list);
     }
 
     /**
@@ -2111,7 +2229,7 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      * Adds a bean which is invoked which could be a final destination, or could be a transformation in a pipeline
      *
      * @param bean  the bean to invoke
-     * @param method  the method name to invoke on the bean (can be used to avoid ambiguty)
+     * @param method  the method name to invoke on the bean (can be used to avoid ambiguity)
      * @return the builder
      */
     @SuppressWarnings("unchecked")
@@ -2133,7 +2251,7 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     @SuppressWarnings("unchecked")
     public Type bean(Class beanType) {
         BeanDefinition answer = new BeanDefinition();
-        answer.setBeanType(beanType);
+        answer.setBeanType(beanType.getName());
         addOutput(answer);
         return (Type) this;
     }
@@ -2143,13 +2261,13 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      * Adds a bean which is invoked which could be a final destination, or could be a transformation in a pipeline
      *
      * @param  beanType  the bean class, Camel will instantiate an object at runtime
-     * @param method  the method name to invoke on the bean (can be used to avoid ambiguty)
+     * @param method  the method name to invoke on the bean (can be used to avoid ambiguity)
      * @return the builder
      */
     @SuppressWarnings("unchecked")
     public Type bean(Class beanType, String method) {
         BeanDefinition answer = new BeanDefinition();
-        answer.setBeanType(beanType);
+        answer.setBeanType(beanType.getName());
         answer.setMethod(method);
         addOutput(answer);
         return (Type) this;
@@ -2174,7 +2292,7 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      * Adds a bean which is invoked which could be a final destination, or could be a transformation in a pipeline
      *
      * @param ref  reference to a bean to lookup in the registry
-     * @param method  the method name to invoke on the bean (can be used to avoid ambiguty)
+     * @param method  the method name to invoke on the bean (can be used to avoid ambiguity)
      * @return the builder
      */
     @SuppressWarnings("unchecked")
@@ -2369,11 +2487,27 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     }
 
     /**
+     * Adds a processor which removes the headers on the IN message
+     *
+     * @param pattern  a pattern to match header names to be removed
+     * @param excludePatterns one or more pattern of header names that should be excluded (= preserved)
+     * @return the builder
+     */
+    @SuppressWarnings("unchecked")
+    public Type removeHeaders(String pattern, String... excludePatterns) {
+        RemoveHeadersDefinition answer = new RemoveHeadersDefinition(pattern, excludePatterns);
+        addOutput(answer);
+        return (Type) this;
+    }
+
+    /**
      * Adds a processor which removes the header on the FAULT message
      *
      * @param name  the header name
      * @return the builder
+     * @deprecated use {@link #removeHeader(String)}
      */
+    @Deprecated
     public Type removeFaultHeader(String name) {
         return process(ProcessorBuilder.removeFaultHeader(name));
     }
@@ -2417,26 +2551,13 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     }
 
     /**
-     * Sorts the IN message body using the given comparator.
-     * The IN body mut be convertable to {@link List}.
+     * Sorts the expression using a default sorting based on toString representation.
      *
-     * @param comparator  the comparator to use for sorting
+     * @param expression  the expression, must be convertable to {@link List}
      * @return the builder
      */
-    @SuppressWarnings("unchecked")
-    public Type sortBody(Comparator comparator) {
-        addOutput(new SortDefinition(body(), comparator));
-        return (Type) this;
-    }
-
-    /**
-     * Sorts the IN message body using a default sorting based on toString representation.
-     * The IN body mut be convertable to {@link List}.
-     *
-     * @return the builder
-     */
-    public Type sortBody() {
-        return sortBody(null);
+    public Type sort(Expression expression) {
+        return sort(expression, null);
     }
 
     /**
@@ -2453,13 +2574,14 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     }
 
     /**
-     * Sorts the expression using a default sorting based on toString representation. 
+     * Sorts the expression
      *
-     * @param expression  the expression, must be convertable to {@link List}
      * @return the builder
      */
-    public Type sort(Expression expression) {
-        return sort(expression, null);
+    public ExpressionClause<SortDefinition> sort() {
+        SortDefinition answer = new SortDefinition();
+        addOutput(answer);
+        return ExpressionClause.createAndSetExpression(answer);
     }
 
     /**
@@ -2849,6 +2971,15 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     @XmlAttribute
     public void setInheritErrorHandler(Boolean inheritErrorHandler) {
         this.inheritErrorHandler = inheritErrorHandler;
+    }
+
+    public Map<QName, Object> getOtherAttributes() {
+        return otherAttributes;
+    }
+
+    @XmlAnyAttribute
+    public void setOtherAttributes(Map<QName, Object> otherAttributes) {
+        this.otherAttributes = otherAttributes;
     }
 
     /**

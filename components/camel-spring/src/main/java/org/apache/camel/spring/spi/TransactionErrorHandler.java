@@ -21,7 +21,7 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.Predicate;
 import org.apache.camel.Processor;
-import org.apache.camel.processor.Logger;
+import org.apache.camel.processor.CamelLogger;
 import org.apache.camel.processor.RedeliveryErrorHandler;
 import org.apache.camel.processor.RedeliveryPolicy;
 import org.apache.camel.processor.exceptionpolicy.ExceptionPolicyStrategy;
@@ -35,11 +35,12 @@ import org.springframework.transaction.support.TransactionTemplate;
  * The <a href="http://camel.apache.org/transactional-client.html">Transactional Client</a>
  * EIP pattern.
  *
- * @version $Revision$
+ * @version 
  */
 public class TransactionErrorHandler extends RedeliveryErrorHandler {
 
     private final TransactionTemplate transactionTemplate;
+    private final String transactionKey;
 
     /**
      * Creates the transaction error handler.
@@ -54,12 +55,13 @@ public class TransactionErrorHandler extends RedeliveryErrorHandler {
      * @param transactionTemplate     the transaction template
      * @param retryWhile              retry while
      */
-    public TransactionErrorHandler(CamelContext camelContext, Processor output, Logger logger, Processor redeliveryProcessor,
+    public TransactionErrorHandler(CamelContext camelContext, Processor output, CamelLogger logger, Processor redeliveryProcessor,
                                    RedeliveryPolicy redeliveryPolicy, Predicate handledPolicy, ExceptionPolicyStrategy exceptionPolicyStrategy,
                                    TransactionTemplate transactionTemplate, Predicate retryWhile) {
         super(camelContext, output, logger, redeliveryProcessor, redeliveryPolicy, handledPolicy, null, null, false, retryWhile);
         setExceptionPolicy(exceptionPolicyStrategy);
         this.transactionTemplate = transactionTemplate;
+        this.transactionKey = ObjectHelper.getIdentityHashCode(transactionTemplate);
     }
 
     public boolean supportTransacted() {
@@ -81,7 +83,7 @@ public class TransactionErrorHandler extends RedeliveryErrorHandler {
     public void process(Exchange exchange) throws Exception {
         // we have to run this synchronously as Spring Transaction does *not* support
         // using multiple threads to span a transaction
-        if (exchange.getUnitOfWork().isTransactedBy(transactionTemplate)) {
+        if (exchange.getUnitOfWork().isTransactedBy(transactionKey)) {
             // already transacted by this transaction template
             // so lets just let the error handler process it
             processByErrorHandler(exchange);
@@ -108,34 +110,51 @@ public class TransactionErrorHandler extends RedeliveryErrorHandler {
     }
 
     protected void processInTransaction(final Exchange exchange) throws Exception {
-        String id = ObjectHelper.getIdentityHashCode(transactionTemplate);
         try {
             // mark the beginning of this transaction boundary
-            exchange.getUnitOfWork().beginTransactedBy(transactionTemplate);
+            exchange.getUnitOfWork().beginTransactedBy(transactionKey);
 
             if (log.isDebugEnabled()) {
-                log.debug("Transaction begin (" + id + ") for ExchangeId: " + exchange.getExchangeId());
+                log.debug("Transaction begin (" + transactionKey + ") for ExchangeId: " + exchange.getExchangeId());
             }
 
             doInTransactionTemplate(exchange);
 
             if (log.isDebugEnabled()) {
-                log.debug("Transaction commit (" + id + ") for ExchangeId: " + exchange.getExchangeId());
+                log.debug("Transaction commit (" + transactionKey + ") for ExchangeId: " + exchange.getExchangeId());
             }
         } catch (TransactionRollbackException e) {
             // ignore as its just a dummy exception to force spring TX to rollback
             if (log.isDebugEnabled()) {
-                log.debug("Transaction rollback (" + id + ") for ExchangeId: " + exchange.getExchangeId());
+                log.debug("Transaction rollback (" + transactionKey + ") for ExchangeId: " + exchange.getExchangeId() + " due exchange was marked for rollbackOnly");
             }
         } catch (Exception e) {
-            log.warn("Transaction rollback (" + id + ") for ExchangeId: " + exchange.getExchangeId() + " due exception: " + e.getMessage());
+            log.warn("Transaction rollback (" + transactionKey + ") for ExchangeId: " + exchange.getExchangeId() + " due exception: " + e.getMessage());
             exchange.setException(e);
         } finally {
             // mark the end of this transaction boundary
-            exchange.getUnitOfWork().endTransactedBy(transactionTemplate);
+            exchange.getUnitOfWork().endTransactedBy(transactionKey);
+        }
+
+        // if it was a local rollback only then remove its marker so outer transaction wont see the marker
+        Boolean onlyLast = (Boolean) exchange.removeProperty(Exchange.ROLLBACK_ONLY_LAST);
+        if (onlyLast != null && onlyLast) {
+            if (log.isDebugEnabled()) {
+                // log exception if there was a cause exception so we have the stacktrace
+                Exception cause = exchange.getException();
+                if (cause != null) {
+                    log.debug("Transaction rollback (" + transactionKey + ") for ExchangeId: " + exchange.getExchangeId()
+                        + " due exchange was marked for rollbackOnlyLast and due exception: ", cause);
+                } else {
+                    log.debug("Transaction rollback (" + transactionKey + ") for ExchangeId: " + exchange.getExchangeId()
+                        + " due exchange was marked for rollbackOnlyLast");
+                }
+            }
+            // remove caused exception due we was marked as rollback only last
+            // so by removing the exception, any outer transaction will not be affected
+            exchange.setException(null);
         }
     }
-
 
     protected void doInTransactionTemplate(final Exchange exchange) {
 
@@ -146,7 +165,7 @@ public class TransactionErrorHandler extends RedeliveryErrorHandler {
             protected void doInTransactionWithoutResult(TransactionStatus status) {
                 // wrapper exception to throw if the exchange failed
                 // IMPORTANT: Must be a runtime exception to let Spring regard it as to do "rollback"
-                RuntimeException rce = null;
+                RuntimeException rce;
 
                 // and now let process the exchange by the error handler
                 processByErrorHandler(exchange);
@@ -154,14 +173,10 @@ public class TransactionErrorHandler extends RedeliveryErrorHandler {
                 // after handling and still an exception or marked as rollback only then rollback
                 if (exchange.getException() != null || exchange.isRollbackOnly()) {
 
-                    // if it was a local rollback only then remove its marker so outer transaction
-                    // wont rollback as well (Note: isRollbackOnly() also returns true for ROLLBACK_ONLY_LAST)
-                    exchange.removeProperty(Exchange.ROLLBACK_ONLY_LAST);
-
                     // wrap exception in transacted exception
                     if (exchange.getException() != null) {
                         rce = ObjectHelper.wrapRuntimeCamelException(exchange.getException());
-                    } else if (exchange.isRollbackOnly()) {
+                    } else {
                         // create dummy exception to force spring transaction manager to rollback
                         rce = new TransactionRollbackException();
                     }
@@ -170,10 +185,8 @@ public class TransactionErrorHandler extends RedeliveryErrorHandler {
                         status.setRollbackOnly();
                     }
 
-                    // rethrow if an exception occurred
-                    if (rce != null) {
-                        throw rce;
-                    }
+                    // throw runtime exception to force rollback (which works best to rollback with Spring transaction manager)
+                    throw rce;
                 }
             }
         });

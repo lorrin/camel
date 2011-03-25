@@ -18,7 +18,6 @@ package org.apache.camel.model;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElementRef;
@@ -27,7 +26,7 @@ import javax.xml.bind.annotation.XmlType;
 /**
  * A useful base class for output types
  *
- * @version $Revision$
+ * @version 
  */
 @XmlType(name = "output")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -39,6 +38,10 @@ public class OutputDefinition<Type extends ProcessorDefinition<Type>> extends Pr
         return outputs;
     }
 
+    public boolean isOutputSupported() {
+        return true;
+    }
+
     public void setOutputs(List<ProcessorDefinition> outputs) {
         this.outputs = outputs;
         if (outputs != null) {
@@ -46,5 +49,15 @@ public class OutputDefinition<Type extends ProcessorDefinition<Type>> extends Pr
                 configureChild(output);
             }
         }
+    }
+
+    @Override
+    public String getShortName() {
+        return "output";
+    }
+
+    @Override
+    public String toString() {
+        return getShortName() + " -> [" + outputs + "]";
     }
 }

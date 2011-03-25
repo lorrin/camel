@@ -47,18 +47,18 @@ import org.apache.camel.model.RoutesDefinition;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.view.RouteDotGenerator;
 import org.apache.camel.web.model.Route;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The active routes in Camel which are used to implement one or more <a
  * href="http://camel.apache.org/enterprise-integration-patterns.html"
  * >Enterprise Integration Patterns</a>
  *
- * @version $Revision$
+ * @version 
  */
 public class RoutesResource extends CamelChildResourceSupport {
-    private static final transient Log LOG = LogFactory.getLog(RoutesResource.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(RoutesResource.class);
     private String error = "";
     
     public RoutesResource(CamelContextResource contextResource) {

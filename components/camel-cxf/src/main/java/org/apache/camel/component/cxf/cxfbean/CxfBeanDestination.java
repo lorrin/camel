@@ -22,22 +22,22 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.component.cxf.CxfConstants;
 import org.apache.camel.component.cxf.transport.CamelDestination;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.Bus;
 import org.apache.cxf.message.Message;
 import org.apache.cxf.message.MessageImpl;
 import org.apache.cxf.service.model.EndpointInfo;
 import org.apache.cxf.transport.ConduitInitiator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A CXF transport {@link org.apache.cxf.transport.Destination} that listens 
  * Camel {@link Exchange} from an associated {@link CxfBeanEndpoint}.
  *  
- * @version $Revision$
+ * @version 
  */
 public class CxfBeanDestination extends CamelDestination implements Processor {
-    private static final Log LOG = LogFactory.getLog(CxfBeanDestination.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CxfBeanDestination.class);
     private CxfBeanComponent cxfBeanComponent;
     private CxfBeanEndpoint endpoint;
 

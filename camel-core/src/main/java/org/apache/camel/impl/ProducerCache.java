@@ -38,16 +38,16 @@ import org.apache.camel.util.EventHelper;
 import org.apache.camel.util.LRUCache;
 import org.apache.camel.util.ServiceHelper;
 import org.apache.camel.util.StopWatch;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Cache containing created {@link Producer}.
  *
- * @version $Revision$
+ * @version 
  */
 public class ProducerCache extends ServiceSupport {
-    private static final transient Log LOG = LogFactory.getLog(ProducerCache.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(ProducerCache.class);
 
     private final CamelContext camelContext;
     private final ServicePool<Endpoint, Producer> pool;

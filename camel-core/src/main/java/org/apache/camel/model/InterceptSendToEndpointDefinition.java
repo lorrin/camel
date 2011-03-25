@@ -34,7 +34,7 @@ import org.apache.camel.util.EndpointHelper;
 /**
  * Represents an XML &lt;interceptToEndpoint/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "interceptToEndpoint")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -49,7 +49,7 @@ public class InterceptSendToEndpointDefinition extends OutputDefinition<Intercep
 
     @XmlAttribute(required = true)
     private String uri;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Boolean skipSendToOriginalEndpoint;
 
     public InterceptSendToEndpointDefinition() {

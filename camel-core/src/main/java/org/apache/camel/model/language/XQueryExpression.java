@@ -31,13 +31,12 @@ import org.apache.camel.spi.ClassResolver;
 /**
  * For XQuery expressions and predicates
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "xquery")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class XQueryExpression extends NamespaceAwareExpression {
-
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String type;
     @XmlTransient
     private Class<?> resultType;

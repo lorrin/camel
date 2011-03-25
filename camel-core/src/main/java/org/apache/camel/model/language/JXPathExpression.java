@@ -16,15 +16,19 @@
  */
 package org.apache.camel.model.language;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  * For <a href="http://commons.apache.org/jxpath/">JXPath</a> expressions and predicates
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "jxpath")
+@XmlAccessorType(XmlAccessType.FIELD)
 public class JXPathExpression extends ExpressionDefinition {
+
     public JXPathExpression() {
     }
 

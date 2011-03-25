@@ -23,26 +23,25 @@ import org.apache.camel.ProducerTemplate;
 import org.apache.camel.component.spring.integration.SpringIntegrationBinding;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.DefaultExchange;
-import org.springframework.integration.core.Message;
-import org.springframework.integration.core.MessageChannel;
-import org.springframework.integration.core.MessageHeaders;
-import org.springframework.integration.message.MessageDeliveryException;
-import org.springframework.integration.message.MessageHandler;
+import org.springframework.integration.Message;
+import org.springframework.integration.MessageChannel;
+import org.springframework.integration.MessageDeliveryException;
+import org.springframework.integration.MessageHeaders;
+import org.springframework.integration.core.MessageHandler;
 
 /**
  * CamelTargetAdapter will redirect the Spring Integration message to the Camel context.
  * When we inject the camel context into it, we need also specify the Camel endpoint url
  * we will route the Spring Integration message to the Camel context
  *
- * @version $Revision$
+ * @version 
  */
 public class CamelTargetAdapter extends AbstractCamelAdapter implements MessageHandler {
     private ProducerTemplate camelTemplate;
     private MessageChannel replyChannel;
 
-
     public void setReplyChannel(MessageChannel channel) {
-        replyChannel = channel;
+        this.replyChannel = channel;
     }
 
     public MessageChannel getReplyChannel() {
@@ -53,6 +52,7 @@ public class CamelTargetAdapter extends AbstractCamelAdapter implements MessageH
         if (camelTemplate == null) {
             CamelContext ctx = getCamelContext();
             if (ctx == null) {
+                // TODO: This doesnt look good to create a new CamelContext out of the blue
                 ctx = new DefaultCamelContext();
             }
             camelTemplate = ctx.createProducerTemplate();
@@ -61,20 +61,23 @@ public class CamelTargetAdapter extends AbstractCamelAdapter implements MessageH
     }
 
     public boolean send(Message<?> message) throws Exception {
-        ExchangePattern pattern;
         boolean result = false;
+
+        ExchangePattern pattern;
         if (isExpectReply()) {
             pattern = ExchangePattern.InOut;
         } else {
             pattern = ExchangePattern.InOnly;
         }
+
         Exchange inExchange = new DefaultExchange(getCamelContext(), pattern);
         SpringIntegrationBinding.storeToCamelMessage(message, inExchange.getIn());
         Exchange outExchange = getCamelTemplate().send(getCamelEndpointUri(), inExchange);
         if (outExchange.getOut() != null && outExchange.getOut().isFault()) {
             result = true;
         }
-        Message response = null;
+
+        Message response;
         if (isExpectReply()) {
             //Check the message header for the return address
             response = SpringIntegrationBinding.storeToSpringIntegrationMessage(outExchange.getOut());
@@ -83,12 +86,13 @@ public class CamelTargetAdapter extends AbstractCamelAdapter implements MessageH
                 if (messageReplyChannel != null) {
                     result = messageReplyChannel.send(response);
                 } else {
-                    throw new MessageDeliveryException(response, "Can't find reply channel from the CamelTargetAdapter or MessageHeaders");
+                    throw new MessageDeliveryException(response, "Cannot resolve ReplyChannel from message: " + message);
                 }
             } else {
                 result = replyChannel.send(response);
             }
         }
+
         return result;
     }
 

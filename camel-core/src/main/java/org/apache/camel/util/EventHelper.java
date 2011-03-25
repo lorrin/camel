@@ -27,17 +27,17 @@ import org.apache.camel.Route;
 import org.apache.camel.impl.ServiceSupport;
 import org.apache.camel.spi.EventFactory;
 import org.apache.camel.spi.EventNotifier;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Helper for easily sending event notifications in a single line of code
  *
- * @version $Revision$
+ * @version 
  */
 public final class EventHelper {
 
-    private static final Log LOG = LogFactory.getLog(EventHelper.class);
+    private static final Logger LOG = LoggerFactory.getLogger(EventHelper.class);
 
     private EventHelper() {
     }

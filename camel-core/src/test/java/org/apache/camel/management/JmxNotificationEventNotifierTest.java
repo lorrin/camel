@@ -27,7 +27,7 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.impl.DefaultCamelContext;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmxNotificationEventNotifierTest extends ContextTestSupport {
 
@@ -55,7 +55,7 @@ public class JmxNotificationEventNotifierTest extends ContextTestSupport {
         DefaultManagementNamingStrategy naming = (DefaultManagementNamingStrategy) context.getManagementStrategy().getManagementNamingStrategy();
         naming.setHostName("localhost");
         naming.setDomainName("org.apache.camel");
-        // END SNIPPET: e2
+        // END SNIPPET: e1
         return context;
     }
 

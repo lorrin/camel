@@ -18,7 +18,6 @@ package org.apache.camel.model;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElementRef;
@@ -34,7 +33,7 @@ import org.apache.camel.spi.RouteContext;
 /**
  * A base class for nodes which contain an expression and a number of outputs
  *
- * @version $Revision$
+ * @version
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 public class ExpressionNode extends ProcessorDefinition<ExpressionNode> {
@@ -66,7 +65,7 @@ public class ExpressionNode extends ProcessorDefinition<ExpressionNode> {
     public String getShortName() {
         return "exp";
     }
-      
+
     public ExpressionDefinition getExpression() {
         return expression;
     }
@@ -82,6 +81,11 @@ public class ExpressionNode extends ProcessorDefinition<ExpressionNode> {
 
     public void setOutputs(List<ProcessorDefinition> outputs) {
         this.outputs = outputs;
+    }
+
+    @Override
+    public boolean isOutputSupported() {
+        return true;
     }
 
     @Override

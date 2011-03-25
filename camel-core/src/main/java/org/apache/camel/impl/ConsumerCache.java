@@ -27,16 +27,16 @@ import org.apache.camel.PollingConsumer;
 import org.apache.camel.util.CamelContextHelper;
 import org.apache.camel.util.LRUCache;
 import org.apache.camel.util.ServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Cache containing created {@link org.apache.camel.Consumer}.
  *
- * @version $Revision$
+ * @version 
  */
 public class ConsumerCache extends ServiceSupport {
-    private static final transient Log LOG = LogFactory.getLog(ConsumerCache.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(ConsumerCache.class);
     private final CamelContext camelContext;
     private final Map<String, PollingConsumer> consumers;
 

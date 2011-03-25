@@ -29,15 +29,12 @@ import org.apache.camel.spi.RouteContext;
 /**
  * Represents an XML &lt;interceptFrom/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "interceptFrom")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class InterceptFromDefinition extends InterceptDefinition {
-
-    // TODO: Support lookup endpoint by ref (requires a bit more work)
-
-    @XmlAttribute(required = false)
+    @XmlAttribute
     protected String uri;
 
     public InterceptFromDefinition() {
@@ -74,7 +71,11 @@ public class InterceptFromDefinition extends InterceptDefinition {
         // this allows us to use the same header for both the interceptFrom and interceptSendToEndpoint
         SetHeaderDefinition headerDefinition = new SetHeaderDefinition(Exchange.INTERCEPTED_ENDPOINT, new ExpressionAdapter() {
             public Object evaluate(Exchange exchange, Class type) {
-                return exchange.getFromEndpoint().getEndpointUri();
+                if (exchange.getFromEndpoint() != null) {
+                    return exchange.getFromEndpoint().getEndpointUri();
+                } else {
+                    return null;
+                }
             }
 
             public String toString() {

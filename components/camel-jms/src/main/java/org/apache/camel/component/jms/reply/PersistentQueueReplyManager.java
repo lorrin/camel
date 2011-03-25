@@ -25,7 +25,6 @@ import javax.jms.Session;
 
 import org.apache.camel.AsyncCallback;
 import org.apache.camel.Exchange;
-import org.apache.camel.util.IntrospectionSupport;
 import org.springframework.jms.listener.AbstractMessageListenerContainer;
 import org.springframework.jms.listener.DefaultMessageListenerContainer;
 import org.springframework.jms.support.destination.DestinationResolver;
@@ -33,7 +32,7 @@ import org.springframework.jms.support.destination.DestinationResolver;
 /**
  * A {@link ReplyManager} when using persistent queues.
  *
- * @version $Revision$
+ * @version 
  */
 public class PersistentQueueReplyManager extends ReplyManagerSupport {
 
@@ -117,14 +116,10 @@ public class PersistentQueueReplyManager extends ReplyManagerSupport {
         public Destination resolveDestinationName(Session session, String destinationName,
                                                   boolean pubSubDomain) throws JMSException {
             synchronized (PersistentQueueReplyManager.this) {
-                try {
-                    // resolve the reply to destination
-                    if (destination == null) {
-                        destination = delegate.resolveDestinationName(session, destinationName, pubSubDomain);
-                        setReplyTo(destination);
-                    }
-                } finally {
-                    PersistentQueueReplyManager.this.notifyAll();
+                // resolve the reply to destination
+                if (destination == null) {
+                    destination = delegate.resolveDestinationName(session, destinationName, pubSubDomain);
+                    setReplyTo(destination);
                 }
             }
             return destination;
@@ -174,7 +169,6 @@ public class PersistentQueueReplyManager extends ReplyManagerSupport {
             answer = new PersistentQueueMessageListenerContainer(dynamicMessageSelector);
         }
 
-        answer.setConnectionFactory(endpoint.getListenerConnectionFactory());
         DestinationResolver resolver = endpoint.getDestinationResolver();
         if (resolver == null) {
             resolver = answer.getDestinationResolver();
@@ -187,6 +181,12 @@ public class PersistentQueueReplyManager extends ReplyManagerSupport {
         answer.setPubSubDomain(false);
         answer.setSubscriptionDurable(false);
         answer.setConcurrentConsumers(1);
+        answer.setConnectionFactory(endpoint.getConnectionFactory());
+        String clientId = endpoint.getClientId();
+        if (clientId != null) {
+            clientId += ".CamelReplyManager";
+            answer.setClientId(clientId);
+        }
         // must use cache level session
         answer.setCacheLevel(DefaultMessageListenerContainer.CACHE_SESSION);
 
@@ -203,13 +203,7 @@ public class PersistentQueueReplyManager extends ReplyManagerSupport {
         if (endpoint.getRecoveryInterval() >= 0) {
             answer.setRecoveryInterval(endpoint.getRecoveryInterval());
         }
-        if (endpoint.getTaskExecutor() != null) {
-            answer.setTaskExecutor(endpoint.getTaskExecutor());
-        }
-        if (endpoint.getTaskExecutorSpring2() != null) {
-            // use reflection to invoke to support spring 2 when JAR is compiled with Spring 3.0
-            IntrospectionSupport.setProperty(answer, "taskExecutor", endpoint.getTaskExecutorSpring2());
-        }
+        // do not use a task executor for reply as we are are always a single threaded task
 
         return answer;
     }

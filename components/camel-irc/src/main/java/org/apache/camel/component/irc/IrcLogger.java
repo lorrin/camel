@@ -16,21 +16,21 @@
  */
 package org.apache.camel.component.irc;
 
-import org.apache.commons.logging.Log;
 import org.schwering.irc.lib.IRCEventAdapter;
 import org.schwering.irc.lib.IRCModeParser;
 import org.schwering.irc.lib.IRCUser;
+import org.slf4j.Logger;
 
 /**
  * A helper class which logs errors
  *
- * @version $Revision$
+ * @version 
  */
 public class IrcLogger extends IRCEventAdapter {
-    private Log log;
+    private Logger log;
     private String server;
 
-    public IrcLogger(Log log, String server) {
+    public IrcLogger(Logger log, String server) {
         this.log = log;
         this.server = server;
     }

@@ -18,27 +18,27 @@ package org.apache.camel.component.jms.issues;
 
 import javax.jms.ConnectionFactory;
 
-import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.jms.CamelJmsTestHelper;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit4.CamelTestSupport;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentClientAcknowledge;
+import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 
 /**
  * Lets test that a number of headers MQSeries doesn't like to be sent are excluded when
  * forwarding a JMS message from one destination to another
  *
- * @version $Revision$
+ * @version 
  */
 public class LarsIssueTest  extends CamelTestSupport {
-    private static final transient Log LOG = LogFactory.getLog(LarsIssueTest.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(LarsIssueTest.class);
 
     @Test
     public void testSendSomeMessages() throws Exception {
@@ -56,8 +56,8 @@ public class LarsIssueTest  extends CamelTestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
 
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false");
-        camelContext.addComponent("activemq", jmsComponentClientAcknowledge(connectionFactory));
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
+        camelContext.addComponent("activemq", jmsComponentAutoAcknowledge(connectionFactory));
 
         return camelContext;
     }

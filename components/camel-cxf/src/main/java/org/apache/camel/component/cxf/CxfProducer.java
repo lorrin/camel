@@ -34,8 +34,6 @@ import org.apache.camel.InvalidPayloadException;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.impl.DefaultProducer;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.binding.soap.model.SoapHeaderInfo;
 import org.apache.cxf.endpoint.Client;
 import org.apache.cxf.jaxws.context.WrappedMessageContext;
@@ -43,16 +41,18 @@ import org.apache.cxf.message.ExchangeImpl;
 import org.apache.cxf.message.Message;
 import org.apache.cxf.service.model.BindingMessageInfo;
 import org.apache.cxf.service.model.BindingOperationInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * CxfProducer binds a Camel exchange to a CXF exchange, acts as a CXF 
  * client, and sends the request to a CXF to a server.  Any response will 
  * be bound to Camel exchange. 
  *
- * @version $Revision$
+ * @version 
  */
 public class CxfProducer extends DefaultProducer implements AsyncProcessor {
-    private static final Log LOG = LogFactory.getLog(CxfProducer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CxfProducer.class);
     private Client client;
     private CxfEndpoint endpoint;
 
@@ -69,7 +69,7 @@ public class CxfProducer extends DefaultProducer implements AsyncProcessor {
         this.endpoint = endpoint;
         client = endpoint.createClient();
     }
-    
+   
     // As the cxf client async and sync api is implement different,
     // so we don't delegate the sync process call to the async process 
     public boolean process(Exchange camelExchange, AsyncCallback callback) {
@@ -93,6 +93,9 @@ public class CxfProducer extends DefaultProducer implements AsyncProcessor {
             // send the CXF async request
             client.invoke(cxfClientCallback, boi, getParams(endpoint, camelExchange), 
                           invocationContext, cxfExchange);
+            if (boi.getOperationInfo().isOneWay()) {
+                callback.done(false);
+            }
         } catch (Throwable ex) {
             // error occurred before we had a chance to go async
             // so set exception and invoke callback true
@@ -128,6 +131,8 @@ public class CxfProducer extends DefaultProducer implements AsyncProcessor {
             // send the CXF request
             client.invoke(boi, getParams(endpoint, camelExchange), 
                       invocationContext, cxfExchange);
+        } catch (Exception exception) {
+            camelExchange.setException(exception);
         } finally {
             // bind the CXF response to Camel exchange
             if (!boi.getOperationInfo().isOneWay()) {
@@ -135,6 +140,11 @@ public class CxfProducer extends DefaultProducer implements AsyncProcessor {
                 camelExchange.getOut().getHeaders().putAll(camelExchange.getIn().getHeaders());
                 endpoint.getCxfBinding().populateExchangeFromCxfResponse(camelExchange, cxfExchange,
                         responseContext);
+                if (camelExchange.getException() != null) {
+                    // set the camelExchange outbody with the exception
+                    camelExchange.getOut().setFault(true);
+                    camelExchange.getOut().setBody(camelExchange.getException());
+                }
             }
         }
     }
@@ -222,8 +232,9 @@ public class CxfProducer extends DefaultProducer implements AsyncProcessor {
         int experctMessagePartsSize = boi.getInput().getMessageParts().size();
         
         if (parameters.length < experctMessagePartsSize) {
-            throw new IllegalArgumentException("Get the wrong parameter size to invoke the out service, Experct size "
-                                               + experctMessagePartsSize + ", Parameter size " + parameters.length);
+            throw new IllegalArgumentException("Get the wrong parameter size to invoke the out service, Expect size "
+                                               + experctMessagePartsSize + ", Parameter size " + parameters.length
+                                               + ". Please check if the message body matches the CXFEndpoint POJO Dataformat request.");
         }
         
         if (parameters.length > experctMessagePartsSize) {
@@ -245,8 +256,9 @@ public class CxfProducer extends DefaultProducer implements AsyncProcessor {
             }
           
             if (holdersSize + experctMessagePartsSize + soapHeadersSize < parameters.length) {
-                throw new IllegalArgumentException("Get the wrong parameter size to invoke the out service, Experct size "
-                                                   + (experctMessagePartsSize + holdersSize + soapHeadersSize) + ", Parameter size " + parameters.length);
+                throw new IllegalArgumentException("Get the wrong parameter size to invoke the out service, Expect size "
+                                                   + (experctMessagePartsSize + holdersSize + soapHeadersSize) + ", Parameter size " + parameters.length
+                                                   + ". Please check if the message body matches the CXFEndpoint POJO Dataformat request.");
             }
         }
     }
@@ -342,6 +354,10 @@ public class CxfProducer extends DefaultProducer implements AsyncProcessor {
             }
             
             answer = client.getEndpoint().getEndpointInfo().getBinding().getOperation(qname);
+            if (answer == null) {
+                throw new IllegalArgumentException("Can't find the BindingOperationInfo with operation name " + qname
+                                                   + ". Please check the message headers of operationName and operationNamespace."); 
+            }
         }
         return answer;
     }

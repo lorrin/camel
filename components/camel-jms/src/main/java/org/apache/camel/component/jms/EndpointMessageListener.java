@@ -31,8 +31,8 @@ import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.impl.LoggingExceptionHandler;
 import org.apache.camel.spi.ExceptionHandler;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jms.core.JmsOperations;
 import org.springframework.jms.core.MessageCreator;
 
@@ -44,10 +44,10 @@ import static org.apache.camel.util.ObjectHelper.wrapRuntimeCamelException;
  *
  * Note that instance of this object has to be thread safe (reentrant)
  *
- * @version $Revision$
+ * @version 
  */
 public class EndpointMessageListener implements MessageListener {
-    private static final transient Log LOG = LogFactory.getLog(EndpointMessageListener.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(EndpointMessageListener.class);
     private ExceptionHandler exceptionHandler;
     private JmsEndpoint endpoint;
     private Processor processor;
@@ -87,8 +87,12 @@ public class EndpointMessageListener implements MessageListener {
             if (correlationId != null) {
                 LOG.debug("Received Message has JMSCorrelationID [" + correlationId + "]");
             }
-            
-            processor.process(exchange);
+
+            try {
+                processor.process(exchange);
+            } catch (Throwable e) {
+                exchange.setException(e);
+            }
             if (LOG.isTraceEnabled()) {
                 LOG.trace("onMessage.process END");
             }
@@ -313,13 +317,7 @@ public class EndpointMessageListener implements MessageListener {
         // lets send a response back if we can
         Object destination = getReplyToDestination();
         if (destination == null) {
-            try {
-                destination = message.getJMSReplyTo();
-            } catch (JMSException e) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Cannot read JMSReplyTo header. Will ignore this exception.", e);
-                }
-            }
+            destination = JmsMessageHelper.getJMSReplyTo(message);
         }
         return destination;
     }

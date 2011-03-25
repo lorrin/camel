@@ -28,8 +28,6 @@ import org.apache.camel.Endpoint;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.impl.DefaultComponent;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.mina.common.DefaultIoFilterChainBuilder;
 import org.apache.mina.common.IoAcceptor;
 import org.apache.mina.common.IoConnector;
@@ -53,14 +51,16 @@ import org.apache.mina.transport.socket.nio.SocketConnectorConfig;
 import org.apache.mina.transport.vmpipe.VmPipeAcceptor;
 import org.apache.mina.transport.vmpipe.VmPipeAddress;
 import org.apache.mina.transport.vmpipe.VmPipeConnector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Component for Apache MINA.
  *
- * @version $Revision$
+ * @version 
  */
 public class MinaComponent extends DefaultComponent {
-    private static final transient Log LOG = LogFactory.getLog(MinaComponent.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(MinaComponent.class);
     private MinaConfiguration configuration;
 
     public MinaComponent() {

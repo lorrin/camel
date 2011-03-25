@@ -50,7 +50,7 @@ import org.apache.camel.util.OgnlHelper;
 /**
  * A helper class for working with <a href="http://camel.apache.org/expression.html">expressions</a>.
  *
- * @version $Revision$
+ * @version 
  */
 public final class ExpressionBuilder {
 
@@ -254,12 +254,18 @@ public final class ExpressionBuilder {
     /**
      * Returns an expression for the outbound message headers
      *
-     * @return an expression object which will return the headers
+     * @return an expression object which will return the headers, will be <tt>null</tt> if the
+     * exchange is not out capable.
      */
     public static Expression outHeadersExpression() {
         return new ExpressionAdapter() {
             public Object evaluate(Exchange exchange) {
-                return exchange.getOut().getHeaders();
+                // only get out headers if the MEP is out capable
+                if (ExchangeHelper.isOutCapable(exchange)) {
+                    return exchange.getOut().getHeaders();
+                } else {
+                    return null;
+                }
             }
 
             @Override
@@ -378,6 +384,24 @@ public final class ExpressionBuilder {
             @Override
             public String toString() {
                 return "registry";
+            }
+        };
+    }
+
+    /**
+     * Returns an expression for lookup a bean in the {@link org.apache.camel.spi.Registry}
+     *
+     * @return an expression object which will return the bean
+     */
+    public static Expression refExpression(final String ref) {
+        return new ExpressionAdapter() {
+            public Object evaluate(Exchange exchange) {
+                return exchange.getContext().getRegistry().lookup(ref);
+            }
+
+            @Override
+            public String toString() {
+                return "ref(" + ref + ")";
             }
         };
     }
@@ -929,12 +953,16 @@ public final class ExpressionBuilder {
     public static Expression convertToExpression(final Expression expression, final Class type) {
         return new ExpressionAdapter() {
             public Object evaluate(Exchange exchange) {
-                return expression.evaluate(exchange, type);
+                if (type != null) {
+                    return expression.evaluate(exchange, type);
+                } else {
+                    return expression;
+                }
             }
 
             @Override
             public String toString() {
-                return "" + expression + ".convertTo(" + type.getCanonicalName() + ".class)";
+                return "" + expression;
             }
         };
     }
@@ -946,12 +974,17 @@ public final class ExpressionBuilder {
     public static Expression convertToExpression(final Expression expression, final Expression type) {
         return new ExpressionAdapter() {
             public Object evaluate(Exchange exchange) {
-                return expression.evaluate(exchange, type.evaluate(exchange, Object.class).getClass());
+                Object result = type.evaluate(exchange, Object.class);
+                if (result != null) {
+                    return expression.evaluate(exchange, result.getClass());
+                } else {
+                    return expression;
+                }
             }
 
             @Override
             public String toString() {
-                return "" + expression + ".convertToEvaluatedType(" + type + ")";
+                return "" + expression;
             }
         };
     }

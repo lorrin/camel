@@ -19,31 +19,15 @@ package org.apache.camel.management;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
-import org.apache.camel.CamelContext;
-import org.apache.camel.ContextTestSupport;
 import org.apache.camel.builder.RouteBuilder;
 
 /**
- * @version $Revision$
+ * @version 
  */
-public class ManagedRegisterEndpointTest extends ContextTestSupport {
-
-    @Override
-    protected boolean useJmx() {
-        return true;
-    }
-
-    @Override
-    protected CamelContext createCamelContext() throws Exception {
-        CamelContext context = super.createCamelContext();
-        DefaultManagementNamingStrategy naming = (DefaultManagementNamingStrategy) context.getManagementStrategy().getManagementNamingStrategy();
-        naming.setHostName("localhost");
-        naming.setDomainName("org.apache.camel");
-        return context;
-    }
+public class ManagedRegisterEndpointTest extends ManagementTestSupport {
 
     public void testLookupEndpointsByName() throws Exception {
-        MBeanServer mbeanServer = context.getManagementStrategy().getManagementAgent().getMBeanServer();
+        MBeanServer mbeanServer = getMBeanServer();
 
         ObjectName name = ObjectName.getInstance("org.apache.camel:context=localhost/camel-1,type=endpoints,name=\"direct://start\"");
         String uri = (String) mbeanServer.getAttribute(name, "EndpointUri");
@@ -59,6 +43,9 @@ public class ManagedRegisterEndpointTest extends ContextTestSupport {
 
         String id = (String) mbeanServer.getAttribute(name, "CamelId");
         assertEquals("camel-1", id);
+
+        String state = (String) mbeanServer.getAttribute(name, "State");
+        assertEquals("Started", state);
 
         Boolean singleton = (Boolean) mbeanServer.getAttribute(name, "Singleton");
         assertEquals(Boolean.TRUE, singleton);

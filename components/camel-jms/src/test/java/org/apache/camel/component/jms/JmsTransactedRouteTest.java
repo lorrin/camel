@@ -28,7 +28,7 @@ import static org.apache.camel.component.jms.JmsComponent.jmsComponentTransacted
 
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmsTransactedRouteTest extends CamelTestSupport {
 
@@ -50,7 +50,7 @@ public class JmsTransactedRouteTest extends CamelTestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
 
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false&broker.useJmx=false");
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
         JmsComponent component = jmsComponentTransacted(connectionFactory);
         camelContext.addComponent("activemq", component);
         return camelContext;

@@ -23,16 +23,16 @@ import org.apache.camel.Exchange;
 import org.apache.camel.impl.DefaultProducer;
 import org.apache.camel.impl.converter.AsyncProcessorTypeConverter;
 import org.apache.camel.util.AsyncProcessorHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The direct producer.
  *
- * @version $Revision$
+ * @version 
  */
 public class DirectProducer extends DefaultProducer implements AsyncProcessor {
-    private static final transient Log LOG = LogFactory.getLog(DirectProducer.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(DirectProducer.class);
     private DirectEndpoint endpoint;
 
     public DirectProducer(DirectEndpoint endpoint) {

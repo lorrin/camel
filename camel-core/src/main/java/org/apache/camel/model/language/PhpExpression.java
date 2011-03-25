@@ -16,15 +16,19 @@
  */
 package org.apache.camel.model.language;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  * For PHP expressions and predicates
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "php")
+@XmlAccessorType(XmlAccessType.FIELD)
 public class PhpExpression extends ExpressionDefinition {
+
     public PhpExpression() {
     }
 

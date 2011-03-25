@@ -25,7 +25,7 @@ import org.apache.camel.impl.DefaultComponent;
 import org.apache.camel.util.IntrospectionSupport;
 
 /**
- * @version $Revision$
+ * @version 
  * @author muellerc
  */
 public class SmppComponent extends DefaultComponent {
@@ -43,7 +43,7 @@ public class SmppComponent extends DefaultComponent {
         super(context);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     protected Endpoint createEndpoint(String uri, String remaining, Map parameters) throws Exception {
         if (this.configuration == null) {

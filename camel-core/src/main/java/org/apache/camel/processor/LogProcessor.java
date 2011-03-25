@@ -16,28 +16,36 @@
  */
 package org.apache.camel.processor;
 
+import org.apache.camel.AsyncCallback;
+import org.apache.camel.AsyncProcessor;
 import org.apache.camel.Exchange;
 import org.apache.camel.Expression;
-import org.apache.camel.Processor;
+import org.apache.camel.util.AsyncProcessorHelper;
 
 /**
  * A processor which evaluates an Expression and logs it.
  *
- * @version $Revision$
+ * @version 
  */
-public class LogProcessor implements Processor, Traceable {
+public class LogProcessor implements AsyncProcessor, Traceable {
 
     private final Expression expression;
-    private final Logger logger;
+    private final CamelLogger logger;
 
-    public LogProcessor(Expression expression, Logger logger) {
+    public LogProcessor(Expression expression, CamelLogger logger) {
         this.expression = expression;
         this.logger = logger;
     }
 
     public void process(Exchange exchange) throws Exception {
+        AsyncProcessorHelper.process(this, exchange);
+    }
+
+    @Override
+    public boolean process(Exchange exchange, AsyncCallback callback) {
         String msg = expression.evaluate(exchange, String.class);
         logger.log(msg);
+        return true;
     }
 
     @Override

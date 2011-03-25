@@ -18,21 +18,22 @@ package org.apache.camel.spring;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.camel.RoutesBuilder;
 import org.apache.camel.spi.PackageScanFilter;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 
 /**
  * A helper class which will find all {@link org.apache.camel.builder.RouteBuilder} instances on the
  * Spring {@link org.springframework.context.ApplicationContext}.
  *
- * @version $Revision$
+ * @version 
  */
 public class ContextScanRouteBuilderFinder {
-    private static final transient Log LOG = LogFactory.getLog(ContextScanRouteBuilderFinder.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(ContextScanRouteBuilderFinder.class);
     private final ApplicationContext applicationContext;
     private final PackageScanFilter filter;
 
@@ -47,8 +48,10 @@ public class ContextScanRouteBuilderFinder {
     public void appendBuilders(List<RoutesBuilder> list) {
         Map beans = applicationContext.getBeansOfType(RoutesBuilder.class, true, true);
 
-        for (Object key : beans.keySet()) {
-            Object bean = beans.get(key);
+        for (Object object : beans.entrySet()) {
+            Entry entry = (Entry) object;
+            Object bean = entry.getValue();
+            Object key = entry.getKey();
 
             if (LOG.isTraceEnabled()) {
                 LOG.trace("Found RouteBuilder with id: " + key + " -> " + bean);

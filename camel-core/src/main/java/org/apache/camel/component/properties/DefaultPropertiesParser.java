@@ -20,16 +20,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A parser to parse a string which contains property placeholders
  *
- * @version $Revision$
+ * @version 
  */
 public class DefaultPropertiesParser implements PropertiesParser {
-    protected final transient Log log = LogFactory.getLog(getClass());
+    protected final transient Logger log = LoggerFactory.getLogger(getClass());
     
     public String parseUri(String text, Properties properties, String prefixToken, String suffixToken) throws IllegalArgumentException {
         String answer = text;
@@ -45,7 +45,7 @@ public class DefaultPropertiesParser implements PropertiesParser {
             // check the replaced with the visited to avoid circular reference
             for (String replace : replaced) {
                 if (visited.contains(replace)) {
-                    throw new IllegalArgumentException("Circular reference detected with key [" + replace + "] in uri " + text);
+                    throw new IllegalArgumentException("Circular reference detected with key [" + replace + "] from text: " + text);
                 }
             }
             // okay all okay so add the replaced as visited
@@ -57,7 +57,7 @@ public class DefaultPropertiesParser implements PropertiesParser {
         return answer;
     }
 
-    public String parsePropertyValue(String value) {
+    public String parseProperty(String key, String value, Properties properties) {
         return value;
     }
 
@@ -78,13 +78,13 @@ public class DefaultPropertiesParser implements PropertiesParser {
                 pivot = idx + prefixToken.length();
                 int endIdx = uri.indexOf(suffixToken, pivot);
                 if (endIdx < 0) {
-                    throw new IllegalArgumentException("Expecting " + suffixToken + " but found end of string for uri: " + uri);
+                    throw new IllegalArgumentException("Expecting " + suffixToken + " but found end of string from text: " + uri);
                 }
                 String key = uri.substring(pivot, endIdx);
 
                 String part = createPlaceholderPart(key, properties, replaced);
                 if (part == null) {
-                    throw new IllegalArgumentException("Property with key [" + key + "] not found in properties for uri: " + uri);
+                    throw new IllegalArgumentException("Property with key [" + key + "] not found in properties from text: " + uri);
                 }
                 sb.append(part);
                 pivot = endIdx + suffixToken.length();
@@ -94,21 +94,21 @@ public class DefaultPropertiesParser implements PropertiesParser {
     }
 
     private String createConstantPart(String uri, int start, int end) {
-        return parsePropertyValue(uri.substring(start, end));
+        return uri.substring(start, end);
     }
 
-    private String createPlaceholderPart(String placeholderPart, Properties properties, List<String> replaced) {
+    private String createPlaceholderPart(String key, Properties properties, List<String> replaced) {
         // keep track of which parts we have replaced
-        replaced.add(placeholderPart);
+        replaced.add(key);
         
-        String propertyValue = System.getProperty(placeholderPart);
+        String propertyValue = System.getProperty(key);
         if (propertyValue != null) {
-            log.info("Found a JVM system property: " + placeholderPart + ". Overriding property set via Property Location");
-        } else {
-            propertyValue = properties.getProperty(placeholderPart);
+            log.debug("Found a JVM system property: {} with value: {} to be used.", key, propertyValue);
+        } else if (properties != null) {
+            propertyValue = properties.getProperty(key);
         }
 
-        return parsePropertyValue(propertyValue);
+        return parseProperty(key, propertyValue, properties);
     }
 
 }

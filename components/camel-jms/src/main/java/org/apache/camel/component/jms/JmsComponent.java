@@ -27,9 +27,8 @@ import org.apache.camel.impl.DefaultComponent;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
 import org.apache.camel.util.CastUtils;
-import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -46,17 +45,15 @@ import static org.apache.camel.util.ObjectHelper.removeStartingCharacters;
 /**
  * A <a href="http://activemq.apache.org/jms.html">JMS Component</a>
  *
- * @version $Revision:520964 $
+ * @version 
  */
 public class JmsComponent extends DefaultComponent implements ApplicationContextAware, HeaderFilterStrategyAware {
 
-    private static final transient Log LOG = LogFactory.getLog(JmsComponent.class);
-    private static final String DEFAULT_QUEUE_BROWSE_STRATEGY = "org.apache.camel.component.jms.DefaultQueueBrowseStrategy";
+    private static final transient Logger LOG = LoggerFactory.getLogger(JmsComponent.class);
     private static final String KEY_FORMAT_STRATEGY_PARAM = "jmsKeyFormatStrategy";
     private JmsConfiguration configuration;
     private ApplicationContext applicationContext;
     private QueueBrowseStrategy queueBrowseStrategy;
-    private boolean attemptedToCreateQueueBrowserStrategy;
     private HeaderFilterStrategy headerFilterStrategy = new JmsHeaderFilterStrategy();
 
     public JmsComponent() {
@@ -199,10 +196,6 @@ public class JmsComponent extends DefaultComponent implements ApplicationContext
         getConfiguration().setConnectionFactory(connectionFactory);
     }
 
-    public void setConsumerType(ConsumerType consumerType) {
-        getConfiguration().setConsumerType(consumerType);
-    }
-
     public void setDeliveryPersistent(boolean deliveryPersistent) {
         getConfiguration().setDeliveryPersistent(deliveryPersistent);
     }
@@ -284,10 +277,6 @@ public class JmsComponent extends DefaultComponent implements ApplicationContext
         getConfiguration().setTaskExecutor(taskExecutor);
     }
 
-    public void setTaskExecutorSpring2(Object taskExecutor) {
-        getConfiguration().setTaskExecutorSpring2(taskExecutor);
-    }
-
     public void setTimeToLive(long timeToLive) {
         getConfiguration().setTimeToLive(timeToLive);
     }
@@ -310,6 +299,10 @@ public class JmsComponent extends DefaultComponent implements ApplicationContext
 
     public void setTestConnectionOnStartup(boolean testConnectionOnStartup) {
         getConfiguration().setTestConnectionOnStartup(testConnectionOnStartup);
+    }
+
+    public void setForceSendOriginalMessage(boolean forceSendOriginalMessage) {
+        getConfiguration().setForceSendOriginalMessage(forceSendOriginalMessage);
     }
 
     public void setRequestTimeout(long requestTimeout) {
@@ -338,15 +331,7 @@ public class JmsComponent extends DefaultComponent implements ApplicationContext
 
     public QueueBrowseStrategy getQueueBrowseStrategy() {
         if (queueBrowseStrategy == null) {
-            if (!attemptedToCreateQueueBrowserStrategy) {
-                attemptedToCreateQueueBrowserStrategy = true;
-                try {
-                    queueBrowseStrategy = tryCreateDefaultQueueBrowseStrategy(getCamelContext());
-                } catch (Throwable e) {
-                    LOG.warn("Could not instantiate the QueueBrowseStrategy are you using Spring 2.0.x"
-                        + " by any chance? Error: " + e, e);
-                }
-            }
+            queueBrowseStrategy = new DefaultQueueBrowseStrategy();
         }
         return queueBrowseStrategy;
     }
@@ -468,33 +453,6 @@ public class JmsComponent extends DefaultComponent implements ApplicationContext
      */
     protected JmsConfiguration createConfiguration() {
         return new JmsConfiguration();
-    }
-
-    /**
-     * Attempts to instantiate the default {@link QueueBrowseStrategy} which
-     * should work fine if Spring 2.5.x or later is on the classpath but this
-     * will fail if 2.0.x are on the classpath. We can continue to operate on
-     * this version we just cannot support the browseable queues supported by
-     * {@link JmsQueueEndpoint}
-     *
-     * @return the queue browse strategy or null if it cannot be supported
-     */
-    protected static QueueBrowseStrategy tryCreateDefaultQueueBrowseStrategy(CamelContext context) {
-        // lets try instantiate the default implementation
-        // use the class loading this class from camel-jms to work in OSGi environments as the camel-jms
-        // should import the spring-jms jars.
-        if (JmsHelper.isSpring20x()) {
-            // not possible with spring 2.0.x
-            return null;
-        } else {
-            // lets try instantiate the default implementation
-            Class<?> type = ObjectHelper.loadClass(DEFAULT_QUEUE_BROWSE_STRATEGY, JmsComponent.class.getClassLoader());
-            if (type != null) {
-                return ObjectHelper.newInstance(type, QueueBrowseStrategy.class);
-            } else {
-                return null;
-            }
-        }
     }
 
 }

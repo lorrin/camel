@@ -45,7 +45,7 @@ import org.apache.camel.util.ServiceHelper;
  * This implementation should contain all the error handling logic and the sub classes
  * should only configure it according to what they support.
  *
- * @version $Revision$
+ * @version 
  */
 public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport implements AsyncProcessor {
 
@@ -59,7 +59,7 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport impleme
     protected final RedeliveryPolicy redeliveryPolicy;
     protected final Predicate handledPolicy;
     protected final Predicate retryWhilePolicy;
-    protected final Logger logger;
+    protected final CamelLogger logger;
     protected final boolean useOriginalMessagePolicy;
 
     /**
@@ -173,7 +173,7 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport impleme
         }
     }
 
-    public RedeliveryErrorHandler(CamelContext camelContext, Processor output, Logger logger, Processor redeliveryProcessor,
+    public RedeliveryErrorHandler(CamelContext camelContext, Processor output, CamelLogger logger, Processor redeliveryProcessor,
                                   RedeliveryPolicy redeliveryPolicy, Predicate handledPolicy, Processor deadLetter,
                                   String deadLetterUri, boolean useOriginalMessagePolicy, Predicate retryWhile) {
         ObjectHelper.notNull(camelContext, "CamelContext", this);
@@ -468,7 +468,7 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport impleme
         return redeliveryPolicy;
     }
 
-    public Logger getLogger() {
+    public CamelLogger getLogger() {
         return logger;
     }
 
@@ -480,6 +480,7 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport impleme
         // its continued then remove traces of redelivery attempted and caught exception
         exchange.getIn().removeHeader(Exchange.REDELIVERED);
         exchange.getIn().removeHeader(Exchange.REDELIVERY_COUNTER);
+        exchange.getIn().removeHeader(Exchange.REDELIVERY_MAX_COUNTER);
         // keep the Exchange.EXCEPTION_CAUGHT as property so end user knows the caused exception
 
         // create log message
@@ -516,7 +517,7 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport impleme
             data.continuedPredicate = exceptionPolicy.getContinuedPolicy();
             data.retryWhilePredicate = exceptionPolicy.getRetryWhilePolicy();
             data.useOriginalInMessage = exceptionPolicy.isUseOriginalMessage();
-            data.asyncDelayedRedelivery = exceptionPolicy.isAsyncDelayedRedelivery();
+            data.asyncDelayedRedelivery = exceptionPolicy.isAsyncDelayedRedelivery(exchange.getContext());
 
             // route specific failure handler?
             Processor processor = exceptionPolicy.getErrorHandler();
@@ -534,7 +535,7 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport impleme
                 + ". On delivery attempt: " + data.redeliveryCounter + " caught: " + e;
         logFailedDelivery(true, false, false, exchange, msg, data, e);
 
-        data.redeliveryCounter = incrementRedeliveryCounter(exchange, e);
+        data.redeliveryCounter = incrementRedeliveryCounter(exchange, e, data);
     }
 
     /**
@@ -579,6 +580,7 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport impleme
             // its handled then remove traces of redelivery attempted
             exchange.getIn().removeHeader(Exchange.REDELIVERED);
             exchange.getIn().removeHeader(Exchange.REDELIVERY_COUNTER);
+            exchange.getIn().removeHeader(Exchange.REDELIVERY_MAX_COUNTER);
             handled = true;
         } else {
             // must decrement the redelivery counter as we didn't process the redelivery but is
@@ -739,8 +741,8 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport impleme
             if (exchange.getException() != null) {
                 msg = msg + " due: " + exchange.getException().getMessage();
             }
-            if (newLogLevel == LoggingLevel.ERROR || newLogLevel == LoggingLevel.FATAL) {
-                // log intended rollback on maximum WARN level (no ERROR or FATAL)
+            if (newLogLevel == LoggingLevel.ERROR) {
+                // log intended rollback on maximum WARN level (no ERROR)
                 logger.log(msg, LoggingLevel.WARN);
             } else {
                 // otherwise use the desired logging level
@@ -806,7 +808,7 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport impleme
      * Increments the redelivery counter and adds the redelivered flag if the
      * message has been redelivered
      */
-    private int incrementRedeliveryCounter(Exchange exchange, Throwable e) {
+    private int incrementRedeliveryCounter(Exchange exchange, Throwable e, RedeliveryData data) {
         Message in = exchange.getIn();
         Integer counter = in.getHeader(Exchange.REDELIVERY_COUNTER, Integer.class);
         int next = 1;
@@ -815,6 +817,10 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport impleme
         }
         in.setHeader(Exchange.REDELIVERY_COUNTER, next);
         in.setHeader(Exchange.REDELIVERED, Boolean.TRUE);
+        // if maximum redeliveries is used, then provide that information as well
+        if (data.currentRedeliveryPolicy.getMaximumRedeliveries() > 0) {
+            in.setHeader(Exchange.REDELIVERY_MAX_COUNTER, data.currentRedeliveryPolicy.getMaximumRedeliveries());
+        }
         return next;
     }
 

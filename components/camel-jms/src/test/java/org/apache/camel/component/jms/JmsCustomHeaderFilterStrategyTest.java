@@ -28,10 +28,10 @@ import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.test.junit4.CamelTestSupport;
 import org.junit.Test;
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentClientAcknowledge;
+import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmsCustomHeaderFilterStrategyTest extends CamelTestSupport {
 
@@ -56,8 +56,8 @@ public class JmsCustomHeaderFilterStrategyTest extends CamelTestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
 
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false");
-        camelContext.addComponent(componentName, jmsComponentClientAcknowledge(connectionFactory));
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
+        camelContext.addComponent(componentName, jmsComponentAutoAcknowledge(connectionFactory));
 
         JmsComponent jms = camelContext.getComponent(componentName, JmsComponent.class);
         jms.setHeaderFilterStrategy(new MyHeaderFilterStrategy());

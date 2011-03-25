@@ -22,29 +22,28 @@ import java.io.UnsupportedEncodingException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.camel.AsyncCallback;
 import org.apache.camel.CamelExchangeException;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangeTimedOutException;
 import org.apache.camel.util.IOHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.eclipse.jetty.client.ContentExchange;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.HttpExchange;
 import org.eclipse.jetty.http.HttpHeaders;
 import org.eclipse.jetty.io.Buffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Jetty specific exchange which keeps track of the the request and response.
  *
- * @version $Revision$
+ * @version 
  */
 public class JettyContentExchange extends ContentExchange {
 
-    private static final transient Log LOG = LogFactory.getLog(JettyContentExchange.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(JettyContentExchange.class);
 
     private final Map<String, String> headers = new LinkedHashMap<String, String>();
     private volatile Exchange exchange;
@@ -113,19 +112,6 @@ public class JettyContentExchange extends ContentExchange {
         } finally {
             doTaskCompleted(ex);
         }
-    }
-
-    protected int waitForDoneOrFailure() throws InterruptedException {
-        // just wait a little longer than Jetty itself to be safe
-        // as this timeout is a failsafe in case for some reason Jetty does not callback
-        long timeout = client.getTimeout() + 5000;
-
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("Waiting for done or failure with timeout: " + timeout);
-        }
-        done.await(timeout, TimeUnit.MILLISECONDS);
-
-        return getStatus();
     }
 
     public Map<String, String> getHeaders() {

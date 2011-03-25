@@ -55,8 +55,8 @@ import org.apache.camel.util.LRUCache;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.ServiceHelper;
 import org.apache.camel.util.TimeoutMap;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of the <a
@@ -73,11 +73,11 @@ import org.apache.commons.logging.LogFactory;
  * and older prices are discarded). Another idea is to combine line item messages
  * together into a single invoice message.
  *
- * @version $Revision$
+ * @version 
  */
 public class AggregateProcessor extends ServiceSupport implements Processor, Navigate<Processor>, Traceable {
 
-    private static final Log LOG = LogFactory.getLog(AggregateProcessor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AggregateProcessor.class);
 
     private final Lock lock = new ReentrantLock();
     private final CamelContext camelContext;
@@ -177,12 +177,16 @@ public class AggregateProcessor extends ServiceSupport implements Processor, Nav
             throw new ClosedCorrelationKeyException(key, exchange);
         }
 
+        // copy exchange, and do not share the unit of work
+        // the aggregated output runs in another unit of work
+        Exchange copy = ExchangeHelper.createCorrelatedCopy(exchange, false);
+
         // when memory based then its fast using synchronized, but if the aggregation repository is IO
         // bound such as JPA etc then concurrent aggregation per correlation key could
         // improve performance as we can run aggregation repository get/add in parallel
         lock.lock();
         try {
-            doAggregation(key, exchange);
+            doAggregation(key, copy);
         } finally {
             lock.unlock();
         }
@@ -248,14 +252,19 @@ public class AggregateProcessor extends ServiceSupport implements Processor, Nav
         } else {
             // if batch consumer completion is enabled then we need to complete the group
             if ("consumer".equals(complete)) {
-                for (String batchKey : batchConsumerCorrelationKeys) {                    
-                    Exchange batchAnswer = aggregationRepository.get(camelContext, batchKey);
-                    // There is no aggregated exchange
-                    if (batchAnswer == null) {
+                for (String batchKey : batchConsumerCorrelationKeys) {
+                    Exchange batchAnswer;
+                    if (batchKey.equals(key)) {
+                        // skip the current aggregated key as we have already aggregated it and have the answer
                         batchAnswer = answer;
+                    } else {
+                        batchAnswer = aggregationRepository.get(camelContext, batchKey);
                     }
-                    batchAnswer.setProperty(Exchange.AGGREGATED_COMPLETED_BY, complete);
-                    onCompletion(batchKey, batchAnswer, false);
+
+                    if (batchAnswer != null) {
+                        batchAnswer.setProperty(Exchange.AGGREGATED_COMPLETED_BY, complete);
+                        onCompletion(batchKey, batchAnswer, false);
+                    }
                 }
                 batchConsumerCorrelationKeys.clear();
             } else {
@@ -738,6 +747,9 @@ public class AggregateProcessor extends ServiceSupport implements Processor, Nav
 
                             // set redelivery counter
                             exchange.getIn().setHeader(Exchange.REDELIVERY_COUNTER, data.redeliveryCounter);
+                            if (recoverable.getMaximumRedeliveries() > 0) {
+                                exchange.getIn().setHeader(Exchange.REDELIVERY_MAX_COUNTER, recoverable.getMaximumRedeliveries());
+                            }
 
                             if (LOG.isDebugEnabled()) {
                                 LOG.debug("Delivery attempt: " + data.redeliveryCounter + " to recover aggregated exchange with id: " + exchangeId + "");

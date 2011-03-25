@@ -16,8 +16,6 @@
  */
 package org.apache.camel.model;
 
-import java.util.Collections;
-import java.util.List;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
@@ -26,21 +24,20 @@ import javax.xml.bind.annotation.XmlRootElement;
 import org.apache.camel.Expression;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.Processor;
+import org.apache.camel.processor.CamelLogger;
 import org.apache.camel.processor.LogProcessor;
-import org.apache.camel.processor.Logger;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.util.ObjectHelper;
 
 /**
  * Represents an XML &lt;log/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "log")
 @XmlAccessorType(XmlAccessType.FIELD)
-public class LogDefinition extends ProcessorDefinition {
-
-    @XmlAttribute
+public class LogDefinition extends NoOutputDefinition {
+    @XmlAttribute(required = true)
     private String message;
     @XmlAttribute
     private LoggingLevel loggingLevel;
@@ -65,12 +62,6 @@ public class LogDefinition extends ProcessorDefinition {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public List<ProcessorDefinition> getOutputs() {
-        return Collections.EMPTY_LIST;
-    }
-
-    @Override
     public Processor createProcessor(RouteContext routeContext) throws Exception {
         ObjectHelper.notEmpty(message, "message", this);
 
@@ -83,7 +74,7 @@ public class LogDefinition extends ProcessorDefinition {
         }
         // should be INFO by default
         LoggingLevel level = getLoggingLevel() != null ? getLoggingLevel() : LoggingLevel.INFO;
-        Logger logger = new Logger(name, level);
+        CamelLogger logger = new CamelLogger(name, level);
 
         return new LogProcessor(exp, logger);
     }

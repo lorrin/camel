@@ -19,20 +19,20 @@ package org.apache.camel.component.xmpp;
 import org.apache.camel.Exchange;
 import org.apache.camel.RuntimeExchangeException;
 import org.apache.camel.impl.DefaultProducer;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jivesoftware.smack.SmackConfiguration;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smackx.muc.DiscussionHistory;
 import org.jivesoftware.smackx.muc.MultiUserChat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class XmppGroupChatProducer extends DefaultProducer {
-    private static final transient Log LOG = LogFactory.getLog(XmppGroupChatProducer.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(XmppGroupChatProducer.class);
     private final XmppEndpoint endpoint;
     private XMPPConnection connection;
     private MultiUserChat chat;

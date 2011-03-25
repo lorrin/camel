@@ -20,13 +20,14 @@ import java.util.Collection;
 import java.util.Iterator;
 
 import org.apache.camel.Converter;
+import org.apache.camel.Exchange;
 import org.apache.camel.util.ObjectHelper;
 
 /**
  * Some core java.lang based <a
  * href="http://camel.apache.org/type-converter.html">Type Converters</a>
  *
- * @version $Revision$
+ * @version 
  */
 @Converter
 public final class ObjectConverter {
@@ -65,6 +66,7 @@ public final class ObjectConverter {
     /**
      * Creates an iterator over the value
      */
+    @SuppressWarnings("rawtypes")
     @Converter
     public static Iterator iterator(Object value) {
         return ObjectHelper.createIterator(value);
@@ -105,6 +107,26 @@ public final class ObjectConverter {
     @Converter
     public static String fromCharArray(char[] value) {
         return new String(value);
+    }
+    
+    /**
+     * Returns the converted value, or null if the value is null
+     */
+    @SuppressWarnings("rawtypes")
+    @Converter
+    public static Class toClass(Object value, Exchange exchange) {
+        if (value instanceof Class) {
+            return (Class) value;
+        } else if (value instanceof String) {
+            // prefer to use class resolver API
+            if (exchange != null) {
+                return exchange.getContext().getClassResolver().resolveClass((String) value);
+            } else {
+                return ObjectHelper.loadClass((String) value);
+            }
+        } else {
+            return null;
+        }
     }
 
     /**

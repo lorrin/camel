@@ -40,8 +40,8 @@ import org.apache.camel.util.EventHelper;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.ServiceHelper;
 import org.apache.camel.util.StopWatch;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Default {@link org.apache.camel.spi.ShutdownStrategy} which uses graceful shutdown.
@@ -61,10 +61,10 @@ import org.apache.commons.logging.LogFactory;
  * Routes will by default be shutdown in the reverse order of which they where started.
  * You can customize this using the {@link #setShutdownRoutesInReverseOrder(boolean)} method.
  *
- * @version $Revision$
+ * @version 
  */
 public class DefaultShutdownStrategy extends ServiceSupport implements ShutdownStrategy, CamelContextAware {
-    private static final transient Log LOG = LogFactory.getLog(DefaultShutdownStrategy.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(DefaultShutdownStrategy.class);
 
     private CamelContext camelContext;
     private ExecutorService executor;
@@ -85,18 +85,24 @@ public class DefaultShutdownStrategy extends ServiceSupport implements ShutdownS
     }
 
     public void suspend(CamelContext context, List<RouteStartupOrder> routes) throws Exception {
-        doShutdown(context, routes, getTimeout(), getTimeUnit(), true);
+        doShutdown(context, routes, getTimeout(), getTimeUnit(), true, false);
     }
 
     public void shutdown(CamelContext context, List<RouteStartupOrder> routes, long timeout, TimeUnit timeUnit) throws Exception {
-        doShutdown(context, routes, timeout, timeUnit, false);
+        doShutdown(context, routes, timeout, timeUnit, false, false);
+    }
+
+    public boolean shutdown(CamelContext context, RouteStartupOrder route, long timeout, TimeUnit timeUnit, boolean abortAfterTimeout) throws Exception {
+        List<RouteStartupOrder> routes = new ArrayList<RouteStartupOrder>(1);
+        routes.add(route);
+        return doShutdown(context, routes, timeout, timeUnit, false, abortAfterTimeout);
     }
 
     public void suspend(CamelContext context, List<RouteStartupOrder> routes, long timeout, TimeUnit timeUnit) throws Exception {
-        doShutdown(context, routes, timeout, timeUnit, true);
+        doShutdown(context, routes, timeout, timeUnit, true, false);
     }
 
-    protected void doShutdown(CamelContext context, List<RouteStartupOrder> routes, long timeout, TimeUnit timeUnit, boolean suspendOnly) throws Exception {
+    protected boolean doShutdown(CamelContext context, List<RouteStartupOrder> routes, long timeout, TimeUnit timeUnit, boolean suspendOnly, boolean abortAfterTimeout) throws Exception {
         StopWatch watch = new StopWatch();
 
         // at first sort according to route startup order
@@ -117,7 +123,7 @@ public class DefaultShutdownStrategy extends ServiceSupport implements ShutdownS
         }
 
         // use another thread to perform the shutdowns so we can support timeout
-        Future future = getExecutorService().submit(new ShutdownTask(context, routesOrdered, suspendOnly));
+        Future future = getExecutorService().submit(new ShutdownTask(context, routesOrdered, suspendOnly, abortAfterTimeout));
         try {
             if (timeout > 0) {
                 future.get(timeout, timeUnit);
@@ -128,12 +134,18 @@ public class DefaultShutdownStrategy extends ServiceSupport implements ShutdownS
             // timeout then cancel the task
             future.cancel(true);
 
-            if (shutdownNowOnTimeout) {
-                LOG.warn("Timeout occurred. Now forcing the routes to be shutdown now.");
-                // force the routes to shutdown now
-                shutdownRoutesNow(routesOrdered);
+            // if set, stop processing and return false to indicate that the shutdown is aborting
+            if (abortAfterTimeout) {
+                LOG.warn("Timeout occurred. Aborting the shutdown now.");
+                return false;
             } else {
-                LOG.warn("Timeout occurred. Will ignore shutting down the remainder routes.");
+                if (shutdownNowOnTimeout) {
+                    LOG.warn("Timeout occurred. Now forcing the routes to be shutdown now.");
+                    // force the routes to shutdown now
+                    shutdownRoutesNow(routesOrdered);
+                } else {
+                    LOG.warn("Timeout occurred. Will ignore shutting down the remainder routes.");
+                }
             }
         } catch (ExecutionException e) {
             // unwrap execution exception
@@ -144,6 +156,7 @@ public class DefaultShutdownStrategy extends ServiceSupport implements ShutdownS
         long seconds = TimeUnit.SECONDS.convert(watch.stop(), TimeUnit.MILLISECONDS);
 
         LOG.info("Graceful shutdown of " + routesOrdered.size() + " routes completed in " + seconds + " seconds");
+        return true;
     }
 
     public void setTimeout(long timeout) {
@@ -320,11 +333,13 @@ public class DefaultShutdownStrategy extends ServiceSupport implements ShutdownS
         private final CamelContext context;
         private final List<RouteStartupOrder> routes;
         private final boolean suspendOnly;
+        private final boolean abortAfterTimeout;
 
-        public ShutdownTask(CamelContext context, List<RouteStartupOrder> routes, boolean suspendOnly) {
+        public ShutdownTask(CamelContext context, List<RouteStartupOrder> routes, boolean suspendOnly, boolean abortAfterTimeout) {
             this.context = context;
             this.routes = routes;
             this.suspendOnly = suspendOnly;
+            this.abortAfterTimeout = abortAfterTimeout;
         }
 
         public void run() {
@@ -423,22 +438,41 @@ public class DefaultShutdownStrategy extends ServiceSupport implements ShutdownS
                                  + (TimeUnit.SECONDS.convert(getTimeout(), getTimeUnit()) - (loopCount++ * loopDelaySeconds)) + " seconds.");
                         Thread.sleep(loopDelaySeconds * 1000);
                     } catch (InterruptedException e) {
-                        LOG.warn("Interrupted while waiting during graceful shutdown, will force shutdown now.");
-                        Thread.currentThread().interrupt();
-                        break;
+                        if (abortAfterTimeout) {
+                            LOG.warn("Interrupted while waiting during graceful shutdown, will abort.");
+                            //Thread.currentThread().interrupt();
+                            return;
+                        } else {
+                            LOG.warn("Interrupted while waiting during graceful shutdown, will force shutdown now.");
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
                     }
                 } else {
                     done = true;
                 }
             }
 
+            // prepare for shutdown
+            for (ShutdownDeferredConsumer deferred : deferredConsumers) {
+                Consumer consumer = deferred.getConsumer();
+                if (consumer instanceof ShutdownAware) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Route: " + deferred.getRoute().getId() + " preparing to shutdown.");
+                    }
+                    ((ShutdownAware) consumer).prepareShutdown();
+                    LOG.info("Route: " + deferred.getRoute().getId() + " preparing to shutdown complete.");
+                }
+            }
+
             // now all messages has been completed then stop the deferred consumers
             for (ShutdownDeferredConsumer deferred : deferredConsumers) {
+                Consumer consumer = deferred.getConsumer();
                 if (suspendOnly) {
-                    suspendNow(deferred.getConsumer());
+                    suspendNow(consumer);
                     LOG.info("Route: " + deferred.getRoute().getId() + " suspend complete.");
                 } else {
-                    shutdownNow(deferred.getConsumer());
+                    shutdownNow(consumer);
                     LOG.info("Route: " + deferred.getRoute().getId() + " shutdown complete.");
                 }
             }

@@ -6,7 +6,6 @@ import java.lang.{Class, String}
 import javax.activation.DataHandler
 
 /**
- * @version $Revision: 1.1 $
  */
 
 class RichMessage(val message: Message) extends Message {
@@ -31,6 +30,8 @@ class RichMessage(val message: Message) extends Message {
   def removeHeader(name: String) = message.removeHeader(name)
 
   def removeHeaders(pattern: String) = message.removeHeaders(pattern)
+
+  def removeHeaders(pattern: String, excludePatterns: String*) = message.removeHeaders(pattern, excludePatterns: _*)
 
   def removeAttachment(id: String) = message.removeAttachment(id)
 

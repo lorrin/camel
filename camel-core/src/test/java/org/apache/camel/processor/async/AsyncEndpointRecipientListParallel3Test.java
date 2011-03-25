@@ -22,7 +22,7 @@ import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class AsyncEndpointRecipientListParallel3Test extends ContextTestSupport {
 
@@ -57,7 +57,7 @@ public class AsyncEndpointRecipientListParallel3Test extends ContextTestSupport 
                                 beforeThreadName = Thread.currentThread().getName();
                             }
                         })
-                        .recipientList(constant("async:Hi Camel,direct:foo")).parallelProcessing();
+                        .recipientList(constant("async:Hi Camel?delay=2000,direct:foo")).parallelProcessing();
 
                 from("direct:foo")
                         .process(new Processor() {

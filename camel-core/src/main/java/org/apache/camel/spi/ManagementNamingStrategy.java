@@ -34,7 +34,7 @@ import org.apache.camel.model.ProcessorDefinition;
 /**
  * Strategy for computing {@link ObjectName} names for the various beans that Camel register for management.
  *
- * @version $Revision$
+ * @version 
  */
 public interface ManagementNamingStrategy {
 
@@ -60,7 +60,7 @@ public interface ManagementNamingStrategy {
 
     ObjectName getObjectNameForService(CamelContext context, Service service) throws MalformedObjectNameException;
 
-    ObjectName getObjectNameForThreadPool(CamelContext context, ThreadPoolExecutor threadPool) throws MalformedObjectNameException;
+    ObjectName getObjectNameForThreadPool(CamelContext context, ThreadPoolExecutor threadPool, String id, String sourceId) throws MalformedObjectNameException;
 
     ObjectName getObjectNameForEventNotifier(CamelContext context, EventNotifier eventNotifier) throws MalformedObjectNameException;
 }

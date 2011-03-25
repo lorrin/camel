@@ -34,8 +34,8 @@ import org.apache.camel.dataformat.bindy.annotation.Section;
 import org.apache.camel.dataformat.bindy.util.Converter;
 import org.apache.camel.spi.PackageScanClassResolver;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The BindyKeyValuePairFactory is the class who allows to bind data of type key
@@ -46,7 +46,7 @@ import org.apache.commons.logging.LogFactory;
  */
 public class BindyKeyValuePairFactory extends BindyAbstractFactory implements BindyFactory {
 
-    private static final transient Log LOG = LogFactory.getLog(BindyKeyValuePairFactory.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(BindyKeyValuePairFactory.class);
 
     private Map<Integer, KeyValuePairField> keyValuePairFields = new LinkedHashMap<Integer, KeyValuePairField>();
     private Map<Integer, Field> annotedFields = new LinkedHashMap<Integer, Field>();
@@ -77,14 +77,14 @@ public class BindyKeyValuePairFactory extends BindyAbstractFactory implements Bi
     public void initKeyValuePairModel() throws Exception {
 
         // Find annotated KeyValuePairfields declared in the Model classes
-        initAnnotedFields();
+        initAnnotatedFields();
 
         // Initialize key value pair parameter(s)
         initMessageParameters();
 
     }
 
-    public void initAnnotedFields() {
+    public void initAnnotatedFields() {
 
         for (Class<?> cl : models) {
 
@@ -111,7 +111,7 @@ public class BindyKeyValuePairFactory extends BindyAbstractFactory implements Bi
             }
 
             if (!linkFields.isEmpty()) {
-                annotedLinkFields.put(cl.getName(), linkFields);
+                annotatedLinkFields.put(cl.getName(), linkFields);
             }
 
         }
@@ -289,7 +289,7 @@ public class BindyKeyValuePairFactory extends BindyAbstractFactory implements Bi
                                 String pattern = keyValuePairField.pattern();
 
                                 // Create format object to format the field
-                                Format<?> format = FormatFactory.getFormat(field.getType(), pattern, keyValuePairField.precision());
+                                Format<?> format = FormatFactory.getFormat(field.getType(), pattern, getLocale(), keyValuePairField.precision());
 
                                 // format the value of the key received
                                 result = formatField(format, value, key, line);
@@ -331,7 +331,7 @@ public class BindyKeyValuePairFactory extends BindyAbstractFactory implements Bi
                                     String pattern = keyValuePairField.pattern();
 
                                     // Create format object to format the field
-                                    Format<?> format = FormatFactory.getFormat(field.getType(), pattern, keyValuePairField.precision());
+                                    Format<?> format = FormatFactory.getFormat(field.getType(), pattern, getLocale(), keyValuePairField.precision());
 
                                     // format the value of the key received
                                     Object result = formatField(format, value, key, line);
@@ -462,7 +462,7 @@ public class BindyKeyValuePairFactory extends BindyAbstractFactory implements Bi
             int precision = keyValuePairField.precision();
 
             // Create format
-            Format format = FormatFactory.getFormat(type, pattern, precision);
+            Format format = FormatFactory.getFormat(type, pattern, getLocale(), precision);
 
             // Get object to be formatted
             Object obj = model.get(field.getDeclaringClass().getName());

@@ -24,21 +24,19 @@ import org.apache.camel.Exchange;
 import org.apache.camel.impl.DefaultHeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.util.ObjectHelper;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import org.jivesoftware.smack.packet.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A Strategy used to convert between a Camel {@link Exchange} and {@link XmppMessage} to and from a
  * XMPP {@link Message}
  *
- * @version $Revision$
+ * @version 
  */
 public class XmppBinding {
 
-    private static final transient Log LOG = LogFactory.getLog(XmppBinding.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(XmppBinding.class);
     private HeaderFilterStrategy headerFilterStrategy;
 
     public XmppBinding() {
@@ -109,6 +107,13 @@ public class XmppBinding {
             }
         }
 
+        answer.put(XmppConstants.MESSAGE_TYPE, xmppMessage.getType());
+        answer.put(XmppConstants.SUBJECT, xmppMessage.getSubject());
+        answer.put(XmppConstants.THREAD_ID, xmppMessage.getThread());
+        answer.put(XmppConstants.FROM, xmppMessage.getFrom());
+        answer.put(XmppConstants.PACKET_ID, xmppMessage.getPacketID());
+        answer.put(XmppConstants.TO, xmppMessage.getTo());
+                
         return answer;
     }
 }

@@ -29,7 +29,7 @@ import org.apache.camel.model.RedeliveryPolicyDefinition;
 /**
  * The &lt;errorHandler&gt; tag element.
  *
- * @version $Revision: 938746 $
+ * @version 
  */
 @XmlRootElement(name = "errorHandler")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -42,6 +42,8 @@ public class ErrorHandlerDefinition extends IdentifiedType {
     @XmlAttribute
     private LoggingLevel level = LoggingLevel.ERROR;
     @XmlAttribute
+    private String logName;
+    @XmlAttribute
     private Boolean useOriginalMessage;
     @XmlAttribute
     private String transactionTemplateRef;
@@ -51,6 +53,8 @@ public class ErrorHandlerDefinition extends IdentifiedType {
     private String onRedeliveryRef;
     @XmlAttribute
     private String retryWhileRef;
+    @XmlAttribute
+    private String redeliveryPolicyRef;
     @XmlElement
     private RedeliveryPolicyDefinition redeliveryPolicy;
    

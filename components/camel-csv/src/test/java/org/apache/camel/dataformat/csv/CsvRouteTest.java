@@ -35,8 +35,8 @@ package org.apache.camel.dataformat.csv;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import java.util.regex.Pattern;
+
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.camel.builder.RouteBuilder;
@@ -44,15 +44,15 @@ import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit4.CamelTestSupport;
 import org.apache.commons.csv.writer.CSVConfig;
 import org.apache.commons.csv.writer.CSVField;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class CsvRouteTest extends CamelTestSupport {
-    private static final transient Log LOG = LogFactory.getLog(CsvRouteTest.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(CsvRouteTest.class);
 
     @Test
     public void testSendMessage() throws Exception {

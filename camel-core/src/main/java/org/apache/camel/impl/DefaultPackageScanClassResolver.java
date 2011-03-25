@@ -29,7 +29,6 @@ import java.net.URLDecoder;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.jar.JarEntry;
@@ -42,26 +41,38 @@ import org.apache.camel.impl.scan.CompositePackageScanFilter;
 import org.apache.camel.spi.PackageScanClassResolver;
 import org.apache.camel.spi.PackageScanFilter;
 import org.apache.camel.util.IOHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Default implement of {@link org.apache.camel.spi.PackageScanClassResolver}
  */
 public class DefaultPackageScanClassResolver implements PackageScanClassResolver {
 
-    protected final transient Log log = LogFactory.getLog(getClass());
-    private Set<ClassLoader> classLoaders;
+    protected final transient Logger log = LoggerFactory.getLogger(getClass());
+    private final Set<ClassLoader> classLoaders = new LinkedHashSet<ClassLoader>();
     private Set<PackageScanFilter> scanFilters;
     private String[] acceptableSchemes = {};
 
-    public void addClassLoader(ClassLoader classLoader) {
+    public DefaultPackageScanClassResolver() {
         try {
-            getClassLoaders().add(classLoader);
-        } catch (UnsupportedOperationException ex) {
-            // Ignore this exception as the PackageScanClassResolver 
-            // don't want use any other classloader
+            ClassLoader ccl = Thread.currentThread().getContextClassLoader();
+            if (ccl != null) {
+                if (log.isTraceEnabled()) {
+                    log.trace("Adding ContextClassLoader from current thread: " + ccl);
+                }
+                classLoaders.add(ccl);
+            }
+        } catch (Exception e) {
+            // Ignore this exception
+            log.warn("Cannot add ContextClassLoader from current thread due " + e.getMessage() + ". This exception will be ignored.");
         }
+
+        classLoaders.add(DefaultPackageScanClassResolver.class.getClassLoader());
+    }
+
+    public void addClassLoader(ClassLoader classLoader) {
+        classLoaders.add(classLoader);
     }
 
     public void addFilter(PackageScanFilter filter) {
@@ -95,22 +106,13 @@ public class DefaultPackageScanClassResolver implements PackageScanClassResolver
     }
 
     public Set<ClassLoader> getClassLoaders() {
-        if (classLoaders == null) {
-            classLoaders = new HashSet<ClassLoader>();
-            ClassLoader ccl = Thread.currentThread().getContextClassLoader();
-            if (ccl != null) {
-                if (log.isTraceEnabled()) {
-                    log.trace("The thread context class loader: " + ccl + "  is used to load the class");
-                }
-                classLoaders.add(ccl);
-            }
-            classLoaders.add(DefaultPackageScanClassResolver.class.getClassLoader());
-        }
-        return classLoaders;
+        // return a new set to avoid any concurrency issues in other runtimes such as OSGi
+        return Collections.unmodifiableSet(new LinkedHashSet<ClassLoader>(classLoaders));
     }
 
     public void setClassLoaders(Set<ClassLoader> classLoaders) {
-        this.classLoaders = classLoaders;
+        // add all the class loaders
+        this.classLoaders.addAll(classLoaders);
     }
 
     @SuppressWarnings("unchecked")

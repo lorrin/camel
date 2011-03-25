@@ -19,14 +19,14 @@ package org.apache.camel.component.exec;
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
 public final class ExecTestUtils {
 
-    private static final Log LOG = LogFactory.getLog(ExecTestUtils.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ExecTestUtils.class);
 
     private ExecTestUtils() {
     }
@@ -57,8 +57,9 @@ public final class ExecTestUtils {
      * @return the java executable in a system independent way.
      */
     public static String buildJavaExecutablePath() {
-        String javaHome = (String)System.getenv("JAVA_HOME");
+        String javaHome = System.getenv("JAVA_HOME");
         if (javaHome == null) {
+            System.out.println("The Exec component tests will fail, because the environment variable JAVA_HOME is not set!");
             throw new IllegalStateException("The Exec component tests will fail, because the environment variable JAVA_HOME is not set!");
         }
         File java = new File(javaHome + File.separator + "bin" + File.separator + "java");

@@ -20,8 +20,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
-
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
@@ -34,47 +36,61 @@ import org.apache.camel.Converter;
 import org.apache.camel.Exchange;
 import org.apache.camel.FallbackConverter;
 import org.apache.camel.TypeConverter;
+import org.apache.camel.TypeConverterLoaderException;
 import org.apache.camel.spi.PackageScanClassResolver;
+import org.apache.camel.spi.TypeConverterLoader;
 import org.apache.camel.spi.TypeConverterRegistry;
 import org.apache.camel.util.CastUtils;
 import org.apache.camel.util.IOHelper;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A class which will auto-discover converter objects and methods to pre-load
  * the registry of converters on startup
  *
- * @version $Revision$
+ * @version 
  */
 public class AnnotationTypeConverterLoader implements TypeConverterLoader {
     public static final String META_INF_SERVICES = "META-INF/services/org/apache/camel/TypeConverter";
-    private static final transient Log LOG = LogFactory.getLog(AnnotationTypeConverterLoader.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(AnnotationTypeConverterLoader.class);
     protected PackageScanClassResolver resolver;
     protected Set<Class<?>> visitedClasses = new HashSet<Class<?>>();
-    protected Set<URL> visitedURLs = new HashSet<URL>();
+    protected Set<URI> visitedURIs = new HashSet<URI>();
 
     public AnnotationTypeConverterLoader(PackageScanClassResolver resolver) {
         this.resolver = resolver;
     }
 
-    public void load(TypeConverterRegistry registry) throws Exception {
-        String[] packageNames = findPackageNames();
+    public void load(TypeConverterRegistry registry) throws TypeConverterLoaderException {
+        String[] packageNames;
+        try {
+            packageNames = findPackageNames();
+            if (packageNames == null || packageNames.length == 0) {
+                throw new TypeConverterLoaderException("Cannot find package names to be used for classpath scanning for annotated type converters.");
+            }
+        } catch (Exception e) {
+            throw new TypeConverterLoaderException("Cannot find package names to be used for classpath scanning for annotated type converters.", e);
+        }
+
         Set<Class<?>> classes = resolver.findAnnotated(Converter.class, packageNames);
+        if (classes == null || classes.isEmpty()) {
+            throw new TypeConverterLoaderException("Cannot find any type converter classes from the following packages: " + Arrays.asList(packageNames));
+        }
 
         LOG.info("Found " + packageNames.length + " packages with " + classes.size() + " @Converter classes to load");
 
         for (Class type : classes) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Loading converter class: " + ObjectHelper.name(type));
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("Loading converter class: " + ObjectHelper.name(type));
             }
             loadConverterMethods(registry, type);
         }
 
         // now clear the maps so we do not hold references
         visitedClasses.clear();
-        visitedURLs.clear();
+        visitedURIs.clear();
     }
 
     /**
@@ -83,8 +99,9 @@ public class AnnotationTypeConverterLoader implements TypeConverterLoader {
      *
      * @return a collection of packages to search for
      * @throws IOException is thrown for IO related errors
+     * @throws URISyntaxException 
      */
-    protected String[] findPackageNames() throws IOException {
+    protected String[] findPackageNames() throws IOException, URISyntaxException {
         Set<String> packages = new HashSet<String>();
         ClassLoader ccl = Thread.currentThread().getContextClassLoader();
         if (ccl != null) {
@@ -94,13 +111,14 @@ public class AnnotationTypeConverterLoader implements TypeConverterLoader {
         return packages.toArray(new String[packages.size()]);
     }
 
-    protected void findPackages(Set<String> packages, ClassLoader classLoader) throws IOException {
+    protected void findPackages(Set<String> packages, ClassLoader classLoader) throws IOException, URISyntaxException {
         Enumeration<URL> resources = classLoader.getResources(META_INF_SERVICES);
         while (resources.hasMoreElements()) {
             URL url = resources.nextElement();
-            if (url != null && !visitedURLs.contains(url)) {
-                // remember we have visited this url so we wont read it twice
-                visitedURLs.add(url);
+            URI uri = url.toURI();
+            if (!visitedURIs.contains(uri)) {
+                // remember we have visited this uri so we wont read it twice
+                visitedURIs.add(uri);
                 if (LOG.isDebugEnabled()) {
                     LOG.info("Loading file " + META_INF_SERVICES + " to retrieve list of packages, from url: " + url);
                 }
@@ -231,7 +249,7 @@ public class AnnotationTypeConverterLoader implements TypeConverterLoader {
     }
 
     protected void registerTypeConverter(TypeConverterRegistry registry,
-            Method method, Class<?> toType, Class<?> fromType, TypeConverter typeConverter) {
+                                         Method method, Class<?> toType, Class<?> fromType, TypeConverter typeConverter) {
         registry.addTypeConverter(toType, fromType, typeConverter);
     }
 

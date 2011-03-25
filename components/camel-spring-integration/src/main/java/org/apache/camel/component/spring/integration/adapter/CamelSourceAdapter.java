@@ -23,31 +23,30 @@ import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.component.spring.integration.SpringIntegrationBinding;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.integration.Message;
+import org.springframework.integration.MessageChannel;
+import org.springframework.integration.MessageHeaders;
 import org.springframework.integration.channel.DirectChannel;
-import org.springframework.integration.core.Message;
-import org.springframework.integration.core.MessageChannel;
-import org.springframework.integration.core.MessageHeaders;
-import org.springframework.integration.message.MessageHandler;
+import org.springframework.integration.core.MessageHandler;
 
 /**
  * A CamelContext will be injected into CameSourceAdapter which will
  * let Spring Integration channel talk to the CamelContext certain endpoint
  *
- * @version $Revision$
+ * @version 
  */
 public class CamelSourceAdapter extends AbstractCamelAdapter implements InitializingBean, DisposableBean {
-    private static final Log LOG = LogFactory.getLog(CamelSourceAdapter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CamelSourceAdapter.class);
 
     private Consumer consumer;
     private Endpoint camelEndpoint;
     private MessageChannel requestChannel;
     private DirectChannel replyChannel;
-    
-    private AtomicBoolean initialized = new AtomicBoolean();
+    private final AtomicBoolean initialized = new AtomicBoolean();
 
     public void setRequestChannel(MessageChannel channel) {
         requestChannel = channel;        
@@ -62,16 +61,21 @@ public class CamelSourceAdapter extends AbstractCamelAdapter implements Initiali
     }
 
     protected class ConsumerProcessor implements Processor {
-
         public void process(final Exchange exchange) throws Exception {
-            org.springframework.integration.core.Message request = SpringIntegrationBinding.createSpringIntegrationMessage(exchange);
+            org.springframework.integration.Message request = SpringIntegrationBinding.createSpringIntegrationMessage(exchange);
 
             if (exchange.getPattern().isOutCapable()) {
                 exchange.getIn().getHeaders().put(MessageHeaders.REPLY_CHANNEL , replyChannel);
+
+                // we want to do in-out so the inputChannel is mandatory (used to receive reply from spring integration)
+                if (replyChannel == null) {
+                    throw new IllegalArgumentException("ReplyChannel has not been configured on: " + this);
+                }
+
                 replyChannel.subscribe(new MessageHandler() {
                     public void handleMessage(Message<?> message) {
                         if (LOG.isDebugEnabled()) {
-                            LOG.debug("set the out message with the SI response message");
+                            LOG.debug("Received " + message + " from ReplyChannel: " + replyChannel);
                         }
                         //TODO set the corralationID
                         SpringIntegrationBinding.storeToCamelMessage(message, exchange.getOut());

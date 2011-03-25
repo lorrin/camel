@@ -26,14 +26,14 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.processor.aggregate.AggregationStrategy;
 import org.apache.camel.test.junit4.CamelTestSupport;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HawtDBAggregateLoadAndRecoverTest extends CamelTestSupport {
 
-    private static final Log LOG = LogFactory.getLog(HawtDBAggregateLoadAndRecoverTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HawtDBAggregateLoadAndRecoverTest.class);
     private static final int SIZE = 200;
     private static AtomicInteger counter = new AtomicInteger();
 
@@ -61,9 +61,9 @@ public class HawtDBAggregateLoadAndRecoverTest extends CamelTestSupport {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Sending " + value + " with id " + id);
             }
-            template.sendBodyAndHeaders("seda:start?size=" + SIZE, value, headers);
+            template.sendBodyAndHeaders("seda:start", value, headers);
             // simulate a little delay
-            Thread.sleep(3);
+            Thread.sleep(5);
         }
 
         LOG.info("Sending all " + SIZE + " message done. Now waiting for aggregation to complete.");
@@ -87,6 +87,8 @@ public class HawtDBAggregateLoadAndRecoverTest extends CamelTestSupport {
             public void configure() throws Exception {
                 HawtDBAggregationRepository repo = new HawtDBAggregationRepository("repo1", "target/data/hawtdb.dat");
                 repo.setUseRecovery(true);
+                // for faster unit testing
+                repo.setRecoveryInterval(500);
 
                 from("seda:start?size=" + SIZE)
                     .to("log:input?groupSize=500")

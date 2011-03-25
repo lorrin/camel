@@ -17,6 +17,7 @@
 package org.apache.camel.util.concurrent;
 
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -26,12 +27,14 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.camel.model.ExecutorServiceAwareDefinition;
 import org.apache.camel.spi.ExecutorServiceStrategy;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.util.ObjectHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Helper for {@link java.util.concurrent.ExecutorService} to construct executors using a thread factory that
@@ -43,17 +46,18 @@ import org.apache.camel.util.ObjectHelper;
  * <p/>
  * This helper should only be used internally in Camel.
  *
- * @version $Revision$
+ * @version 
  */
 public final class ExecutorServiceHelper {
 
     public static final String DEFAULT_PATTERN = "Camel Thread ${counter} - ${name}";
-    private static AtomicInteger threadCounter = new AtomicInteger();
+    private static final Logger LOG = LoggerFactory.getLogger(ExecutorServiceHelper.class);
+    private static AtomicLong threadCounter = new AtomicLong();
 
     private ExecutorServiceHelper() {
     }
 
-    private static int nextThreadCounter() {
+    private static long nextThreadCounter() {
         return threadCounter.getAndIncrement();
     }
 
@@ -102,13 +106,7 @@ public final class ExecutorServiceHelper {
      * @return the created pool
      */
     public static ScheduledExecutorService newScheduledThreadPool(final int poolSize, final String pattern, final String name, final boolean daemon) {
-        return Executors.newScheduledThreadPool(poolSize, new ThreadFactory() {
-            public Thread newThread(Runnable r) {
-                Thread answer = new Thread(r, getThreadName(pattern, name));
-                answer.setDaemon(daemon);
-                return answer;
-            }
-        });
+        return Executors.newScheduledThreadPool(poolSize, new CamelThreadFactory(pattern, name, daemon));
     }
 
     /**
@@ -123,13 +121,7 @@ public final class ExecutorServiceHelper {
      * @return the created pool
      */
     public static ExecutorService newFixedThreadPool(final int poolSize, final String pattern, final String name, final boolean daemon) {
-        return Executors.newFixedThreadPool(poolSize, new ThreadFactory() {
-            public Thread newThread(Runnable r) {
-                Thread answer = new Thread(r, getThreadName(pattern, name));
-                answer.setDaemon(daemon);
-                return answer;
-            }
-        });
+        return Executors.newFixedThreadPool(poolSize, new CamelThreadFactory(pattern, name, daemon));
     }
 
     /**
@@ -141,33 +133,21 @@ public final class ExecutorServiceHelper {
      * @return the created pool
      */
     public static ExecutorService newSingleThreadExecutor(final String pattern, final String name, final boolean daemon) {
-        return Executors.newSingleThreadExecutor(new ThreadFactory() {
-            public Thread newThread(Runnable r) {
-                Thread answer = new Thread(r, getThreadName(pattern, name));
-                answer.setDaemon(daemon);
-                return answer;
-            }
-        });
+        return Executors.newSingleThreadExecutor(new CamelThreadFactory(pattern, name, daemon));
     }
 
     /**
-     * Creates a new cached thread pool
+     * Creates a new cached thread pool.
+     * <p/>
+     * <b>Important:</b> Using cached thread pool is discouraged as they have no upper bound and can overload the JVM.
      *
      * @param pattern pattern of the thread name
      * @param name    ${name} in the pattern name
      * @param daemon  whether the threads is daemon or not
      * @return the created pool
-     * @deprecated using cached thread pool is discouraged as they have no upper bound and can overload the JVM
      */
-    @Deprecated
     public static ExecutorService newCachedThreadPool(final String pattern, final String name, final boolean daemon) {
-        return Executors.newCachedThreadPool(new ThreadFactory() {
-            public Thread newThread(Runnable r) {
-                Thread answer = new Thread(r, getThreadName(pattern, name));
-                answer.setDaemon(daemon);
-                return answer;
-            }
-        });
+        return Executors.newCachedThreadPool(new CamelThreadFactory(pattern, name, daemon));
     }
 
     /**
@@ -186,7 +166,7 @@ public final class ExecutorServiceHelper {
      *
      * @param pattern      pattern of the thread name
      * @param name         ${name} in the pattern name
-     * @param corePoolSize the core size
+     * @param corePoolSize the core pool size
      * @param maxPoolSize  the maximum pool size
      * @return the created pool
      */
@@ -200,7 +180,7 @@ public final class ExecutorServiceHelper {
      *
      * @param pattern      pattern of the thread name
      * @param name         ${name} in the pattern name
-     * @param corePoolSize the core size
+     * @param corePoolSize the core pool size
      * @param maxPoolSize  the maximum pool size
      * @param maxQueueSize the maximum number of tasks in the queue, use <tt>Integer.MAX_VALUE</tt> or <tt>-1</tt> to indicate unbounded
      * @return the created pool
@@ -215,7 +195,7 @@ public final class ExecutorServiceHelper {
      *
      * @param pattern                  pattern of the thread name
      * @param name                     ${name} in the pattern name
-     * @param corePoolSize             the core size
+     * @param corePoolSize             the core pool size
      * @param maxPoolSize              the maximum pool size
      * @param keepAliveTime            keep alive time
      * @param timeUnit                 keep alive time unit
@@ -250,13 +230,7 @@ public final class ExecutorServiceHelper {
             queue = new LinkedBlockingQueue<Runnable>(maxQueueSize);
         }
         ThreadPoolExecutor answer = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, timeUnit, queue);
-        answer.setThreadFactory(new ThreadFactory() {
-            public Thread newThread(Runnable r) {
-                Thread answer = new Thread(r, getThreadName(pattern, name));
-                answer.setDaemon(daemon);
-                return answer;
-            }
-        });
+        answer.setThreadFactory(new CamelThreadFactory(pattern, name, daemon));
         if (rejectedExecutionHandler == null) {
             rejectedExecutionHandler = new ThreadPoolExecutor.CallerRunsPolicy();
         }
@@ -345,6 +319,51 @@ public final class ExecutorServiceHelper {
         }
 
         return null;
+    }
+
+    /**
+     * Timeout the completion service.
+     * <p/>
+     * This can be used to mark the completion service as timed out, allowing you to poll any already completed tasks.
+     * This applies when using the {@link SubmitOrderedCompletionService}.
+     *
+     * @param completionService the completion service.
+     */
+    public static void timeoutTask(CompletionService completionService) {
+        if (completionService instanceof SubmitOrderedCompletionService) {
+            ((SubmitOrderedCompletionService) completionService).timeoutTask();
+        }
+    }
+
+    /**
+     * Thread factory which creates threads supporting a naming pattern.
+     */
+    private static final class CamelThreadFactory implements ThreadFactory {
+
+        private final String pattern;
+        private final String name;
+        private final boolean daemon;
+
+        private CamelThreadFactory(String pattern, String name, boolean daemon) {
+            this.pattern = pattern;
+            this.name = name;
+            this.daemon = daemon;
+        }
+
+        public Thread newThread(Runnable runnable) {
+            String threadName = getThreadName(pattern, name);
+            Thread answer = new Thread(runnable, threadName);
+            answer.setDaemon(daemon);
+
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("Created thread[" + name + "]: " + answer);
+            }
+            return answer;
+        }
+
+        public String toString() {
+            return "CamelThreadFactory[" + name + "]";
+        }
     }
 
 }

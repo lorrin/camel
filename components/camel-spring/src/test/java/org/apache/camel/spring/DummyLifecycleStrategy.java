@@ -32,7 +32,7 @@ import org.apache.camel.spi.RouteContext;
 /**
  * Dummy LifecycleStrategy for LifecycleStrategy injection test.
  *
- * @version $Revision$
+ * @version 
  */
 public class DummyLifecycleStrategy implements LifecycleStrategy {
 
@@ -72,6 +72,7 @@ public class DummyLifecycleStrategy implements LifecycleStrategy {
     public void onRoutesAdd(Collection<Route> routes) {
     }
 
-    public void onThreadPoolAdd(CamelContext camelContext, ThreadPoolExecutor threadPool) {
+    public void onThreadPoolAdd(CamelContext camelContext, ThreadPoolExecutor threadPool, String id,
+                                String sourceId, String routeId, String threadPoolProfileId) {
     }
 }

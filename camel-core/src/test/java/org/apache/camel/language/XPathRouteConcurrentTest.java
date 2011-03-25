@@ -20,7 +20,7 @@ import org.apache.camel.ContextTestSupport;
 import org.apache.camel.builder.RouteBuilder;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class XPathRouteConcurrentTest extends ContextTestSupport {
 
@@ -49,7 +49,7 @@ public class XPathRouteConcurrentTest extends ContextTestSupport {
 
         template.sendBody("seda:foo", "<person><name>Claus</name></person>");
 
-        Thread.sleep(1000);
+        Thread.sleep(100);
 
         template.sendBody("seda:foo", "<person><name>James</name></person>");
 
@@ -66,7 +66,7 @@ public class XPathRouteConcurrentTest extends ContextTestSupport {
 
     private void doSendMessages(int files) throws Exception {
         getMockEndpoint("mock:result").expectedMessageCount(files);
-        getMockEndpoint("mock:result").assertNoDuplicates(body());
+        getMockEndpoint("mock:result").expectsNoDuplicates(body());
         getMockEndpoint("mock:other").expectedMessageCount(0);
 
         for (int i = 0; i < files; i++) {

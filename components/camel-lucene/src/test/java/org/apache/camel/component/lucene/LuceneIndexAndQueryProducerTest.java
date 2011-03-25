@@ -27,24 +27,24 @@ import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.impl.JndiRegistry;
 import org.apache.camel.processor.lucene.support.Hits;
 import org.apache.camel.test.CamelTestSupport;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.lucene.analysis.SimpleAnalyzer;
 import org.apache.lucene.analysis.WhitespaceAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.util.Version;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LuceneIndexAndQueryProducerTest extends CamelTestSupport {
-    private static final transient Log LOG = LogFactory.getLog(LuceneIndexAndQueryProducerTest.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(LuceneIndexAndQueryProducerTest.class);
     private String[] humorousQuotes = {
         "I think, therefore I am. I think - George Carlin",
-        "I have as much authority as the Pope. I just don’t have as many people who believe it. - George Carlin",
+        "I have as much authority as the Pope. I just don't have as many people who believe it. - George Carlin",
         "There`s no present. There`s only the immediate future and the recent past - George Carlin",
         "Politics doesn't make strange bedfellows - marriage does. - Groucho Marx",
         "I refuse to join any club that would have me as a member. - Groucho Marx",
         "I tell ya when I was a kid, all I knew was rejection. My yo-yo, it never came back. - Rodney Dangerfield",
-        "I worked in a pet store and people kept asking how big I’d get. - Rodney Dangerfield"
+        "I worked in a pet store and people kept asking how big I'd get. - Rodney Dangerfield"
     };
     
     @Override

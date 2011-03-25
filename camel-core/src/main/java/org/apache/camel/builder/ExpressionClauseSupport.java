@@ -31,7 +31,7 @@ import org.apache.camel.util.ObjectHelper;
 /**
  * A support class for building expression clauses.
  *
- * @version $Revision$
+ * @version 
  */
 public class ExpressionClauseSupport<T> {
 
@@ -352,6 +352,17 @@ public class ExpressionClauseSupport<T> {
         return language("ruby", text);
     }
 
+    /**
+     * Evaluates an <a href="http://camel.apache.org/spel.html">SpEL
+     * expression</a>
+     *
+     * @param text the expression to be evaluated
+     * @return the builder to continue processing the DSL
+     */
+    public T spel(String text) {
+        return language("spel", text);
+    }
+    
     /**
      * Evaluates an <a href="http://camel.apache.org/sql.html">SQL
      * expression</a>

@@ -37,8 +37,8 @@ import org.apache.camel.Exchange;
 import org.apache.camel.spi.DataFormat;
 import org.apache.camel.util.ExchangeHelper;
 import org.apache.camel.util.IOHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <code>CryptoDataFormat</code> uses a specified key and algorithm to encrypt,
@@ -71,7 +71,7 @@ public class CryptoDataFormat implements DataFormat {
 
     public static final String KEY = "CamelCryptoKey";
 
-    private static final Log LOG = LogFactory.getLog(CryptoDataFormat.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CryptoDataFormat.class);
     private static final String INIT_VECTOR = "CamelCryptoInitVector";
     private String algorithm = "DES/CBC/PKCS5Padding";
     private String cryptoProvider;
@@ -186,7 +186,7 @@ public class CryptoDataFormat implements DataFormat {
                             + " '%d' bytes were retrieved", ivLength, read));
                 }
             } catch (IOException e) {
-                throw IOHelper.createIOException("Error Reading Initialization vector from encrypted stream", e);
+                throw new IOException("Error reading initialization vector from encrypted stream", e);
             }
         }
         return iv;

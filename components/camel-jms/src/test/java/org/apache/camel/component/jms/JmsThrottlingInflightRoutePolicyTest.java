@@ -28,7 +28,7 @@ import org.junit.Test;
 import static org.apache.camel.component.jms.JmsComponent.jmsComponentTransacted;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmsThrottlingInflightRoutePolicyTest extends CamelTestSupport {
 
@@ -72,7 +72,7 @@ public class JmsThrottlingInflightRoutePolicyTest extends CamelTestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
 
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=true");
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createPersistentConnectionFactory();
         camelContext.addComponent("activemq", jmsComponentTransacted(connectionFactory));
 
         // and use another component for sender

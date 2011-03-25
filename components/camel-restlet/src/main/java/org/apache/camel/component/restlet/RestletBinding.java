@@ -17,13 +17,13 @@
 package org.apache.camel.component.restlet;
 
 import org.apache.camel.Exchange;
-import org.restlet.data.Request;
-import org.restlet.data.Response;
+import org.restlet.Request;
+import org.restlet.Response;
 
 /**
  * Interface for converting between Camel message and Restlet message.
  * 
- * @version $Revision$
+ * @version 
  */
 public interface RestletBinding {
     

@@ -48,9 +48,9 @@ import org.codehaus.plexus.util.cli.Commandline;
  * DOT files for the routing rules, then converts the DOT files into another
  * format such as PNG
  *
- * @version $Revision$
+ * @version 
  * @goal dot
- * @requiresDependencyResolution runtime
+ * @requiresDependencyResolution test
  * @phase prepare-package
  * @execute phase="test-compile"
  * @see <a href="http://www.graphviz.org/">GraphViz</a>

@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import org.apache.camel.dataformat.bindy.annotation.CsvRecord;
@@ -35,8 +36,8 @@ import org.apache.camel.dataformat.bindy.format.FormatException;
 import org.apache.camel.dataformat.bindy.util.Converter;
 import org.apache.camel.spi.PackageScanClassResolver;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The BindyCsvFactory is the class who allows to : Generate a model associated
@@ -46,7 +47,7 @@ import org.apache.commons.logging.LogFactory;
  */
 public class BindyCsvFactory extends BindyAbstractFactory implements BindyFactory {
 
-    private static final transient Log LOG = LogFactory.getLog(BindyCsvFactory.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(BindyCsvFactory.class);
 
     boolean isOneToMany;
 
@@ -83,14 +84,14 @@ public class BindyCsvFactory extends BindyAbstractFactory implements BindyFactor
     public void initCsvModel() throws Exception {
 
         // Find annotated Datafields declared in the Model classes
-        initAnnotedFields();
+        initAnnotatedFields();
 
         // initialize Csv parameter(s)
         // separator and skip first line from @CSVrecord annotation
         initCsvRecordParameters();
     }
 
-    public void initAnnotedFields() {
+    public void initAnnotatedFields() {
 
         for (Class<?> cl : models) {
 
@@ -129,7 +130,7 @@ public class BindyCsvFactory extends BindyAbstractFactory implements BindyFactor
             }
 
             if (!linkFields.isEmpty()) {
-                annotedLinkFields.put(cl.getName(), linkFields);
+                annotatedLinkFields.put(cl.getName(), linkFields);
             }
 
             totalFields = numberMandatoryFields + numberOptionalFields;
@@ -183,7 +184,7 @@ public class BindyCsvFactory extends BindyAbstractFactory implements BindyFactor
             String pattern = dataField.pattern();
 
             // Create format object to format the field
-            format = FormatFactory.getFormat(field.getType(), pattern, dataField.precision());
+            format = FormatFactory.getFormat(field.getType(), pattern, getLocale(), dataField.precision());
 
             // field object to be set
             Object modelField = model.get(field.getDeclaringClass().getName());
@@ -269,10 +270,10 @@ public class BindyCsvFactory extends BindyAbstractFactory implements BindyFactor
             TreeMap<Integer, List> sortValues = new TreeMap<Integer, List>(results);
             List<String> temp = new ArrayList<String>();
 
-            for (Integer key : sortValues.keySet()) {
+            for (Entry<Integer, List> entry : sortValues.entrySet()) {
 
                 // Get list of values
-                List<String> val = sortValues.get(key);
+                List<String> val = entry.getValue();
 
                 // For one to one relation
                 // There is only one item in the list
@@ -411,7 +412,7 @@ public class BindyCsvFactory extends BindyAbstractFactory implements BindyFactor
                     int precision = datafield.precision();
 
                     // Create format
-                    Format format = FormatFactory.getFormat(type, pattern, precision);
+                    Format format = FormatFactory.getFormat(type, pattern, getLocale(), precision);
 
                     // Get field value
                     Object value = field.get(obj);

@@ -19,13 +19,14 @@ package org.apache.camel.component.gae.task;
 import java.net.URI;
 import java.util.Map;
 
-import com.google.appengine.api.labs.taskqueue.Queue;
-import com.google.appengine.api.labs.taskqueue.QueueFactory;
+import com.google.appengine.api.taskqueue.Queue;
+import com.google.appengine.api.taskqueue.QueueFactory;
 
 import org.apache.camel.Endpoint;
 import org.apache.camel.component.gae.bind.InboundBinding;
 import org.apache.camel.component.gae.bind.OutboundBinding;
 import org.apache.camel.component.http.HttpClientConfigurer;
+import org.apache.camel.component.http.HttpConsumer;
 import org.apache.camel.component.servlet.ServletComponent;
 import org.apache.camel.component.servlet.ServletEndpoint;
 import org.apache.commons.httpclient.HttpConnectionManager;
@@ -55,6 +56,7 @@ public class GTaskComponent extends ServletComponent {
             info.getCanonicalUri(),
             info.getCanonicalUriPath(),
             parameters);
+        endpoint.setServletName(getServletName());
         endpoint.setWorkerRoot(workerRoot);
         endpoint.setOutboundBinding(outboundBinding);
         endpoint.setInboundBinding(inboundBinding);
@@ -71,4 +73,8 @@ public class GTaskComponent extends ServletComponent {
                 httpConnectionManager, clientConfigurer);
     }
 
+    @Override
+    public void connect(HttpConsumer consumer) throws Exception {
+        super.connect(consumer);
+    }
 }

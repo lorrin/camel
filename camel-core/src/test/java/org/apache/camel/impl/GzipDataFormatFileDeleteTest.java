@@ -23,7 +23,7 @@ import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class GzipDataFormatFileDeleteTest extends ContextTestSupport {
 
@@ -40,8 +40,7 @@ public class GzipDataFormatFileDeleteTest extends ContextTestSupport {
 
         assertMockEndpointsSatisfied();
 
-        //give a bit time
-        Thread.sleep(1000);
+        oneExchangeDone.matchesMockWaitTime();
 
         File in = new File("target/gzip/hello.txt").getAbsoluteFile();
         assertFalse("Should have been deleted " + in, in.exists());

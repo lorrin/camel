@@ -21,16 +21,16 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.spi.InterceptStrategy;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * @version $Revision$
+ * @version 
  */
 // START SNIPPET: e1
 public class ContainerWideInterceptor implements InterceptStrategy {
 
-    private static final transient Log LOG = LogFactory.getLog(ContainerWideInterceptor.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(ContainerWideInterceptor.class);
     private static int count;
 
     public Processor wrapProcessorInInterceptors(final CamelContext context, final ProcessorDefinition definition,

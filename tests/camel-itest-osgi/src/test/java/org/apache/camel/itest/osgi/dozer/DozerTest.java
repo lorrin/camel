@@ -19,7 +19,6 @@ package org.apache.camel.itest.osgi.dozer;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.itest.osgi.OSGiIntegrationSpringTestSupport;
 import org.apache.camel.itest.osgi.dozer.service.Customer;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.ops4j.pax.exam.Option;
@@ -35,10 +34,9 @@ import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.scanFeatures;
 import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.workingDirectory;
 
 /**
- * @version $Revision$
+ * @version 
  */
 @RunWith(JUnit4TestRunner.class)
-@Ignore("Dozer does not work in OSGi")
 public class DozerTest extends OSGiIntegrationSpringTestSupport {
 
     @Override
@@ -72,12 +70,13 @@ public class DozerTest extends OSGiIntegrationSpringTestSupport {
     @Configuration
     public static Option[] configure() {
         Option[] options = options(
-
             // install the spring dm profile
             profile("spring.dm").version("1.2.0"),
             // this is how you set the default log level when using pax logging (logProfile)
             org.ops4j.pax.exam.CoreOptions.systemProperty("org.ops4j.pax.logging.DefaultServiceLog.level").value("INFO"),
 
+            // need to install some karaf features
+            scanFeatures(getKarafFeatureUrl(), "http"),
             // using the features to install the camel components
             scanFeatures(getCamelKarafFeatureUrl(),
                           "camel-core", "camel-spring", "camel-test", "camel-dozer"),

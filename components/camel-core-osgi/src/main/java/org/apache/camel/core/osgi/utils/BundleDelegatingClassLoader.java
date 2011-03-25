@@ -21,14 +21,15 @@ import java.net.URL;
 import java.util.Enumeration;
 
 import org.osgi.framework.Bundle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A ClassLoader delegating to a given OSGi bundle.
  *
- * @version $Rev: 896324 $, $Date: 2010-01-06 07:05:04 +0100 (Wed, 06 Jan 2010) $
  */
 public class BundleDelegatingClassLoader extends ClassLoader {
-
+    private static final transient Logger LOG = LoggerFactory.getLogger(BundleDelegatingClassLoader.class);
     private final Bundle bundle;
     private final ClassLoader classLoader;
 
@@ -42,10 +43,16 @@ public class BundleDelegatingClassLoader extends ClassLoader {
     }
 
     protected Class<?> findClass(String name) throws ClassNotFoundException {
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("FindClass: " + name);
+        }
         return bundle.loadClass(name);
     }
 
     protected URL findResource(String name) {
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("FindResource: " + name);
+        }
         URL resource = bundle.getResource(name);
         if (classLoader != null && resource == null) {
             resource = classLoader.getResource(name);
@@ -55,10 +62,16 @@ public class BundleDelegatingClassLoader extends ClassLoader {
 
     @SuppressWarnings("unchecked")
     protected Enumeration findResources(String name) throws IOException {
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("FindResource: " + name);
+        }
         return bundle.getResources(name);
     }
 
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("LoadClass: " + name + ", resolve: " + resolve);
+        }
         Class clazz;
         try {
             clazz = findClass(name);

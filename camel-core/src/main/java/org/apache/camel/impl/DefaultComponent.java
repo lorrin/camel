@@ -31,16 +31,16 @@ import org.apache.camel.util.IntrospectionSupport;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.URISupport;
 import org.apache.camel.util.UnsafeUriCharactersEncoder;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Default component to use for base for components implementations.
  *
- * @version $Revision$
+ * @version 
  */
 public abstract class DefaultComponent extends ServiceSupport implements Component {
-    private static final transient Log LOG = LogFactory.getLog(DefaultComponent.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(DefaultComponent.class);
 
     private CamelContext camelContext;
 

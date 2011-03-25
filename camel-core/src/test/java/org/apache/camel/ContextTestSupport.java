@@ -20,6 +20,7 @@ import java.util.Map;
 
 import javax.naming.Context;
 
+import org.apache.camel.builder.NotifyBuilder;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.impl.DefaultCamelContext;
@@ -32,16 +33,23 @@ import org.apache.camel.util.jndi.JndiTest;
  * A useful base class which creates a {@link CamelContext} with some routes
  * along with a {@link ProducerTemplate} for use in the test case
  *
- * @version $Revision$
+ * @version 
  */
 public abstract class ContextTestSupport extends TestSupport {
     
     protected volatile CamelContext context;
     protected volatile ProducerTemplate template;
     protected volatile ConsumerTemplate consumer;
+    protected volatile NotifyBuilder oneExchangeDone;
     private boolean useRouteBuilder = true;
     private Service camelContextService;
-
+    
+    /**
+     * Use the RouteBuilder or not
+     * @return 
+     *  If the return value is true, the camel context will be started in the setup method.
+     *  If the return value is false, the camel context will not be started in the setup method.
+     */
     public boolean isUseRouteBuilder() {
         return useRouteBuilder;
     }
@@ -63,6 +71,13 @@ public abstract class ContextTestSupport extends TestSupport {
         this.camelContextService = camelContextService;
     }
 
+    /**
+     * Convenient api to create a NotifyBuilder to be notified of a specific event
+     */
+    protected NotifyBuilder event() {
+        return new NotifyBuilder(context);
+    }
+    
     @Override
     protected void setUp() throws Exception {
         if (!useJmx()) {
@@ -81,6 +96,9 @@ public abstract class ContextTestSupport extends TestSupport {
         consumer = context.createConsumerTemplate();
         consumer.start();
 
+        // create a default notifier when 1 exchange is done which is the most common caase
+        oneExchangeDone = event().whenDone(1).create();
+
         if (isUseRouteBuilder()) {
             RouteBuilder[] builders = createRouteBuilders();
             for (RouteBuilder builder : builders) {
@@ -91,6 +109,7 @@ public abstract class ContextTestSupport extends TestSupport {
         } else {
             log.debug("isUseRouteBuilder() is false");
         }
+        
     }
 
     @Override
@@ -299,6 +318,13 @@ public abstract class ContextTestSupport extends TestSupport {
      */
     protected void assertMockEndpointsSatisfied() throws InterruptedException {
         MockEndpoint.assertIsSatisfied(context);
+    }
+
+    /**
+     * Sets the assert period on all the Mock endpoints
+     */
+    protected void setAssertPeriod(long period) {
+        MockEndpoint.setAssertPeriod(context, period);
     }
 
     /**

@@ -20,16 +20,16 @@ import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
-import org.apache.camel.processor.Logger;
+import org.apache.camel.processor.CamelLogger;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class LogEndpointTest extends ContextTestSupport {
 
     private static Exchange logged;
 
-    private class MyLogger extends Logger {
+    private class MyLogger extends CamelLogger {
 
         @Override
         public void process(Exchange exchange) {

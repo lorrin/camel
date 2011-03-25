@@ -24,6 +24,7 @@ import javax.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Expression;
+import org.apache.camel.ExpressionIllegalSyntaxException;
 import org.apache.camel.Predicate;
 import org.apache.camel.component.bean.BeanHolder;
 import org.apache.camel.component.bean.BeanInfo;
@@ -31,24 +32,25 @@ import org.apache.camel.component.bean.MethodNotFoundException;
 import org.apache.camel.component.bean.RegistryBean;
 import org.apache.camel.language.bean.BeanExpression;
 import org.apache.camel.util.ObjectHelper;
+import org.apache.camel.util.OgnlHelper;
 
 /**
  * For expressions and predicates using the
  * <a href="http://camel.apache.org/bean-language.html">bean language</a>
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "method")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class MethodCallExpression extends ExpressionDefinition {
-    @XmlAttribute(required = false)
+    @XmlAttribute
     @Deprecated
     private String bean;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String ref;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String method;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Class<?> beanType;
     @XmlTransient
     private Object instance;
@@ -57,7 +59,7 @@ public class MethodCallExpression extends ExpressionDefinition {
     }
 
     public MethodCallExpression(String beanName) {
-        super(beanName);
+        this(beanName, null);
     }
 
     public MethodCallExpression(String beanName, String method) {
@@ -66,10 +68,9 @@ public class MethodCallExpression extends ExpressionDefinition {
     }
     
     public MethodCallExpression(Object instance) {
-        super(instance.getClass().getName());
-        this.instance = instance;
+        this(instance, null);
     }
-
+    
     public MethodCallExpression(Object instance, String method) {
         super(instance.getClass().getName());
         this.instance = instance;
@@ -77,8 +78,7 @@ public class MethodCallExpression extends ExpressionDefinition {
     }
 
     public MethodCallExpression(Class<?> type) {
-        super(type.toString());
-        this.beanType = type;        
+        this(type, null);
     }
     
     public MethodCallExpression(Class<?> type, String method) {
@@ -91,6 +91,22 @@ public class MethodCallExpression extends ExpressionDefinition {
         return "bean";
     }
 
+    public String getBean() {
+        return bean;
+    }
+
+    public void setBean(String bean) {
+        this.bean = bean;
+    }
+
+    public String getRef() {
+        return ref;
+    }
+
+    public void setRef(String ref) {
+        this.ref = ref;
+    }
+
     public String getMethod() {
         return method;
     }
@@ -98,35 +114,26 @@ public class MethodCallExpression extends ExpressionDefinition {
     public void setMethod(String method) {
         this.method = method;
     }
-    
-    @Override
-    public Expression createExpression(CamelContext camelContext) {
-        Expression answer;
 
-        if (beanType != null) {            
-            instance = ObjectHelper.newInstance(beanType);
-            return new BeanExpression(instance, getMethod());
-        } else if (instance != null) {
-            return new BeanExpression(instance, getMethod());
-        } else {
-            String ref = beanName();
-            // if its a ref then check that the ref exists
-            BeanHolder holder = new RegistryBean(camelContext, ref);
-            // get the bean which will check that it exists
-            instance = holder.getBean();
-            answer = new BeanExpression(ref, getMethod());
-        }
+    public Class<?> getBeanType() {
+        return beanType;
+    }
 
-        // validate method
-        validateHasMethod(camelContext, instance, getMethod());
+    public void setBeanType(Class<?> beanType) {
+        this.beanType = beanType;
+    }
 
-        return answer;
+    public Object getInstance() {
+        return instance;
+    }
+
+    public void setInstance(Object instance) {
+        this.instance = instance;
     }
 
     @Override
-    public Predicate createPredicate(CamelContext camelContext) {
-        Predicate answer;
-
+    public Expression createExpression(CamelContext camelContext) {
+        Expression answer;
         if (beanType != null) {
             instance = ObjectHelper.newInstance(beanType);
             answer = new BeanExpression(instance, getMethod());
@@ -141,14 +148,19 @@ public class MethodCallExpression extends ExpressionDefinition {
             answer = new BeanExpression(ref, getMethod());
         }
 
-        // validate method
         validateHasMethod(camelContext, instance, getMethod());
-
         return answer;
     }
 
+    @Override
+    public Predicate createPredicate(CamelContext camelContext) {
+        return (BeanExpression) createExpression(camelContext);
+    }
+
     /**
-     * Validates the given bean has the method
+     * Validates the given bean has the method.
+     * <p/>
+     * This implementation will skip trying to validate OGNL method name expressions.
      *
      * @param context  camel context
      * @param bean     the bean instance
@@ -158,6 +170,17 @@ public class MethodCallExpression extends ExpressionDefinition {
     protected void validateHasMethod(CamelContext context, Object bean, String method) {
         if (method == null) {
             return;
+        }
+
+        // do not try to validate ognl methods
+        if (OgnlHelper.isValidOgnlExpression(method)) {
+            return;
+        }
+
+        // if invalid OGNL then fail
+        if (OgnlHelper.isInvalidValidOgnlExpression(method)) {
+            ExpressionIllegalSyntaxException cause = new ExpressionIllegalSyntaxException(method);
+            throw ObjectHelper.wrapRuntimeCamelException(new MethodNotFoundException(bean, method, cause));
         }
 
         BeanInfo info = new BeanInfo(context, bean.getClass());

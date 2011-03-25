@@ -29,6 +29,7 @@ import javax.xml.transform.dom.DOMResult;
 import javax.xml.transform.sax.SAXSource;
 
 import org.w3c.dom.Node;
+
 import org.xml.sax.ContentHandler;
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
@@ -37,12 +38,13 @@ import org.apache.camel.CamelException;
 import org.apache.camel.Exchange;
 import org.apache.camel.spi.DataFormat;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.ccil.cowan.tagsoup.HTMLSchema;
 import org.ccil.cowan.tagsoup.Parser;
 import org.ccil.cowan.tagsoup.Schema;
 import org.ccil.cowan.tagsoup.XMLWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 /**
  * Dataformat for TidyMarkup (aka Well formed HTML in XML form.. may or may not
@@ -56,7 +58,7 @@ public class TidyMarkupDataFormat implements DataFormat {
     /*
      * Our Logger
      */
-    private static final transient Log LOG = LogFactory.getLog(TidyMarkupDataFormat.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(TidyMarkupDataFormat.class);
 
     private static final String NO = "no";
 

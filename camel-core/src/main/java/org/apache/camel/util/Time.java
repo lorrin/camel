@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * A helper class for working with times in various units
  * 
- * @version $Revision$
+ * @version 
  */
 public class Time {
     private long number;
@@ -79,5 +79,10 @@ public class Time {
 
     protected static long daysAsSeconds(long value) {
         return hoursAsSeconds(value) * 24;
+    }
+
+    @Override
+    public String toString() {
+        return number + " " + timeUnit.toString().toLowerCase();
     }
 }

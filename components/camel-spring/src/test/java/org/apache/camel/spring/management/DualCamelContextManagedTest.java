@@ -16,19 +16,16 @@
  */
 package org.apache.camel.spring.management;
 
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.Set;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
-import org.apache.camel.Endpoint;
 import org.apache.camel.spring.SpringTestSupport;
 import org.springframework.context.support.AbstractXmlApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class DualCamelContextManagedTest extends SpringTestSupport {
 
@@ -50,18 +47,25 @@ public class DualCamelContextManagedTest extends SpringTestSupport {
         
         MBeanServer mbeanServer = context.getManagementStrategy().getManagementAgent().getMBeanServer();
 
+        ObjectName on1 = null;
+        ObjectName on2 = null;
         Set<ObjectName> set = mbeanServer.queryNames(new ObjectName("*:type=routes,*"), null);
-        assertEquals(2, set.size());
-        Iterator<ObjectName> it = set.iterator();
+        // filter out only camel-A and camel-B
+        for (ObjectName on : set) {
+            if (on.getCanonicalName().contains("camel-A")) {
+                on1 = on;
+            } else if (on.getCanonicalName().contains("camel-B")) {
+                on2 = on;
+            }
+        }
+        assertNotNull("Should have found camel-A route", on1);
+        assertNotNull("Should have found camel-B route", on2);
 
-        ObjectName on1 = it.next();
-        ObjectName on2 = it.next();
-
-        assertTrue("Route 1 is missing", on1.getCanonicalName().contains("route1") || on2.getCanonicalName().contains("route1"));
-        assertTrue("Route 2 is missing", on1.getCanonicalName().contains("route2") || on2.getCanonicalName().contains("route2"));
+        assertTrue("Route 1 is missing", on1.getCanonicalName().contains("route1"));
+        assertTrue("Route 2 is missing", on2.getCanonicalName().contains("route2"));
 
         set = mbeanServer.queryNames(new ObjectName("*:type=endpoints,*"), null);
-        assertEquals(7, set.size());
+        assertTrue("Should be at least 7 endpoints, was: " + set.size(), set.size() >= 7);
 
         for (ObjectName on : set) {
             String name = on.getCanonicalName();

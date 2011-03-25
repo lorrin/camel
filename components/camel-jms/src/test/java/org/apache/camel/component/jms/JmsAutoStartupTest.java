@@ -25,10 +25,10 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit4.CamelTestSupport;
 import org.junit.Test;
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentClientAcknowledge;
+import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmsAutoStartupTest extends CamelTestSupport {
 
@@ -47,7 +47,7 @@ public class JmsAutoStartupTest extends CamelTestSupport {
 
         template.sendBody("activemq:queue:foo", "Hello World");
 
-        Thread.sleep(3000);
+        Thread.sleep(2000);
 
         assertMockEndpointsSatisfied();
 
@@ -77,8 +77,8 @@ public class JmsAutoStartupTest extends CamelTestSupport {
         CamelContext camelContext = super.createCamelContext();
 
         // must use persistent so the message is not lost
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=true");
-        camelContext.addComponent("activemq", jmsComponentClientAcknowledge(connectionFactory));
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createPersistentConnectionFactory();
+        camelContext.addComponent("activemq", jmsComponentAutoAcknowledge(connectionFactory));
 
         return camelContext;
     }

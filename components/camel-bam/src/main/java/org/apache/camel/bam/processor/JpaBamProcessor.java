@@ -21,8 +21,8 @@ import org.apache.camel.Expression;
 import org.apache.camel.bam.model.ActivityState;
 import org.apache.camel.bam.model.ProcessInstance;
 import org.apache.camel.bam.rules.ActivityRules;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.orm.jpa.JpaTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -32,10 +32,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * the persistence and uses the {@link ProcessInstance} entity to store the
  * process information.
  * 
- * @version $Revision$
+ * @version 
  */
 public class JpaBamProcessor extends JpaBamProcessorSupport<ProcessInstance> {
-    private static final transient Log LOG = LogFactory.getLog(JpaBamProcessor.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(JpaBamProcessor.class);
 
     public JpaBamProcessor(TransactionTemplate transactionTemplate, JpaTemplate template, Expression correlationKeyExpression, ActivityRules activityRules) {
         super(transactionTemplate, template, correlationKeyExpression, activityRules);

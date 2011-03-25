@@ -16,15 +16,19 @@
  */
 package org.apache.camel.model.language;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  * An expression which extracts the named header
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "header")
+@XmlAccessorType(XmlAccessType.FIELD)
 public class HeaderExpression extends ExpressionDefinition {
+
     public HeaderExpression() {
     }
 

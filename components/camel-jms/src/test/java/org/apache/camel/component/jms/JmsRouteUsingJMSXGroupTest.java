@@ -20,15 +20,17 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javax.jms.ConnectionFactory;
+
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.camel.CamelContext;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.test.junit4.CamelTestSupport;
 import org.jencks.amqpool.PooledConnectionFactory;
 import org.junit.Test;
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentClientAcknowledge;
+import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmsRouteUsingJMSXGroupTest extends CamelTestSupport {
 
@@ -65,10 +67,8 @@ public class JmsRouteUsingJMSXGroupTest extends CamelTestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
 
-        PooledConnectionFactory pool = new PooledConnectionFactory(new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false"));
-        pool.setMaxConnections(10);
-
-        camelContext.addComponent("jms", jmsComponentClientAcknowledge(pool));
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
+        camelContext.addComponent("jms", jmsComponentAutoAcknowledge(connectionFactory));
 
         return camelContext;
     }

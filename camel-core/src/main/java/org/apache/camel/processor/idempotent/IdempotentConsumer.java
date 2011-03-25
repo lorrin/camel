@@ -30,17 +30,17 @@ import org.apache.camel.impl.converter.AsyncProcessorTypeConverter;
 import org.apache.camel.spi.IdempotentRepository;
 import org.apache.camel.util.AsyncProcessorHelper;
 import org.apache.camel.util.ServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of the <a
  * href="http://camel.apache.org/idempotent-consumer.html">Idempotent Consumer</a> pattern.
  * 
- * @version $Revision$
+ * @version 
  */
 public class IdempotentConsumer extends ServiceSupport implements AsyncProcessor, Navigate<Processor> {
-    private static final transient Log LOG = LogFactory.getLog(IdempotentConsumer.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(IdempotentConsumer.class);
     private final Expression messageIdExpression;
     private final AsyncProcessor processor;
     private final IdempotentRepository<String> idempotentRepository;
@@ -74,7 +74,7 @@ public class IdempotentConsumer extends ServiceSupport implements AsyncProcessor
             // add the key to the repository
             newKey = idempotentRepository.add(messageId);
         } else {
-            // check if we alrady have the key
+            // check if we already have the key
             newKey = !idempotentRepository.contains(messageId);
         }
 

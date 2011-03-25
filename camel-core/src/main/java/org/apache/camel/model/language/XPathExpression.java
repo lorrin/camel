@@ -28,12 +28,12 @@ import org.apache.camel.Predicate;
 /**
  * For XPath expressions and predicates
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "xpath")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class XPathExpression extends NamespaceAwareExpression {
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Class<?> resultType;
 
     public XPathExpression() {

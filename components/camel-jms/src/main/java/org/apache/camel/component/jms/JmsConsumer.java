@@ -22,20 +22,20 @@ import org.apache.camel.FailedToCreateConsumerException;
 import org.apache.camel.Processor;
 import org.apache.camel.SuspendableService;
 import org.apache.camel.impl.DefaultConsumer;
-import org.springframework.jms.listener.AbstractMessageListenerContainer;
+import org.springframework.jms.listener.DefaultMessageListenerContainer;
 import org.springframework.jms.support.JmsUtils;
 
 /**
- * A {@link org.apache.camel.Consumer} which uses Spring's {@link AbstractMessageListenerContainer} implementations to consume JMS messages
+ * A {@link org.apache.camel.Consumer} which uses Spring's {@link DefaultMessageListenerContainer} implementations to consume JMS messages
  *
- * @version $Revision$
+ * @version 
  */
 public class JmsConsumer extends DefaultConsumer implements SuspendableService {
-    private AbstractMessageListenerContainer listenerContainer;
+    private DefaultMessageListenerContainer listenerContainer;
     private EndpointMessageListener messageListener;
     private volatile boolean initialized;
 
-    public JmsConsumer(JmsEndpoint endpoint, Processor processor, AbstractMessageListenerContainer listenerContainer) {
+    public JmsConsumer(JmsEndpoint endpoint, Processor processor, DefaultMessageListenerContainer listenerContainer) {
         super(endpoint, processor);
         this.listenerContainer = listenerContainer;
         this.listenerContainer.setMessageListener(getEndpointMessageListener());
@@ -45,7 +45,7 @@ public class JmsConsumer extends DefaultConsumer implements SuspendableService {
         return (JmsEndpoint) super.getEndpoint();
     }
 
-    public AbstractMessageListenerContainer getListenerContainer() {
+    public DefaultMessageListenerContainer getListenerContainer() throws Exception {
         if (listenerContainer == null) {
             createMessageListenerContainer();
         }
@@ -64,9 +64,9 @@ public class JmsConsumer extends DefaultConsumer implements SuspendableService {
         messageListener.setBinding(endpoint.getBinding());
     }
 
-    protected void createMessageListenerContainer() {
+    protected void createMessageListenerContainer() throws Exception {
         listenerContainer = getEndpoint().createMessageListenerContainer();
-        getEndpoint().configureListenerContainer(listenerContainer);
+        getEndpoint().configureListenerContainer(listenerContainer, this);
         listenerContainer.setMessageListener(getEndpointMessageListener());
     }
 
@@ -127,8 +127,10 @@ public class JmsConsumer extends DefaultConsumer implements SuspendableService {
 
     @Override
     protected void doStop() throws Exception {
-        listenerContainer.stop();
-        listenerContainer.destroy();
+        if (listenerContainer != null) {
+            listenerContainer.stop();
+            listenerContainer.destroy();
+        }
 
         // null container and listener so they are fully re created if this consumer is restarted
         // then we will use updated configuration from jms endpoint that may have been managed using JMX

@@ -17,8 +17,8 @@
 package org.apache.camel.blueprint;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
@@ -27,14 +27,18 @@ import javax.xml.bind.annotation.XmlElements;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 
+import org.apache.aries.blueprint.ExtendedBlueprintContainer;
 import org.apache.camel.RoutesBuilder;
 import org.apache.camel.ShutdownRoute;
 import org.apache.camel.ShutdownRunningTask;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.properties.PropertiesComponent;
+import org.apache.camel.core.osgi.OsgiCamelContextPublisher;
+import org.apache.camel.core.osgi.OsgiEventAdminNotifier;
+import org.apache.camel.core.osgi.utils.BundleDelegatingClassLoader;
 import org.apache.camel.core.xml.AbstractCamelContextFactoryBean;
 import org.apache.camel.core.xml.CamelJMXAgentDefinition;
 import org.apache.camel.core.xml.CamelPropertyPlaceholderDefinition;
-import org.apache.camel.core.xml.CamelProxyFactoryDefinition;
 import org.apache.camel.core.xml.CamelServiceExporterDefinition;
 import org.apache.camel.model.ContextScanDefinition;
 import org.apache.camel.model.InterceptDefinition;
@@ -50,8 +54,11 @@ import org.apache.camel.model.ThreadPoolProfileDefinition;
 import org.apache.camel.model.config.PropertiesDefinition;
 import org.apache.camel.model.dataformat.DataFormatsDefinition;
 import org.apache.camel.spi.PackageScanFilter;
+import org.apache.camel.spi.Registry;
 import org.osgi.framework.BundleContext;
 import org.osgi.service.blueprint.container.BlueprintContainer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A bean to create and initialize a {@link BlueprintCamelContext}
@@ -59,11 +66,12 @@ import org.osgi.service.blueprint.container.BlueprintContainer;
  * Blueprint XML or found by searching the classpath for Java classes which extend
  * {@link RouteBuilder} using the nested {@link #setPackages(String[])}.
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "camelContext")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<BlueprintCamelContext> {
+    private static final Logger LOG = LoggerFactory.getLogger(CamelContextFactoryBean.class);
 
     @XmlAttribute(name = "depends-on", required = false)
     private String dependsOn;
@@ -79,6 +87,10 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Blu
     private String errorHandlerRef;
     @XmlAttribute(required = false)
     private String autoStartup = "true";
+    @XmlAttribute(required = false)
+    private String useMDCLogging;
+    @XmlAttribute(required = false)
+    private Boolean useBlueprintPropertyResolver;
     @XmlAttribute(required = false)
     private ShutdownRoute shutdownRoute;
     @XmlAttribute(required = false)
@@ -98,12 +110,11 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Blu
     @XmlElement(name = "jmxAgent", type = CamelJMXAgentDefinition.class, required = false)
     private CamelJMXAgentDefinition camelJMXAgent;
     @XmlElements({
-//        @XmlElement(name = "beanPostProcessor", type = CamelBeanPostProcessor.class, required = false),
         @XmlElement(name = "template", type = CamelProducerTemplateFactoryBean.class, required = false),
         @XmlElement(name = "consumerTemplate", type = CamelConsumerTemplateFactoryBean.class, required = false),
-        @XmlElement(name = "proxy", type = CamelProxyFactoryDefinition.class, required = false),
+        @XmlElement(name = "proxy", type = CamelProxyFactoryBean.class, required = false),
         @XmlElement(name = "export", type = CamelServiceExporterDefinition.class, required = false),
-        @XmlElement(name = "errorHandler", type = ErrorHandlerDefinition.class, required = false)
+        @XmlElement(name = "errorHandler", type = CamelErrorHandlerFactoryBean.class, required = false)
     })
     private List beans;
     @XmlElement(name = "routeBuilder", required = false)
@@ -118,6 +129,8 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Blu
     private List<CamelEndpointFactoryBean> endpoints;
     @XmlElement(name = "dataFormats", required = false)
     private DataFormatsDefinition dataFormats;
+    @XmlElement(name = "redeliveryPolicyProfile", required = false)
+    private List<CamelRedeliveryPolicyFactoryBean> redeliveryPolicies;
     @XmlElement(name = "onException", required = false)
     private List<OnExceptionDefinition> onExceptions = new ArrayList<OnExceptionDefinition>();
     @XmlElement(name = "onCompletion", required = false)
@@ -132,12 +145,6 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Blu
     private List<RouteDefinition> routes = new ArrayList<RouteDefinition>();
     @XmlTransient
     private BlueprintCamelContext context;
-    @XmlTransient
-    private ClassLoader contextClassLoaderOnStart;
-//    @XmlTransient
-//    private ApplicationContext applicationContext;
-//    @XmlTransient
-//    private BeanPostProcessor beanPostProcessor;
     @XmlTransient
     private BlueprintContainer blueprintContainer;
     @XmlTransient
@@ -175,11 +182,51 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Blu
 
     @Override
     protected void initCustomRegistry(BlueprintCamelContext context) {
+        Registry registry = getBeanForType(Registry.class);
+        if (registry != null) {
+            LOG.info("Using custom Registry: " + registry);
+            context.setRegistry(registry);
+        }
     }
 
     @Override
     protected <S> S getBeanForType(Class<S> clazz) {
+        Collection<S> objects = BlueprintContainerRegistry.lookupByType(blueprintContainer, clazz).values();
+        if (objects.size() == 1) {
+            return objects.iterator().next();
+        }
         return null;
+    }
+
+    @Override
+    protected void initPropertyPlaceholder() throws Exception {
+        super.initPropertyPlaceholder();
+
+        // if blueprint property resolver is enabled on CamelContext then bridge PropertiesComponent to blueprint
+        if (isUseBlueprintPropertyResolver()) {
+            // lookup existing configured properties component
+            PropertiesComponent pc = getContext().getComponent("properties", PropertiesComponent.class);
+
+            BlueprintPropertiesParser parser = new BlueprintPropertiesParser(blueprintContainer, pc.getPropertiesParser());
+            BlueprintPropertiesResolver resolver = new BlueprintPropertiesResolver(pc.getPropertiesResolver(), parser);
+
+            // no locations has been set, so its a default component
+            if (pc.getLocations() == null) {
+                StringBuilder sb = new StringBuilder();
+                String[] ids = parser.lookupPropertyPlaceholderIds();
+                for (String id : ids) {
+                    sb.append("blueprint:").append(id).append(",");
+                }
+                // location supports multiple separated by comma
+                pc.setLocation(sb.toString());
+            }
+
+            if (pc.getLocations() != null) {
+                // bridge camel properties with blueprint
+                pc.setPropertiesParser(parser);
+                pc.setPropertiesResolver(resolver);
+            }
+        }
     }
 
     @Override
@@ -192,10 +239,34 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Blu
 
     @Override
     protected void findRouteBuildersByPackageScan(String[] packages, PackageScanFilter filter, List<RoutesBuilder> builders) throws Exception {
+        // add filter to class resolver which then will filter
+        getContext().getPackageScanClassResolver().addFilter(filter);
+        ClassLoader classLoader = new BundleDelegatingClassLoader(((ExtendedBlueprintContainer) blueprintContainer).getBundleContext().getBundle());
+        PackageScanRouteBuilderFinder finder = new PackageScanRouteBuilderFinder(getContext(), packages, classLoader,
+                                                                                 /*getBeanPostProcessor(),*/ getContext().getPackageScanClassResolver());
+        finder.appendBuilders(builders);
+
+        // and remove the filter
+        getContext().getPackageScanClassResolver().removeFilter(filter);
     }
 
     @Override
     protected void findRouteBuildersByContextScan(PackageScanFilter filter, List<RoutesBuilder> builders) throws Exception {
+        ContextScanRouteBuilderFinder finder = new ContextScanRouteBuilderFinder(getContext(), filter);
+        finder.appendBuilders(builders);
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        super.afterPropertiesSet();
+        getContext().getManagementStrategy().addEventNotifier(new OsgiCamelContextPublisher(bundleContext));
+        try {
+            getClass().getClassLoader().loadClass("org.osgi.service.event.EventAdmin");
+            getContext().getManagementStrategy().addEventNotifier(new OsgiEventAdminNotifier(bundleContext));
+        } catch (Throwable t) {
+            // Ignore, if the EventAdmin package is not available, just don't use it
+            LOG.debug("EventAdmin package is not available, just don't use it");
+        }
     }
 
     public String getDependsOn() {
@@ -212,6 +283,14 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Blu
 
     public void setAutoStartup(String autoStartup) {
         this.autoStartup = autoStartup;
+    }
+
+    public String getUseMDCLogging() {
+        return useMDCLogging;
+    }
+
+    public void setUseMDCLogging(String useMDCLogging) {
+        this.useMDCLogging = useMDCLogging;
     }
 
     public Boolean getLazyLoadTypeConverters() {
@@ -252,6 +331,14 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Blu
 
     public void setRouteRefs(List<RouteContextRefDefinition> routeRefs) {
         this.routeRefs = routeRefs;
+    }
+
+    public List<CamelRedeliveryPolicyFactoryBean> getRedeliveryPolicies() {
+        return redeliveryPolicies;
+    }
+
+    public void setRedeliveryPolicies(List<CamelRedeliveryPolicyFactoryBean> redeliveryPolicies) {
+        this.redeliveryPolicies = redeliveryPolicies;
     }
 
     public List<ThreadPoolProfileDefinition> getThreadPoolProfiles() {
@@ -430,16 +517,25 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Blu
         this.routes = routes;
     }
 
-    public ClassLoader getContextClassLoaderOnStart() {
-        return contextClassLoaderOnStart;
-    }
-    
     public boolean isImplicitId() {
         return implicitId;
     }
     
     public void setImplicitId(boolean flag) {
         implicitId = flag;
+    }
+
+    public Boolean getUseBlueprintPropertyResolver() {
+        return useBlueprintPropertyResolver;
+    }
+
+    public void setUseBlueprintPropertyResolver(Boolean useBlueprintPropertyResolver) {
+        this.useBlueprintPropertyResolver = useBlueprintPropertyResolver;
+    }
+
+    public boolean isUseBlueprintPropertyResolver() {
+        // enable by default
+        return useBlueprintPropertyResolver == null || useBlueprintPropertyResolver.booleanValue();
     }
 
 }

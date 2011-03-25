@@ -17,8 +17,8 @@
 package org.apache.camel.component.jms;
 
 import java.util.concurrent.CountDownLatch;
+import javax.jms.ConnectionFactory;
 
-import org.apache.activemq.camel.component.ActiveMQComponent;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Consumer;
 import org.apache.camel.Endpoint;
@@ -28,16 +28,19 @@ import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit4.CamelTestSupport;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
+import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 
 /**
  * A simple request/reply using custom reply to header.
  */
 public class JmsSimpleRequestCustomReplyToTest extends CamelTestSupport {
 
-    private static final Log LOG = LogFactory.getLog(JmsSimpleRequestCustomReplyToTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JmsSimpleRequestCustomReplyToTest.class);
     private static String myReplyTo;
     protected String componentName = "activemq";
     private CountDownLatch latch = new CountDownLatch(1);
@@ -107,10 +110,11 @@ public class JmsSimpleRequestCustomReplyToTest extends CamelTestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
 
-        ActiveMQComponent amq = ActiveMQComponent.activeMQComponent("vm://localhost?broker.persistent=false");
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
+        camelContext.addComponent("activemq", jmsComponentAutoAcknowledge(connectionFactory));
+        JmsComponent jms = camelContext.getComponent("activemq", JmsComponent.class);
         // as this is a unit test I dont want to wait 20 sec before timeout occurs, so we use 10
-        amq.getConfiguration().setRequestTimeout(10000);
-        camelContext.addComponent(componentName, amq);
+        jms.getConfiguration().setRequestTimeout(10000);
 
         return camelContext;
     }

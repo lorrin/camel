@@ -20,10 +20,11 @@ import java.io.File;
 
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
+import org.apache.camel.builder.NotifyBuilder;
 import org.apache.camel.builder.RouteBuilder;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class GzipDataFormatFileUnmarshalDeleteTest extends ContextTestSupport {
 
@@ -34,14 +35,14 @@ public class GzipDataFormatFileUnmarshalDeleteTest extends ContextTestSupport {
     }
 
     public void testGzipFileUnmarshalDelete() throws Exception {
+        NotifyBuilder notify = new NotifyBuilder(context).whenDone(2).create();
+
         getMockEndpoint("mock:result").expectedBodiesReceived("Hello World");
 
         template.sendBodyAndHeader("file:target/gzip", "Hello World", Exchange.FILE_NAME, "hello.txt");
 
         assertMockEndpointsSatisfied();
-
-        //give a bit time
-        Thread.sleep(1000);
+        notify.matchesMockWaitTime();
 
         File in = new File("target/gzip/hello.txt").getAbsoluteFile();
         assertFalse("Should have been deleted " + in, in.exists());

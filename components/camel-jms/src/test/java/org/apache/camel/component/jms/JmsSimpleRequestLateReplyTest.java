@@ -17,11 +17,10 @@
 package org.apache.camel.component.jms;
 
 import java.util.concurrent.CountDownLatch;
-
+import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 
-import org.apache.activemq.camel.component.ActiveMQComponent;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
@@ -30,22 +29,24 @@ import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit4.CamelTestSupport;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 
 /**
  * A simple requesr / late reply test using InOptionalOut.
  */
 public class JmsSimpleRequestLateReplyTest extends CamelTestSupport {
 
-    private static final Log LOG = LogFactory.getLog(JmsSimpleRequestLateReplyTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JmsSimpleRequestLateReplyTest.class);
     private static Destination replyDestination;
     private static String cid;
     private static int count;
     protected String expectedBody = "Late Reply";
-    protected ActiveMQComponent activeMQComponent;
+    protected JmsComponent activeMQComponent;
     private final CountDownLatch latch = new CountDownLatch(1);
     
     @Before
@@ -66,7 +67,7 @@ public class JmsSimpleRequestLateReplyTest extends CamelTestSupport {
 
     protected void doTest(Runnable runnable) throws InterruptedException {
         // use another thread to send the late reply to simulate that we do it later, not
-        // from the origianl route anyway
+        // from the original route anyway
         Thread sender = new Thread(runnable);
         sender.start();
 
@@ -153,10 +154,11 @@ public class JmsSimpleRequestLateReplyTest extends CamelTestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
 
-        activeMQComponent = ActiveMQComponent.activeMQComponent("vm://localhost?broker.persistent=false");
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
+        camelContext.addComponent("activemq", jmsComponentAutoAcknowledge(connectionFactory));
+        activeMQComponent = camelContext.getComponent("activemq", JmsComponent.class);
         // as this is a unit test I dont want to wait 20 sec before timeout occurs, so we use 10
         activeMQComponent.getConfiguration().setRequestTimeout(10000);
-        camelContext.addComponent("activemq", activeMQComponent);
 
         return camelContext;
     }

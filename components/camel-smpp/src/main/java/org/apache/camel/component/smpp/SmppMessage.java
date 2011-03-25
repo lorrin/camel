@@ -29,7 +29,7 @@ import org.jsmpp.bean.MessageRequest;
  * Represents a {@link org.apache.camel.Message} for working with SMPP
  * 
  * @author muellerc
- * @version $Revision$
+ * @version 
  */
 public class SmppMessage extends DefaultMessage {
 
@@ -58,6 +58,22 @@ public class SmppMessage extends DefaultMessage {
     @Override
     public SmppMessage newInstance() {
         return new SmppMessage(this.configuration);
+    }
+    
+    public boolean isAlertNotification() {
+        return command instanceof AlertNotification;
+    }
+    
+    public boolean isDataSm() {
+        return command instanceof DataSm;
+    }
+    
+    public boolean isDeliverSm() {
+        return command instanceof DeliverSm && !((DeliverSm) command).isSmscDeliveryReceipt();
+    }
+    
+    public boolean isDeliveryReceipt() {
+        return command instanceof DeliverSm && ((DeliverSm) command).isSmscDeliveryReceipt();
     }
 
     @Override

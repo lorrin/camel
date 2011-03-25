@@ -22,7 +22,7 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>camel-parent</artifactId>
-        <version>2.6-SNAPSHOT</version>
+        <version>2.8-SNAPSHOT</version>
         <relativePath>../../parent</relativePath>
     </parent>
 
@@ -34,6 +34,7 @@
 
     <properties>
         <camel.osgi.export.pkg>org.apache.camel.component.jasypt.*</camel.osgi.export.pkg>
+        <camel.osgi.import.before.defaults>org.jasypt.encryption.*;version="[1.7,2)"</camel.osgi.import.before.defaults>
     </properties>
 
     <dependencies>
@@ -50,12 +51,6 @@
             <version>${jasypt-version}</version>
         </dependency>
         
-        <dependency>                               
-            <groupId>commons-lang</groupId>
-            <artifactId>commons-lang</artifactId>
-            <version>${commons-lang-version}</version>
-        </dependency>
-
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-test</artifactId>
@@ -82,28 +77,17 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
-    <profiles>
-      <profile>
-        <id>jdk1.5-maven-2.0.x</id>
-        <activation>
-          <!-- for maven 2.0.x syntax -->
-          <jdk>1.5</jdk>
-        </activation>
-        <dependencies>
-          <dependency>
-            <groupId>com.ibm.icu</groupId>
-            <artifactId>icu4j</artifactId>
-            <version>${icu4j-version}</version>
-          </dependency>
-        </dependencies>
-      </profile>
-    </profiles>
 
     <build>
         <plugins>
@@ -132,7 +116,7 @@
                         <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                             <classpathPrefix>optional/</classpathPrefix>
+                            <classpathPrefix>optional/</classpathPrefix>
                             <mainClass>org.apache.camel.component.jasypt.Main</mainClass>
                         </manifest>
                     </archive>

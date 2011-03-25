@@ -16,6 +16,7 @@
  */
 package org.apache.camel;
 
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.camel.builder.ErrorHandlerBuilder;
 import org.apache.camel.model.DataFormatDefinition;
 import org.apache.camel.model.RouteDefinition;
+import org.apache.camel.model.RoutesDefinition;
 import org.apache.camel.spi.CamelContextNameStrategy;
 import org.apache.camel.spi.ClassResolver;
 import org.apache.camel.spi.DataFormat;
@@ -70,12 +72,12 @@ import org.apache.camel.spi.UuidGenerator;
  * End users is adviced to use suspend/resume. Using stop is for shutting down Camel and its not guaranteed that
  * when its being started again using the start method that everything works out of the box.
  *
- * @version $Revision$
+ * @version 
  */
 public interface CamelContext extends SuspendableService, RuntimeConfiguration {
 
     /**
-     * Gets the name of the this context.
+     * Gets the name (id) of the this context.
      *
      * @return the name
      */
@@ -339,6 +341,15 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
     void addRoutes(RoutesBuilder builder) throws Exception;
 
     /**
+     * Loads a collection of route definitions from the given {@link java.io.InputStream}.
+     *
+     * @param is input stream with the route(s) definition to add
+     * @throws Exception if the route definitions could not be loaded for whatever reason
+     * @return the route definitions
+     */
+    RoutesDefinition loadRoutesDefinition(InputStream is) throws Exception;
+
+    /**
      * Adds a collection of route definitions to the context
      *
      * @param routeDefinitions the route(s) definition to add
@@ -416,6 +427,20 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
      */
     void stopRoute(String routeId, long timeout, TimeUnit timeUnit) throws Exception;
 
+    /**
+     * Stops the given route using {@link org.apache.camel.spi.ShutdownStrategy} with a specified timeout 
+     * and optional abortAfterTimeout mode.
+     *
+     * @param routeId the route id
+     * @param timeout  timeout
+     * @param timeUnit the unit to use
+     * @param abortAfterTimeout should abort shutdown after timeout
+     * @return <tt>true</tt> if the route is stopped before the timeout
+     * @throws Exception is thrown if the route could not be stopped for whatever reason
+     * @see #suspendRoute(String, long, java.util.concurrent.TimeUnit)
+     */
+    boolean stopRoute(String routeId, long timeout, TimeUnit timeUnit, boolean abortAfterTimeout) throws Exception;
+    
     /**
      * Shutdown and <b>removes</b> the given route using {@link org.apache.camel.spi.ShutdownStrategy}.
      *
@@ -501,6 +526,16 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
      * @return the status for the route
      */
     ServiceStatus getRouteStatus(String routeId);
+
+    /**
+     * Indicates whether current thread is starting route(s).
+     * <p/>
+     * This can be useful to know by {@link LifecycleStrategy} or the likes, in case
+     * they need to react differently.
+     *
+     * @return <tt>true</tt> if current thread is starting route(s), or <tt>false</tt> if not.
+     */
+    boolean isStartingRoutes();
 
     // Properties
     //-----------------------------------------------------------------------
@@ -942,5 +977,19 @@ public interface CamelContext extends SuspendableService, RuntimeConfiguration {
      * @param lazyLoadTypeConverters <tt>true</tt> to load lazy, <tt>false</tt> to load on startup
      */
     void setLazyLoadTypeConverters(Boolean lazyLoadTypeConverters);
+
+    /**
+     * Whether or not <a href="http://www.slf4j.org/api/org/slf4j/MDC.html">MDC</a> logging is being enabled.
+     *
+     * @return <tt>true</tt> if MDC logging is enabled
+     */
+    Boolean isUseMDCLogging();
+
+    /**
+     * Set whether <a href="http://www.slf4j.org/api/org/slf4j/MDC.html">MDC</a> is enabled.
+     *
+     * @param useMDCLogging <tt>true</tt> to enable MDC logging, <tt>false</tt> to disable
+     */
+    void setUseMDCLogging(Boolean useMDCLogging);
 
 }

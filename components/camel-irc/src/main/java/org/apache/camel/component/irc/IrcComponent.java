@@ -19,42 +19,26 @@ package org.apache.camel.component.irc;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.camel.CamelContext;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.impl.DefaultComponent;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.schwering.irc.lib.IRCConnection;
 import org.schwering.irc.lib.IRCEventListener;
 import org.schwering.irc.lib.ssl.SSLIRCConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Defines the <a href="http://camel.apache.org/irc.html">IRC Component</a>
  *
- * @version $Revision$
+ * @version 
  */
 public class IrcComponent extends DefaultComponent {
-    private static final transient Log LOG = LogFactory.getLog(IrcComponent.class);
-    private IrcConfiguration configuration;
+    private static final transient Logger LOG = LoggerFactory.getLogger(IrcComponent.class);
     private final Map<String, IRCConnection> connectionCache = new HashMap<String, IRCConnection>();
-    private IRCEventListener ircLogger;
 
-    public IrcComponent() {
-        configuration = new IrcConfiguration();
-    }
-
-    public IrcComponent(IrcConfiguration configuration) {
-        this.configuration = configuration;
-    }
-
-    public IrcComponent(CamelContext context) {
-        super(context);
-        configuration = new IrcConfiguration();
-    }
-
-    protected IrcEndpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
-        // lets make sure we copy the configuration as each endpoint can customize its own version
-        IrcConfiguration config = getConfiguration().copy();
+    public IrcEndpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
+        // every endpoint gets it's own configuration
+        IrcConfiguration config = new IrcConfiguration();
         config.configure(uri);
 
         IrcEndpoint endpoint = new IrcEndpoint(uri, this, config);
@@ -78,6 +62,7 @@ public class IrcComponent extends DefaultComponent {
 
     protected IRCConnection createConnection(IrcConfiguration configuration) {
         IRCConnection conn = null;
+        IRCEventListener ircLogger;
 
         if (configuration.getUsingSSL()) {
             if (LOG.isDebugEnabled()) {
@@ -85,7 +70,7 @@ public class IrcComponent extends DefaultComponent {
                         + " nick: " + configuration.getNickname() + " user: " + configuration.getUsername());
             }
             SSLIRCConnection sconn = new SSLIRCConnection(configuration.getHostname(), configuration.getPorts(), configuration.getPassword(),
-                                                         configuration.getNickname(), configuration.getUsername(), configuration.getRealname());
+                    configuration.getNickname(), configuration.getUsername(), configuration.getRealname());
 
             sconn.addTrustManager(configuration.getTrustManager());
             conn = sconn;
@@ -97,7 +82,7 @@ public class IrcComponent extends DefaultComponent {
             }
 
             conn = new IRCConnection(configuration.getHostname(), configuration.getPorts(), configuration.getPassword(),
-                                                         configuration.getNickname(), configuration.getUsername(), configuration.getRealname());
+                    configuration.getNickname(), configuration.getUsername(), configuration.getRealname());
         }
         conn.setEncoding("UTF-8");
         conn.setColors(configuration.isColors());
@@ -127,7 +112,7 @@ public class IrcComponent extends DefaultComponent {
     }
 
     @Override
-    protected synchronized void doStop() throws Exception {
+    protected void doStop() throws Exception {
         // lets use a copy so we can clear the connections eagerly in case of exceptions
         Map<String, IRCConnection> map = new HashMap<String, IRCConnection>(connectionCache);
         connectionCache.clear();
@@ -140,13 +125,4 @@ public class IrcComponent extends DefaultComponent {
     protected IRCEventListener createIrcLogger(String hostname) {
         return new IrcLogger(LOG, hostname);
     }
-
-    public IrcConfiguration getConfiguration() {
-        return configuration;
-    }
-
-    public void setConfiguration(IrcConfiguration configuration) {
-        this.configuration = configuration;
-    }
-
 }

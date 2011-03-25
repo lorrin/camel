@@ -25,17 +25,26 @@ import org.springframework.jmx.export.annotation.ManagedAttribute;
 import org.springframework.jmx.export.annotation.ManagedResource;
 
 /**
- * @version $Revision$
+ * @version 
  */
 @ManagedResource(description = "Managed ThreadPool")
 public class ManagedThreadPool {
 
     private final CamelContext camelContext;
     private final ThreadPoolExecutor threadPool;
+    private final String id;
+    private final String sourceId;
+    private final String routeId;
+    private final String threadPoolProfileId;
 
-    public ManagedThreadPool(CamelContext camelContext, ThreadPoolExecutor threadPool) {
+    public ManagedThreadPool(CamelContext camelContext, ThreadPoolExecutor threadPool, String id,
+                             String sourceId, String routeId, String threadPoolProfileId) {
         this.camelContext = camelContext;
         this.threadPool = threadPool;
+        this.sourceId = sourceId;
+        this.id = id;
+        this.routeId = routeId;
+        this.threadPoolProfileId = threadPoolProfileId;
     }
 
     public void init(ManagementStrategy strategy) {
@@ -48,6 +57,26 @@ public class ManagedThreadPool {
 
     public ThreadPoolExecutor getThreadPool() {
         return threadPool;
+    }
+
+    @ManagedAttribute(description = "Thread Pool id")
+    public String getId() {
+        return id;
+    }
+
+    @ManagedAttribute(description = "Id of source for creating Thread Pool")
+    public String getSourceId() {
+        return sourceId;
+    }
+
+    @ManagedAttribute(description = "Route id for the source, which created the Thread Pool")
+    public String getRouteId() {
+        return routeId;
+    }
+
+    @ManagedAttribute(description = "Id of the thread pool profile which this pool is based upon")
+    public String getThreadPoolProfileId() {
+        return threadPoolProfileId;
     }
 
     @ManagedAttribute(description = "Core pool size")
@@ -93,6 +122,24 @@ public class ManagedThreadPool {
     @ManagedAttribute(description = "Completed task count")
     public long getCompletedTaskCount() {
         return threadPool.getCompletedTaskCount();
+    }
+
+    @ManagedAttribute(description = "Task queue size")
+    public long getTaskQueueSize() {
+        if (threadPool.getQueue() != null) {
+            return threadPool.getQueue().size();
+        } else {
+            return 0;
+        }
+    }
+
+    @ManagedAttribute(description = "Is task queue empty")
+    public boolean isTaskQueueEmpty() {
+        if (threadPool.getQueue() != null) {
+            return threadPool.getQueue().isEmpty();
+        } else {
+            return true;
+        }
     }
 
     @ManagedAttribute(description = "Keep alive time in seconds")

@@ -20,16 +20,16 @@ import org.apache.camel.Exchange;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.test.junit4.CamelTestSupport;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class GroovyExpressionTest extends CamelTestSupport {
-    private static final transient Log LOG = LogFactory.getLog(GroovyTest.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(GroovyTest.class);
 
     protected Exchange exchange;
 

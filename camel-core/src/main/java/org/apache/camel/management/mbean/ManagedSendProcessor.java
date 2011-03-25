@@ -25,12 +25,11 @@ import org.springframework.jmx.export.annotation.ManagedOperation;
 import org.springframework.jmx.export.annotation.ManagedResource;
 
 /**
- * @version $Revision$
+ * @version 
  */
 @ManagedResource(description = "Managed SendProcessor")
 public class ManagedSendProcessor extends ManagedProcessor {
-
-    private SendProcessor processor;
+    private final SendProcessor processor;
 
     public ManagedSendProcessor(CamelContext context, SendProcessor processor, ProcessorDefinition<?> definition) {
         super(context, processor, definition);

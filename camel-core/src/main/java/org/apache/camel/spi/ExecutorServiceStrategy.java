@@ -38,7 +38,7 @@ import org.apache.camel.ShutdownableService;
  * If you use the <tt>newXXX</tt> methods to create thread pools, then Camel will by default take care of
  * shutting down those created pools when {@link org.apache.camel.CamelContext} is shutting down.
  *
- * @version $Revision$
+ * @version 
  */
 public interface ExecutorServiceStrategy extends ShutdownableService {
 
@@ -144,13 +144,13 @@ public interface ExecutorServiceStrategy extends ShutdownableService {
 
     /**
      * Creates a new cached thread pool.
+     * <p/>
+     * <b>Important:</b> Using cached thread pool is discouraged as they have no upper bound and can overload the JVM.
      *
      * @param source      the source object, usually it should be <tt>this</tt> passed in as parameter
      * @param name        name which is appended to the thread name
      * @return the created thread pool
-     * @deprecated using cached thread pool is discouraged as they have no upper bound and can overload the JVM
      */
-    @Deprecated
     ExecutorService newCachedThreadPool(Object source, String name);
 
     /**

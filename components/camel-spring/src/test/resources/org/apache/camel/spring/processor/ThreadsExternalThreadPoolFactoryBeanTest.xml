@@ -32,7 +32,6 @@
                 keepAliveTime="30"
                 rejectedPolicy="DiscardOldest"
                 timeUnit="SECONDS"
-                daemon="true"
                 xmlns="http://camel.apache.org/schema/spring"/>
 
     <camelContext xmlns="http://camel.apache.org/schema/spring">

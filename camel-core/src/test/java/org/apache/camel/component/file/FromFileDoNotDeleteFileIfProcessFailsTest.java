@@ -25,7 +25,7 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class FromFileDoNotDeleteFileIfProcessFailsTest extends ContextTestSupport {
 
@@ -46,9 +46,7 @@ public class FromFileDoNotDeleteFileIfProcessFailsTest extends ContextTestSuppor
         mock.expectedMinimumMessageCount(1);
 
         mock.assertIsSatisfied();
-
-        // give time to NOT delete file
-        Thread.sleep(200);
+        oneExchangeDone.matchesMockWaitTime();
 
         // assert the file is deleted
         File file = new File("./target/deletefile/hello.txt");
@@ -59,7 +57,8 @@ public class FromFileDoNotDeleteFileIfProcessFailsTest extends ContextTestSuppor
     protected RouteBuilder createRouteBuilder() throws Exception {
         return new RouteBuilder() {
             public void configure() throws Exception {
-                errorHandler(deadLetterChannel("mock:error").maximumRedeliveries(2).redeliveryDelay(0).logStackTrace(false).handled(false));
+                onException(IllegalArgumentException.class)
+                    .to("mock:error");
 
                 from("file://target/deletefile?delete=true").process(new Processor() {
                     public void process(Exchange exchange) throws Exception {

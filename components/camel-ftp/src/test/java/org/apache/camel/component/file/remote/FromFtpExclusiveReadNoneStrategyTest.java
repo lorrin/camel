@@ -24,16 +24,16 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Unit test to verify *NON* exclusive read.
  */
 public class FromFtpExclusiveReadNoneStrategyTest extends FtpServerTestSupport {
 
-    private static final Log LOG = LogFactory.getLog(FromFtpExclusiveReadNoneStrategyTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FromFtpExclusiveReadNoneStrategyTest.class);
 
     private String getFtpUrl() {
         return "ftp://admin@localhost:" + getPort() + "/slowfile?password=admin"

@@ -21,19 +21,22 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit4.CamelTestSupport;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.junit.Ignore;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import static org.apache.activemq.camel.component.ActiveMQComponent.activeMQComponent;
 
 /**
  * See MR-170
  *
- * @version $Revision$
+ * @version 
  */
+@Ignore
 public class JmsHammerTest extends CamelTestSupport {
 
-    private static final Log LOG = LogFactory.getLog(JmsHammerTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JmsHammerTest.class);
 
     private String message;
     // TODO: AMQ reaches a limit when sending #169.

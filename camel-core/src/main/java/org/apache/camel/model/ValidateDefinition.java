@@ -27,14 +27,13 @@ import org.apache.camel.spi.RouteContext;
 /**
  * Represents an XML &lt;validate/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "validate")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class ValidateDefinition extends NoOutputExpressionNode {
 
     public ValidateDefinition() {
-        super();
     }
     
     @Override

@@ -78,7 +78,7 @@ public class FtpConsumerThrowExceptionOnLoginFailedTest extends FtpServerTestSup
             return true;
         }
 
-        public void commit(Consumer consumer, Endpoint endpoint) {
+        public void commit(Consumer consumer, Endpoint endpoint, int polledMessages) {
         }
 
         public boolean rollback(Consumer consumer, Endpoint endpoint, int retryCounter, Exception cause) throws Exception {

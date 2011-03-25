@@ -27,7 +27,7 @@ import static org.apache.camel.builder.PredicateBuilder.in;
 import static org.apache.camel.builder.PredicateBuilder.not;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class PredicateBuilderTest extends TestSupport {
     protected Exchange exchange = new DefaultExchange(new DefaultCamelContext());
@@ -83,6 +83,11 @@ public class PredicateBuilderTest extends TestSupport {
 
     public void testValueIn() throws Exception {
         assertMatches(header("name").in("Hiram", "Jonathan", "James", "Claus"));
+    }
+
+    public void testEmptyHeaderValueIn() throws Exception {
+        // there is no header with xxx
+        assertDoesNotMatch(header("xxx").in("Hiram", "Jonathan", "James", "Claus"));
     }
 
     public void testStartsWith() throws Exception {

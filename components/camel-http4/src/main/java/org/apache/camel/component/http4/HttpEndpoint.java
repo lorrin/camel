@@ -25,8 +25,6 @@ import org.apache.camel.impl.DefaultPollingEndpoint;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpHost;
 import org.apache.http.client.HttpClient;
 import org.apache.http.conn.ClientConnectionManager;
@@ -34,15 +32,17 @@ import org.apache.http.conn.params.ConnRoutePNames;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpParams;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents a <a href="http://camel.apache.org/http.html">HTTP endpoint</a>
  *
- * @version $Revision$
+ * @version 
  */
 public class HttpEndpoint extends DefaultPollingEndpoint implements HeaderFilterStrategyAware {
 
-    private static final transient Log LOG = LogFactory.getLog(HttpEndpoint.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(HttpEndpoint.class);
     private HeaderFilterStrategy headerFilterStrategy = new HttpHeaderFilterStrategy();
     private HttpBinding binding;
     private HttpComponent component;
@@ -56,6 +56,7 @@ public class HttpEndpoint extends DefaultPollingEndpoint implements HeaderFilter
     private boolean matchOnUriPrefix;
     private boolean chunked = true;
     private boolean disableStreamCache;
+    private boolean transferException;
 
     public HttpEndpoint() {
     }
@@ -187,12 +188,28 @@ public class HttpEndpoint extends DefaultPollingEndpoint implements HeaderFilter
 
     public HttpBinding getBinding() {
         if (binding == null) {
-            binding = new DefaultHttpBinding(getHeaderFilterStrategy());
+            binding = new DefaultHttpBinding(this);
         }
         return binding;
     }
 
     public void setBinding(HttpBinding binding) {
+        this.binding = binding;
+    }
+    
+    /**
+     * Used from the IntrospectionSupport in HttpComponent.
+     * @param binding
+     */
+    public void setHttpBinding(HttpBinding binding) {
+        this.binding = binding;
+    }
+    
+    /**
+     * Used from the IntrospectionSupport in HttpComponent.
+     * @param binding
+     */
+    public void setHttpBindingRef(HttpBinding binding) {
         this.binding = binding;
     }
 
@@ -279,4 +296,11 @@ public class HttpEndpoint extends DefaultPollingEndpoint implements HeaderFilter
         this.chunked = chunked;
     }
 
+    public boolean isTransferException() {
+        return transferException;
+    }
+
+    public void setTransferException(boolean transferException) {
+        this.transferException = transferException;
+    }
 }

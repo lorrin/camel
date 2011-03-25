@@ -23,7 +23,7 @@ import org.springframework.context.support.AbstractXmlApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class ErrorHandlerCamelContextRefNotFoundTest extends SpringTestSupport {
 
@@ -31,6 +31,7 @@ public class ErrorHandlerCamelContextRefNotFoundTest extends SpringTestSupport {
     protected void setUp() throws Exception {
         try {
             super.setUp();
+            fail("Should have thrown an exception");
         } catch (RuntimeCamelException e) {
             FailedToCreateRouteException cause = assertIsInstanceOf(FailedToCreateRouteException.class, e.getCause());
             IllegalArgumentException iae = assertIsInstanceOf(IllegalArgumentException.class, cause.getCause());

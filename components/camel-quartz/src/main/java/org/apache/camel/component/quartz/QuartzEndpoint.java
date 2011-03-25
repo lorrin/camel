@@ -21,7 +21,7 @@ import java.util.Date;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
-import org.apache.camel.Service;
+import org.apache.camel.ShutdownableService;
 import org.apache.camel.impl.DefaultEndpoint;
 import org.apache.camel.impl.ServiceSupport;
 import org.apache.camel.processor.loadbalancer.LoadBalancer;
@@ -29,21 +29,21 @@ import org.apache.camel.processor.loadbalancer.RoundRobinLoadBalancer;
 import org.apache.camel.util.ExchangeHelper;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.ServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A <a href="http://activemq.apache.org/quartz.html">Quartz Endpoint</a>
  *
- * @version $Revision:520964 $
+ * @version 
  */
-public class QuartzEndpoint extends DefaultEndpoint implements Service {
-    private static final transient Log LOG = LogFactory.getLog(QuartzEndpoint.class);
+public class QuartzEndpoint extends DefaultEndpoint implements ShutdownableService {
+    private static final transient Logger LOG = LoggerFactory.getLogger(QuartzEndpoint.class);
 
     private LoadBalancer loadBalancer;
     private Trigger trigger;
@@ -80,8 +80,12 @@ public class QuartzEndpoint extends DefaultEndpoint implements Service {
         getComponent().addJob(detail, trigger);
     }
 
-    public void removeTrigger(final Trigger trigger, final JobDetail detail) throws SchedulerException {
-        getComponent().removeJob(detail, trigger);
+    public void pauseTrigger(final Trigger trigger) throws SchedulerException {
+        getComponent().pauseJob(trigger);
+    }
+
+    public void deleteTrigger(final Trigger trigger) throws SchedulerException {
+        getComponent().deleteJob(trigger.getName(), trigger.getGroup());
     }
 
     /**
@@ -218,7 +222,7 @@ public class QuartzEndpoint extends DefaultEndpoint implements Service {
     public synchronized void consumerStopped(final QuartzConsumer consumer) throws SchedulerException {
         ObjectHelper.notNull(trigger, "trigger");
         if (started) {
-            removeTrigger(getTrigger(), getJobDetail());
+            pauseTrigger(getTrigger());
             started = false;
         }
 
@@ -236,13 +240,21 @@ public class QuartzEndpoint extends DefaultEndpoint implements Service {
         return new JobDetail();
     }
 
-    public void start() throws Exception {
+    @Override
+    protected void doStart() throws Exception {
         ObjectHelper.notNull(getComponent(), "QuartzComponent", this);
         ServiceHelper.startService(loadBalancer);
     }
 
-    public void stop() throws Exception {
+    @Override
+    protected void doStop() throws Exception {
         ServiceHelper.stopService(loadBalancer);
+    }
+
+    @Override
+    protected void doShutdown() throws Exception {
+        ObjectHelper.notNull(trigger, "trigger");
+        deleteTrigger(getTrigger());
     }
 
 }

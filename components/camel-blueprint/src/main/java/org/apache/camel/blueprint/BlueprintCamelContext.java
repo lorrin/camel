@@ -23,16 +23,17 @@ import org.apache.camel.core.osgi.OsgiClassResolver;
 import org.apache.camel.core.osgi.OsgiFactoryFinderResolver;
 import org.apache.camel.core.osgi.OsgiPackageScanClassResolver;
 import org.apache.camel.core.osgi.OsgiTypeConverter;
+import org.apache.camel.core.osgi.utils.BundleContextUtils;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.spi.Registry;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.osgi.framework.BundleContext;
 import org.osgi.service.blueprint.container.BlueprintContainer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BlueprintCamelContext extends DefaultCamelContext {
 
-    private static final transient Log LOG = LogFactory.getLog(BlueprintCamelContext.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(BlueprintCamelContext.class);
 
     private BundleContext bundleContext;
     private BlueprintContainer blueprintContainer;
@@ -74,8 +75,6 @@ public class BlueprintCamelContext extends DefaultCamelContext {
 
     private void maybeStart() throws Exception {
         if (!isStarted() && !isStarting()) {
-            // Make sure we will not get into the endless loop of calling star
-            LOG.info("Starting Apache Camel as property ShouldStartContext is true");
             start();
         } else {
             // ignore as Camel is already started
@@ -89,7 +88,12 @@ public class BlueprintCamelContext extends DefaultCamelContext {
 
     @Override
     protected TypeConverter createTypeConverter() {
-        return new OsgiTypeConverter(bundleContext, getInjector());
+        // CAMEL-3614: make sure we use a bundle context which imports org.apache.camel.impl.converter package
+        BundleContext ctx = BundleContextUtils.getBundleContext(getClass());
+        if (ctx == null) {
+            ctx = bundleContext;
+        }
+        return new OsgiTypeConverter(ctx, getInjector());
     }
 
     @Override

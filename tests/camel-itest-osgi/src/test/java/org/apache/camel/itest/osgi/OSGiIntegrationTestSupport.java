@@ -19,14 +19,14 @@ package org.apache.camel.itest.osgi;
 import org.apache.camel.CamelContext;
 import org.apache.camel.osgi.CamelContextFactory;
 import org.apache.camel.test.junit4.CamelTestSupport;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.ops4j.pax.exam.Inject;
 import org.ops4j.pax.exam.Option;
 import org.ops4j.pax.exam.junit.Configuration;
 import org.ops4j.pax.exam.options.UrlReference;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.ops4j.pax.exam.CoreOptions.equinox;
 import static org.ops4j.pax.exam.CoreOptions.felix;
@@ -37,7 +37,7 @@ import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.scanFeatures;
 import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.workingDirectory;
 
 public class OSGiIntegrationTestSupport extends CamelTestSupport {
-    protected static final transient Log LOG = LogFactory.getLog(OSGiIntegrationTestSupport.class);
+    protected static final transient Logger LOG = LoggerFactory.getLogger(OSGiIntegrationTestSupport.class);
     @Inject
     protected BundleContext bundleContext;
     
@@ -73,18 +73,19 @@ public class OSGiIntegrationTestSupport extends CamelTestSupport {
     public static UrlReference getCamelKarafFeatureUrl() {
         String springVersion = System.getProperty("springVersion");
         System.out.println("*** The spring version is " + springVersion + " ***");
-        String type = "xml/features"; 
-        if (springVersion != null && springVersion.startsWith("2")) {
-            type = "xml/features-spring2";
-        }
+
+        String type = "xml/features";
         return mavenBundle().groupId("org.apache.camel.karaf").
             artifactId("apache-camel").versionAsInProject().type(type);
     }
     
     public static UrlReference getKarafFeatureUrl() {
+        String karafVersion = "2.1.4";
+        System.out.println("*** The karaf version is " + karafVersion + " ***");
+
         String type = "xml/features";
         return mavenBundle().groupId("org.apache.karaf").
-            artifactId("apache-karaf").version("2.1.0").type(type);
+            artifactId("apache-karaf").version(karafVersion).type(type);
     }
 
     @Configuration

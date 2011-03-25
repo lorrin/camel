@@ -32,17 +32,17 @@ import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpConnectionManager;
 import org.apache.commons.httpclient.auth.AuthPolicy;
 import org.apache.commons.httpclient.params.HttpClientParams;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents a <a href="http://camel.apache.org/http.html">HTTP endpoint</a>
  *
- * @version $Revision$
+ * @version 
  */
 public class HttpEndpoint extends DefaultPollingEndpoint implements HeaderFilterStrategyAware {
 
-    private static final transient Log LOG = LogFactory.getLog(HttpEndpoint.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(HttpEndpoint.class);
     private HeaderFilterStrategy headerFilterStrategy = new HttpHeaderFilterStrategy();
     private HttpBinding binding;
     private HttpComponent component;
@@ -58,6 +58,7 @@ public class HttpEndpoint extends DefaultPollingEndpoint implements HeaderFilter
     private String proxyHost;
     private int proxyPort;
     private String authMethodPriority;
+    private boolean transferException;
 
     public HttpEndpoint() {
     }
@@ -197,7 +198,7 @@ public class HttpEndpoint extends DefaultPollingEndpoint implements HeaderFilter
 
     public HttpBinding getBinding() {
         if (binding == null) {
-            binding = new DefaultHttpBinding(getHeaderFilterStrategy());
+            binding = new DefaultHttpBinding(this);
         }
         return binding;
     }
@@ -311,5 +312,13 @@ public class HttpEndpoint extends DefaultPollingEndpoint implements HeaderFilter
 
     public void setAuthMethodPriority(String authMethodPriority) {
         this.authMethodPriority = authMethodPriority;
+    }
+
+    public boolean isTransferException() {
+        return transferException;
+    }
+
+    public void setTransferException(boolean transferException) {
+        this.transferException = transferException;
     }
 }

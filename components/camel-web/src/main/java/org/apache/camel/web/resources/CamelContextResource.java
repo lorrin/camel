@@ -24,8 +24,8 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+import com.sun.jersey.api.core.InjectParam;
 import com.sun.jersey.api.view.ImplicitProduces;
-import com.sun.jersey.spi.inject.Inject;
 import com.sun.jersey.spi.resource.Singleton;
 import org.apache.camel.CamelContext;
 import org.apache.camel.ProducerTemplate;
@@ -36,7 +36,7 @@ import org.apache.camel.web.model.Camel;
  * The root Camel resource from which all other resources can be navigated such as for <code>endpoints</code>
  * or <code>routes</code>
  *
- * @version $Revision$
+ * @version 
  */
 @Path("/")
 @ImplicitProduces(Constants.HTML_MIME_TYPES)
@@ -46,7 +46,7 @@ public class CamelContextResource {
     private CamelContext camelContext;
     private ProducerTemplate template;
 
-    public CamelContextResource(@Inject CamelContext camelContext) throws Exception {
+    public CamelContextResource(@InjectParam CamelContext camelContext) throws Exception {
         this.camelContext = camelContext;
         this.template = camelContext.createProducerTemplate();
         template.start();

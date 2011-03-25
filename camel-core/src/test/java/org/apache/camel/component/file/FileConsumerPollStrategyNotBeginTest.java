@@ -31,9 +31,9 @@ import org.apache.camel.spi.PollingConsumerPollStrategy;
 public class FileConsumerPollStrategyNotBeginTest extends ContextTestSupport {
 
     private static int counter;
-    private static String event = "";
+    private static volatile String event = "";
 
-    private String fileUrl = "file://target/pollstrategy/?consumer.pollStrategy=#myPoll&noop=true";
+    private String fileUrl = "file://target/pollstrategy/?consumer.pollStrategy=#myPoll&noop=true&initialDelay=0&delay=10";
 
     @Override
     protected JndiRegistry createRegistry() throws Exception {
@@ -55,8 +55,10 @@ public class FileConsumerPollStrategyNotBeginTest extends ContextTestSupport {
 
         assertMockEndpointsSatisfied();
 
-        // give file consumer a bit time
-        Thread.sleep(1000);
+        oneExchangeDone.matchesMockWaitTime();
+
+        // the poll strategy commit is executed after the exchange is done
+        Thread.sleep(100);
 
         assertTrue(event.startsWith("beginbegincommit"));
     }
@@ -80,7 +82,7 @@ public class FileConsumerPollStrategyNotBeginTest extends ContextTestSupport {
             return true;
         }
 
-        public void commit(Consumer consumer, Endpoint endpoint) {
+        public void commit(Consumer consumer, Endpoint endpoint, int polledMessages) {
             event += "commit";
         }
 

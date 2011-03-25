@@ -27,7 +27,6 @@ import javax.naming.InitialContext;
 import com.google.inject.Binding;
 import com.google.inject.Inject;
 
-import org.apache.camel.Route;
 import org.apache.camel.RoutesBuilder;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.TypeConverter;
@@ -49,7 +48,7 @@ import org.guiceyfruit.Injectors;
  * It is recommended you use this implementation with the
  * <a href="http://code.google.com/p/guiceyfruit/wiki/GuiceyJndi">Guicey JNDI Provider</a>
  *
- * @version $Revision$
+ * @version 
  */
 public class GuiceCamelContext extends DefaultCamelContext {
     private final com.google.inject.Injector injector;

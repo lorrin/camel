@@ -23,14 +23,15 @@ import org.apache.camel.Consumer;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.impl.DefaultEndpoint;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StreamEndpoint extends DefaultEndpoint {
-    private static final transient Log LOG = LogFactory.getLog(StreamEndpoint.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(StreamEndpoint.class);
 
     private String fileName;
     private boolean scanStream;
+    private boolean retry;
     private long scanStreamDelay;
     private String url;
     private long delay;
@@ -125,6 +126,14 @@ public class StreamEndpoint extends DefaultEndpoint {
 
     public void setScanStream(boolean scanStream) {
         this.scanStream = scanStream;
+    }
+
+    public boolean isRetry() {
+        return retry;
+    }
+
+    public void setRetry(boolean retry) {
+        this.retry = retry;
     }
 
     public long getScanStreamDelay() {

@@ -37,19 +37,19 @@ import org.apache.camel.component.file.GenericFileOperationFailedException;
 import org.apache.camel.util.FileUtil;
 import org.apache.camel.util.IOHelper;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPClientConfig;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * FTP remote file operations
  */
 public class FtpOperations implements RemoteFileOperations<FTPFile> {
     
-    protected final transient Log log = LogFactory.getLog(getClass());
+    protected final transient Logger log = LoggerFactory.getLogger(getClass());
     protected final FTPClient client;
     protected final FTPClientConfig clientConfig;
     protected RemoteFileEndpoint<FTPFile> endpoint;
@@ -237,6 +237,9 @@ public class FtpOperations implements RemoteFileOperations<FTPFile> {
     }
 
     public boolean buildDirectory(String directory, boolean absolute) throws GenericFileOperationFailedException {
+        // must normalize directory first
+        directory = endpoint.getConfiguration().normalizePath(directory);
+
         if (log.isTraceEnabled()) {
             log.trace("buildDirectory(" + directory + ")");
         }
@@ -433,13 +436,50 @@ public class FtpOperations implements RemoteFileOperations<FTPFile> {
     }
 
     public boolean storeFile(String name, Exchange exchange) throws GenericFileOperationFailedException {
+        // must normalize name first
+        name = endpoint.getConfiguration().normalizePath(name);
+
         if (log.isTraceEnabled()) {
             log.trace("storeFile(" + name + ")");
         }
 
+        boolean answer = false;
+        String currentDir = null;
+        String path = FileUtil.onlyPath(name);
+        String targetName = name;
+
+        try {
+            if (path != null && endpoint.getConfiguration().isStepwise()) {
+                // must remember current dir so we stay in that directory after the write
+                currentDir = getCurrentDirectory();
+
+                // change to path of name
+                changeCurrentDirectory(path);
+
+                // the target name should be without path, as we have changed directory
+                targetName = FileUtil.stripPath(name);
+            }
+
+            // store the file
+            answer = doStoreFile(name, targetName, exchange);
+        } finally {
+            // change back to current directory if we changed directory
+            if (currentDir != null) {
+                changeCurrentDirectory(currentDir);
+            }
+        }
+
+        return answer;
+    }
+
+    private boolean doStoreFile(String name, String targetName, Exchange exchange) throws GenericFileOperationFailedException {
+        if (log.isTraceEnabled()) {
+            log.trace("doStoreFile(" + targetName + ")");
+        }
+
         // if an existing file already exists what should we do?
         if (endpoint.getFileExist() == GenericFileExist.Ignore || endpoint.getFileExist() == GenericFileExist.Fail) {
-            boolean existFile = existsFile(name);
+            boolean existFile = existsFile(targetName);
             if (existFile && endpoint.getFileExist() == GenericFileExist.Ignore) {
                 // ignore but indicate that the file was written
                 if (log.isTraceEnabled()) {
@@ -455,9 +495,9 @@ public class FtpOperations implements RemoteFileOperations<FTPFile> {
         try {
             is = exchange.getIn().getMandatoryBody(InputStream.class);
             if (endpoint.getFileExist() == GenericFileExist.Append) {
-                return client.appendFile(name, is);
+                return client.appendFile(targetName, is);
             } else {
-                return client.storeFile(name, is);
+                return client.storeFile(targetName, is);
             }
         } catch (IOException e) {
             throw new GenericFileOperationFailedException(client.getReplyCode(), client.getReplyString(), e.getMessage(), e);
@@ -488,7 +528,11 @@ public class FtpOperations implements RemoteFileOperations<FTPFile> {
                 return false;
             }
             for (String existing : names) {
-                if (existing.equals(onlyName)) {
+                if (log.isTraceEnabled()) {
+                    log.trace("Existing file: " + existing + ", target file: " + name);
+                }
+                existing = FileUtil.stripPath(existing);
+                if (existing != null && existing.equals(onlyName)) {
                     return true;
                 }
             }
@@ -516,6 +560,9 @@ public class FtpOperations implements RemoteFileOperations<FTPFile> {
         if (ObjectHelper.isEmpty(path)) {
             return;
         }
+
+        // must compact path so FTP server can traverse correctly
+        path = FileUtil.compactPath(path);
 
         // not stepwise should change directory in one operation
         if (!endpoint.getConfiguration().isStepwise()) {
@@ -555,7 +602,12 @@ public class FtpOperations implements RemoteFileOperations<FTPFile> {
         }
         boolean success;
         try {
-            success = client.changeWorkingDirectory(path);
+            if ("..".equals(path)) {
+                changeToParentDirectory();
+                success = true;
+            } else {
+                success = client.changeWorkingDirectory(path);
+            }
         } catch (IOException e) {
             throw new GenericFileOperationFailedException(client.getReplyCode(), client.getReplyString(), e.getMessage(), e);
         }
@@ -644,10 +696,11 @@ public class FtpOperations implements RemoteFileOperations<FTPFile> {
         boolean success = false;
         for (String dir : dirs) {
             sb.append(dir).append('/');
-            String directory = sb.toString();
+            // must normalize the directory name
+            String directory = endpoint.getConfiguration().normalizePath(sb.toString());
 
-            // do not try to build root / folder
-            if (!directory.equals("/")) {
+            // do not try to build root folder (/ or \)
+            if (!(directory.equals("/") || directory.equals("\\"))) {
                 if (log.isTraceEnabled()) {
                     log.trace("Trying to build remote directory by chunk: " + directory);
                 }

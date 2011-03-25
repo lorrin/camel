@@ -44,14 +44,15 @@ import org.apache.camel.spring.CamelConsumerTemplateFactoryBean;
 import org.apache.camel.spring.CamelContextFactoryBean;
 import org.apache.camel.spring.CamelEndpointFactoryBean;
 import org.apache.camel.spring.CamelProducerTemplateFactoryBean;
+import org.apache.camel.spring.CamelRedeliveryPolicyFactoryBean;
 import org.apache.camel.spring.CamelRouteContextFactoryBean;
 import org.apache.camel.spring.CamelThreadPoolFactoryBean;
 import org.apache.camel.spring.remoting.CamelProxyFactoryBean;
 import org.apache.camel.spring.remoting.CamelServiceExporter;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.view.ModelFileGenerator;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -61,14 +62,15 @@ import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.xml.NamespaceHandlerSupport;
 import org.springframework.beans.factory.xml.ParserContext;
 
+
 /**
  * Camel namespace for the spring XML configuration file.
  */
 public class CamelNamespaceHandler extends NamespaceHandlerSupport {
     private static final String SPRING_NS = "http://camel.apache.org/schema/spring";
-    private static final Log LOG = LogFactory.getLog(CamelNamespaceHandler.class);
-    protected BeanDefinitionParser endpointParser = new BeanDefinitionParser(CamelEndpointFactoryBean.class);
-    protected BeanDefinitionParser beanPostProcessorParser = new BeanDefinitionParser(CamelBeanPostProcessor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CamelNamespaceHandler.class);
+    protected BeanDefinitionParser endpointParser = new BeanDefinitionParser(CamelEndpointFactoryBean.class, false);
+    protected BeanDefinitionParser beanPostProcessorParser = new BeanDefinitionParser(CamelBeanPostProcessor.class, false);
     protected Set<String> parserElementNames = new HashSet<String>();
     private JAXBContext jaxbContext;
     private Map<String, BeanDefinitionParser> parserMap = new HashMap<String, BeanDefinitionParser>();
@@ -95,16 +97,17 @@ public class CamelNamespaceHandler extends NamespaceHandlerSupport {
         // register routeContext parser
         registerParser("routeContext", new RouteContextDefinitionParser());
 
-        addBeanDefinitionParser("proxy", CamelProxyFactoryBean.class, true);
-        addBeanDefinitionParser("template", CamelProducerTemplateFactoryBean.class, true);
-        addBeanDefinitionParser("consumerTemplate", CamelConsumerTemplateFactoryBean.class, true);
-        addBeanDefinitionParser("export", CamelServiceExporter.class, true);
-        addBeanDefinitionParser("endpoint", CamelEndpointFactoryBean.class, true);
-        addBeanDefinitionParser("threadPool", CamelThreadPoolFactoryBean.class, true);
+        addBeanDefinitionParser("proxy", CamelProxyFactoryBean.class, true, false);
+        addBeanDefinitionParser("template", CamelProducerTemplateFactoryBean.class, true, false);
+        addBeanDefinitionParser("consumerTemplate", CamelConsumerTemplateFactoryBean.class, true, false);
+        addBeanDefinitionParser("export", CamelServiceExporter.class, true, false);
+        addBeanDefinitionParser("endpoint", CamelEndpointFactoryBean.class, true, false);
+        addBeanDefinitionParser("threadPool", CamelThreadPoolFactoryBean.class, true, true);
+        addBeanDefinitionParser("redeliveryPolicyProfile", CamelRedeliveryPolicyFactoryBean.class, true, true);
 
         // jmx agent and property placeholder cannot be used outside of the camel context
-        addBeanDefinitionParser("jmxAgent", CamelJMXAgentDefinition.class, false);
-        addBeanDefinitionParser("propertyPlaceholder", CamelPropertyPlaceholderDefinition.class, false);
+        addBeanDefinitionParser("jmxAgent", CamelJMXAgentDefinition.class, false, false);
+        addBeanDefinitionParser("propertyPlaceholder", CamelPropertyPlaceholderDefinition.class, false, false);
 
         // errorhandler could be the sub element of camelContext or defined outside camelContext
         BeanDefinitionParser errorHandlerParser = new ErrorHandlerDefinitionParser();
@@ -137,23 +140,12 @@ public class CamelNamespaceHandler extends NamespaceHandlerSupport {
         registerParser("camelContext", new CamelContextBeanDefinitionParser(cl));
     }
 
-    private void addBeanDefinitionParser(String elementName, Class<?> type, boolean register) {
-        BeanDefinitionParser parser = new BeanDefinitionParser(type);
+    private void addBeanDefinitionParser(String elementName, Class<?> type, boolean register, boolean assignId) {
+        BeanDefinitionParser parser = new BeanDefinitionParser(type, assignId);
         if (register) {
             registerParser(elementName, parser);
         }
         parserMap.put(elementName, parser);
-    }
-
-    protected void createBeanPostProcessor(ParserContext parserContext, String contextId, Element childElement, BeanDefinitionBuilder parentBuilder) {
-        String beanPostProcessorId = contextId + ":beanPostProcessor";
-        childElement.setAttribute("id", beanPostProcessorId);
-        BeanDefinition definition = beanPostProcessorParser.parse(childElement, parserContext);
-        // only register to camel context id as a String. Then we can look it up later
-        // otherwise we get a circular reference in spring and it will not allow custom bean post processing
-        // see more at CAMEL-1663
-        definition.getPropertyValues().addPropertyValue("camelId", contextId);
-        parentBuilder.addPropertyReference("beanPostProcessor", beanPostProcessorId);
     }
 
     protected void registerParser(String name, org.springframework.beans.factory.xml.BeanDefinitionParser parser) {
@@ -203,7 +195,7 @@ public class CamelNamespaceHandler extends NamespaceHandlerSupport {
     protected class RouteContextDefinitionParser extends BeanDefinitionParser {
 
         public RouteContextDefinitionParser() {
-            super(CamelRouteContextFactoryBean.class);
+            super(CamelRouteContextFactoryBean.class, false);
         }
 
         @Override
@@ -231,7 +223,7 @@ public class CamelNamespaceHandler extends NamespaceHandlerSupport {
     protected class CamelContextBeanDefinitionParser extends BeanDefinitionParser {
 
         public CamelContextBeanDefinitionParser(Class type) {
-            super(type);
+            super(type, false);
         }
 
         @Override
@@ -287,7 +279,6 @@ public class CamelNamespaceHandler extends NamespaceHandlerSupport {
                 addDependsOn(factoryBean, builder);
             }
 
-            boolean createdBeanPostProcessor = false;
             NodeList list = element.getChildNodes();
             int size = list.getLength();
             for (int i = 0; i < size; i++) {
@@ -295,10 +286,7 @@ public class CamelNamespaceHandler extends NamespaceHandlerSupport {
                 if (child instanceof Element) {
                     Element childElement = (Element) child;
                     String localName = child.getLocalName();
-                    if (localName.equals("beanPostProcessor")) {
-                        createBeanPostProcessor(parserContext, contextId, childElement, builder);
-                        createdBeanPostProcessor = true;
-                    } else if (localName.equals("endpoint")) {
+                    if (localName.equals("endpoint")) {
                         registerEndpoint(childElement, parserContext, contextId);
                     } else if (localName.equals("routeBuilder")) {
                         addDependsOnToRouteBuilder(childElement, parserContext, contextId);
@@ -329,12 +317,10 @@ public class CamelNamespaceHandler extends NamespaceHandlerSupport {
 
             // lets inject the namespaces into any namespace aware POJOs
             injectNamespaces(element, binder);
-            if (!createdBeanPostProcessor) {
-                // no bean processor element so lets create it by our self
-                Element childElement = element.getOwnerDocument().createElement("beanPostProcessor");
-                element.appendChild(childElement);
-                createBeanPostProcessor(parserContext, contextId, childElement, builder);
-            }
+
+            // inject bean post processor so we can support @Produce etc.
+            // no bean processor element so lets create it by our self
+            injectBeanPostProcessor(element, parserContext, contextId, builder);
         }
     }
 
@@ -365,7 +351,7 @@ public class CamelNamespaceHandler extends NamespaceHandlerSupport {
             try {
                 BeanDefinition definition = parserContext.getRegistry().getBeanDefinition(routeBuilderName);
                 Method getDependsOn = definition.getClass().getMethod("getDependsOn", new Class[]{});
-                String[] dependsOn = (String[])getDependsOn.invoke(definition, new Object[]{});
+                String[] dependsOn = (String[])getDependsOn.invoke(definition);
                 if (dependsOn == null || dependsOn.length == 0) {
                     dependsOn = new String[]{contextId};
                 } else {
@@ -401,6 +387,20 @@ public class CamelNamespaceHandler extends NamespaceHandlerSupport {
                 injectNamespaces(childElement, binder);
             }
         }
+    }
+
+    protected void injectBeanPostProcessor(Element element, ParserContext parserContext, String contextId, BeanDefinitionBuilder builder) {
+        Element childElement = element.getOwnerDocument().createElement("beanPostProcessor");
+        element.appendChild(childElement);
+
+        String beanPostProcessorId = contextId + ":beanPostProcessor";
+        childElement.setAttribute("id", beanPostProcessorId);
+        BeanDefinition definition = beanPostProcessorParser.parse(childElement, parserContext);
+        // only register to camel context id as a String. Then we can look it up later
+        // otherwise we get a circular reference in spring and it will not allow custom bean post processing
+        // see more at CAMEL-1663
+        definition.getPropertyValues().addPropertyValue("camelId", contextId);
+        builder.addPropertyReference("beanPostProcessor", beanPostProcessorId);
     }
 
     /**

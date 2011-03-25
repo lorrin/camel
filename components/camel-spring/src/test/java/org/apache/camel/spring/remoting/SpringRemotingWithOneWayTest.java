@@ -22,18 +22,18 @@ import org.apache.camel.EndpointInject;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.component.mock.MockEndpoint;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit38.AbstractJUnit38SpringContextTests;
 
 /**
- * @version $Revision$
+ * @version 
  */
 @ContextConfiguration
 public class SpringRemotingWithOneWayTest extends AbstractJUnit38SpringContextTests {
-    private static final Log LOG = LogFactory.getLog(SpringRemotingWithOneWayTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SpringRemotingWithOneWayTest.class);
 
     @Autowired
     protected IAsyncService myService;

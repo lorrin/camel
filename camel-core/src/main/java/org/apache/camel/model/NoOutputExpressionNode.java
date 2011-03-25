@@ -31,7 +31,7 @@ import org.apache.camel.model.language.ExpressionDefinition;
  * This node is to be extended by definitions which need to support an expression but the definition should not
  * contain any outputs, such as {@link org.apache.camel.model.TransformDefinition}.
  *
- * @version $Revision$
+ * @version 
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 public class NoOutputExpressionNode extends ExpressionNode {
@@ -56,6 +56,11 @@ public class NoOutputExpressionNode extends ExpressionNode {
     @SuppressWarnings("unchecked")
     public List<ProcessorDefinition> getOutputs() {
         return Collections.EMPTY_LIST;
+    }
+
+    @Override
+    public boolean isOutputSupported() {
+        return false;
     }
 
     @Override

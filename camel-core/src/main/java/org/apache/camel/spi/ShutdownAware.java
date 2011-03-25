@@ -24,7 +24,7 @@ import org.apache.camel.ShutdownRunningTask;
  * chance to have their pending exchanges being completed to support graceful shutdown. This helps
  * ensure that no messages get lost.
  *
- * @version $Revision$
+ * @version 
  * @see org.apache.camel.spi.ShutdownStrategy
  */
 public interface ShutdownAware {
@@ -52,4 +52,11 @@ public interface ShutdownAware {
      * @return number of pending exchanges
      */
     int getPendingExchangesSize();
+
+    /**
+     * Prepares the consumer for shutdown.
+     * <p/>
+     * For example by graceful stopping any threads or the likes.
+     */
+    void prepareShutdown();
 }

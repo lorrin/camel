@@ -23,20 +23,20 @@ import java.util.Locale;
 
 import org.apache.camel.dataformat.bindy.PatternFormat;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DatePatternFormat implements PatternFormat<Date> {
 
-    private static final transient Log LOG = LogFactory.getLog(DatePatternFormat.class);
-
     private String pattern;
+    private Locale locale = Locale.getDefault();
 
     public DatePatternFormat() {
     }
 
-    public DatePatternFormat(String pattern) {
+    public DatePatternFormat(String pattern, Locale locale) {
         this.pattern = pattern;
+        this.locale = locale != null ? locale : Locale.getDefault();
     }
 
     public String format(Date object) throws Exception {
@@ -71,7 +71,7 @@ public class DatePatternFormat implements PatternFormat<Date> {
     }
 
     protected java.text.DateFormat getDateFormat() {
-        return new SimpleDateFormat(this.pattern, Locale.FRANCE);
+        return new SimpleDateFormat(this.pattern, locale);
     }
 
     public String getPattern() {
@@ -86,5 +86,4 @@ public class DatePatternFormat implements PatternFormat<Date> {
     public void setPattern(String pattern) {
         this.pattern = pattern;
     }
-
 }

@@ -33,7 +33,7 @@ import java.util.Set;
  * This map is <b>not</b> designed to be thread safe as concurrent access to it is not supposed to be performed
  * by the Camel routing engine.
  *
- * @version $Revision$
+ * @version 
  */
 public class CaseInsensitiveMap extends HashMap<String, Object> {
     private static final long serialVersionUID = -8538318195477618308L;
@@ -55,17 +55,17 @@ public class CaseInsensitiveMap extends HashMap<String, Object> {
 
     public CaseInsensitiveMap(int initialCapacity, float loadFactor) {
         super(initialCapacity, loadFactor);
-        originalKeys = new HashMap<String, String>(initialCapacity);
+        originalKeys = new HashMap<String, String>(initialCapacity, loadFactor);
     }
 
     public CaseInsensitiveMap(int initialCapacity) {
         super(initialCapacity);
-        originalKeys = new HashMap<String, String>();
+        originalKeys = new HashMap<String, String>(initialCapacity);
     }
 
     @Override
     public Object get(Object key) {
-        String s = key.toString().toLowerCase();
+        String s = assembleKey(key);
         Object answer = super.get(s);
         if (answer == null) {
             // fallback to lookup by original key
@@ -79,16 +79,33 @@ public class CaseInsensitiveMap extends HashMap<String, Object> {
     public synchronized Object put(String key, Object value) {
         // invalidate views as we mutate
         entrySetView = null;
-        String s = key.toLowerCase();
-        originalKeys.put(s, key);
+        String s = assembleKey(key);
+        if (key.startsWith("Camel")) {
+            // use intern String for headers which is Camel* headers
+            // this reduces memory allocations needed for those common headers
+            originalKeys.put(s, key.intern());
+        } else {
+            originalKeys.put(s, key);
+        }
         return super.put(s, value);
     }
 
     @Override
     public synchronized void putAll(Map<? extends String, ?> map) {
+        entrySetView = null;
         if (map != null && !map.isEmpty()) {
             for (Map.Entry<? extends String, ?> entry : map.entrySet()) {
-                put(entry.getKey(), entry.getValue());
+                String key = entry.getKey();
+                Object value = entry.getValue();
+                String s = assembleKey(key);
+                if (key.startsWith("Camel")) {
+                    // use intern String for headers which is Camel* headers
+                    // this reduces memory allocations needed for those common headers
+                    originalKeys.put(s, key.intern());
+                } else {
+                    originalKeys.put(s, key);
+                }
+                super.put(s, value);
             }
         }
     }
@@ -101,7 +118,7 @@ public class CaseInsensitiveMap extends HashMap<String, Object> {
 
         // invalidate views as we mutate
         entrySetView = null;
-        String s = key.toString().toLowerCase();
+        String s = assembleKey(key);
         originalKeys.remove(s);
         return super.remove(s);
     }
@@ -120,8 +137,18 @@ public class CaseInsensitiveMap extends HashMap<String, Object> {
             return false;
         }
 
-        String s = key.toString().toLowerCase();
+        String s = assembleKey(key);
         return super.containsKey(s);
+    }
+
+    private static String assembleKey(Object key) {
+        String s = key.toString().toLowerCase();
+        if (s.startsWith("camel")) {
+            // use intern String for headers which is Camel* headers
+            // this reduces memory allocations needed for those common headers
+            s = s.intern();
+        }
+        return s;
     }
 
     @Override

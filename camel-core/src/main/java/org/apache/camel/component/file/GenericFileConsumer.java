@@ -34,14 +34,14 @@ import org.apache.camel.util.CastUtils;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.StopWatch;
 import org.apache.camel.util.TimeUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base class for remote file consumers.
  */
 public abstract class GenericFileConsumer<T> extends ScheduledPollConsumer implements BatchConsumer, ShutdownAware {
-    protected final transient Log log = LogFactory.getLog(getClass());
+    protected final transient Logger log = LoggerFactory.getLogger(getClass());
     protected GenericFileEndpoint<T> endpoint;
     protected GenericFileOperations<T> operations;
     protected boolean loggedIn;
@@ -59,7 +59,7 @@ public abstract class GenericFileConsumer<T> extends ScheduledPollConsumer imple
     /**
      * Poll for files
      */
-    protected void poll() throws Exception {
+    protected int poll() throws Exception {
         // must reset for each poll
         fileExpressionResult = null;
         shutdownRunningTask = null;
@@ -71,7 +71,7 @@ public abstract class GenericFileConsumer<T> extends ScheduledPollConsumer imple
             if (log.isDebugEnabled()) {
                 log.debug("Skipping poll as pre poll check returned false");
             }
-            return;
+            return 0;
         }
 
         // gather list of files to process
@@ -118,9 +118,11 @@ public abstract class GenericFileConsumer<T> extends ScheduledPollConsumer imple
         }
 
         Queue<Exchange> q = exchanges;
-        processBatch(CastUtils.cast(q));
+        int polledMessages = processBatch(CastUtils.cast(q));
 
         postPollCheck();
+
+        return polledMessages;
     }
 
     public void setMaxMessagesPerPoll(int maxMessagesPerPoll) {
@@ -128,7 +130,7 @@ public abstract class GenericFileConsumer<T> extends ScheduledPollConsumer imple
     }
 
     @SuppressWarnings("unchecked")
-    public void processBatch(Queue<Object> exchanges) {
+    public int processBatch(Queue<Object> exchanges) {
         int total = exchanges.size();
 
         // limit if needed
@@ -162,6 +164,8 @@ public abstract class GenericFileConsumer<T> extends ScheduledPollConsumer imple
             String key = file.getAbsoluteFilePath();
             endpoint.getInProgressRepository().remove(key);
         }
+
+        return total;
     }
 
     public boolean deferShutdown(ShutdownRunningTask shutdownRunningTask) {
@@ -178,6 +182,10 @@ public abstract class GenericFileConsumer<T> extends ScheduledPollConsumer imple
         } else {
             return 0;
         }
+    }
+
+    public void prepareShutdown() {
+        // noop
     }
 
     public boolean isBatchAllowed() {
@@ -419,6 +427,29 @@ public abstract class GenericFileConsumer<T> extends ScheduledPollConsumer imple
                 if (!name.equals(fileExpressionResult)) {
                     return false;
                 }
+            }
+        }
+
+        // if done file name is enabled, then the file is only valid if a done file exists
+        if (endpoint.getDoneFileName() != null) {
+            // done file must be in same path as the file
+            String doneFileName = endpoint.createDoneFileName(file.getAbsoluteFilePath());
+            ObjectHelper.notEmpty(doneFileName, "doneFileName", endpoint);
+
+            // is it a done file name?
+            if (endpoint.isDoneFile(file.getFileNameOnly())) {
+                if (log.isTraceEnabled()) {
+                    log.trace("Skipping done file: " + file);
+                }
+                return false;
+            }
+
+            // the file is only valid if the done file exist
+            if (!operations.existsFile(doneFileName)) {
+                if (log.isTraceEnabled()) {
+                    log.trace("Done file: " + doneFileName + " does not exist");
+                }
+                return false;
             }
         }
 

@@ -23,21 +23,20 @@ import org.apache.camel.Component;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.apache.camel.Service;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.util.EndpointHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A <a href="http://camel.apache.org/test.html">Test Endpoint</a> is a
  * <a href="http://camel.apache.org/mock.html">Mock Endpoint</a> for testing but it will
  * pull all messages from the nested endpoint and use those as expected message body assertions.
  *
- * @version $Revision$
+ * @version 
  */
-public class TestEndpoint extends MockEndpoint implements Service {
-    private static final transient Log LOG = LogFactory.getLog(TestEndpoint.class);
+public class TestEndpoint extends MockEndpoint {
+    private static final transient Logger LOG = LoggerFactory.getLogger(TestEndpoint.class);
     private final Endpoint expectedMessageEndpoint;
     private long timeout = 2000L;
 
@@ -46,12 +45,12 @@ public class TestEndpoint extends MockEndpoint implements Service {
         this.expectedMessageEndpoint = expectedMessageEndpoint;
     }
 
-    @SuppressWarnings("unchecked")
-    public void start() throws Exception {
+    @Override
+    protected void doStart() throws Exception {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Consuming expected messages from: " + expectedMessageEndpoint);
         }
-        final List expectedBodies = new ArrayList();
+        final List<Object> expectedBodies = new ArrayList<Object>();
         EndpointHelper.pollEndpoint(expectedMessageEndpoint, new Processor() {
             public void process(Exchange exchange) throws Exception {
                 Object body = getInBody(exchange);
@@ -63,9 +62,6 @@ public class TestEndpoint extends MockEndpoint implements Service {
             LOG.debug("Received: " + expectedBodies.size() + " expected message(s) from: " + expectedMessageEndpoint);
         }
         expectedBodiesReceived(expectedBodies);
-    }
-
-    public void stop() throws Exception {
     }
 
     /**

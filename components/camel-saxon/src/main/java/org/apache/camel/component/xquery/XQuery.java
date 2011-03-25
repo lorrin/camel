@@ -29,7 +29,7 @@ import org.apache.camel.language.NamespacePrefix;
  * An annotation for injection of an XQuery expressions into a field, property, method or parameter when using
  * <a href="http://camel.apache.org/bean-integration.html">Bean Integration</a>.
  *
- * @version $Revision$
+ * @version 
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
@@ -37,8 +37,10 @@ import org.apache.camel.language.NamespacePrefix;
 @LanguageAnnotation(language = "xquery", factory = XQueryAnnotationExpressionFactory.class)
 public @interface XQuery {
     String value();
+    boolean stripsAllWhiteSpace() default true;
 
     NamespacePrefix[] namespaces() default {
-    @NamespacePrefix(prefix = "soap", uri = "http://www.w3.org/2003/05/soap-envelope"),
-    @NamespacePrefix(prefix = "xsd", uri = "http://www.w3.org/2001/XMLSchema")};
+        @NamespacePrefix(prefix = "soap", uri = "http://www.w3.org/2003/05/soap-envelope"),
+        @NamespacePrefix(prefix = "xsd", uri = "http://www.w3.org/2001/XMLSchema")
+    };
 }

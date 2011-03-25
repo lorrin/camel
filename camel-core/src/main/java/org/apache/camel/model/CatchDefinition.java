@@ -40,16 +40,16 @@ import static org.apache.camel.builder.PredicateBuilder.toPredicate;
 /**
  * Represents an XML &lt;catch/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "doCatch")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class CatchDefinition extends ProcessorDefinition<CatchDefinition> {
     @XmlElement(name = "exception")
     private List<String> exceptions = new ArrayList<String>();
-    @XmlElement(name = "onWhen", required = false)
+    @XmlElement(name = "onWhen")
     private WhenDefinition onWhen;
-    @XmlElement(name = "handled", required = false)
+    @XmlElement(name = "handled")
     private ExpressionSubElementDefinition handled;
     @XmlElementRef
     private List<ProcessorDefinition> outputs = new ArrayList<ProcessorDefinition>();
@@ -116,6 +116,10 @@ public class CatchDefinition extends ProcessorDefinition<CatchDefinition> {
         this.outputs = outputs;
     }
 
+    public boolean isOutputSupported() {
+        return true;
+    }
+
     public List<Class> getExceptionClasses() {
         if (exceptionClasses == null) {
             exceptionClasses = createExceptionClasses();
@@ -175,7 +179,9 @@ public class CatchDefinition extends ProcessorDefinition<CatchDefinition> {
      *
      * @param handled  handled or not
      * @return the builder
+     * @deprecated will be removed in Camel 3.0
      */
+    @Deprecated
     public CatchDefinition handled(boolean handled) {
         Expression expression = ExpressionBuilder.constantExpression(Boolean.toString(handled));
         return handled(expression);
@@ -186,7 +192,9 @@ public class CatchDefinition extends ProcessorDefinition<CatchDefinition> {
      *
      * @param handled  predicate that determines true or false
      * @return the builder
+     * @deprecated will be removed in Camel 3.0
      */
+    @Deprecated
     public CatchDefinition handled(Predicate handled) {
         setHandledPolicy(handled);
         return this;
@@ -197,7 +205,9 @@ public class CatchDefinition extends ProcessorDefinition<CatchDefinition> {
      *
      * @param handled  expression that determines true or false
      * @return the builder
+     * @deprecated will be removed in Camel 3.0
      */
+    @Deprecated
     public CatchDefinition handled(Expression handled) {
         setHandledPolicy(toPredicate(handled));
         return this;

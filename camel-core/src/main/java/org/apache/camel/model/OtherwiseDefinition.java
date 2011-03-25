@@ -28,11 +28,14 @@ import org.apache.camel.util.CollectionStringBuffer;
 /**
  * Represents an XML &lt;otherwise/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "otherwise")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class OtherwiseDefinition extends OutputDefinition<OtherwiseDefinition> implements Block {
+
+    public OtherwiseDefinition() {
+    }
 
     @Override
     public String toString() {

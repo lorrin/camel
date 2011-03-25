@@ -26,8 +26,8 @@ import org.apache.camel.spi.Synchronization;
 import org.apache.camel.util.CamelContextHelper;
 import org.apache.camel.util.ServiceHelper;
 import org.apache.camel.util.UnitOfWorkHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.camel.util.ObjectHelper.wrapRuntimeCamelException;
 
@@ -36,11 +36,11 @@ import static org.apache.camel.util.ObjectHelper.wrapRuntimeCamelException;
  * et al) for working with Camel and consuming {@link org.apache.camel.Message} instances in an
  * {@link Exchange} from an {@link Endpoint}.
  *
- * @version $Revision$
+ * @version 
  */
 public class DefaultConsumerTemplate extends ServiceSupport implements ConsumerTemplate {
 
-    private static final transient Log LOG = LogFactory.getLog(DefaultConsumerTemplate.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(DefaultConsumerTemplate.class);
     private final CamelContext context;
     private ConsumerCache consumerCache;
     private int maximumCacheSize;
@@ -191,6 +191,26 @@ public class DefaultConsumerTemplate extends ServiceSupport implements ConsumerT
         return receiveBodyNoWait(endpoint.getEndpointUri(), type);
     }
 
+    public void doneUoW(Exchange exchange) {
+        try {
+            // The receiveBody method will get a null exchange
+            if (exchange == null) {
+                return;
+            }
+            if (exchange.getUnitOfWork() == null) {
+                // handover completions and done them manually to ensure they are being executed
+                List<Synchronization> synchronizations = exchange.handoverCompletions();
+                UnitOfWorkHelper.doneSynchronizations(exchange, synchronizations, LOG);
+            } else {
+                // done the unit of work
+                exchange.getUnitOfWork().done(exchange);
+            }
+        } catch (Throwable e) {
+            LOG.warn("Exception occurred during done UnitOfWork for Exchange: " + exchange
+                    + ". This exception will be ignored.", e);
+        }
+    }
+
     protected Endpoint resolveMandatoryEndpoint(String endpointUri) {
         return CamelContextHelper.getMandatoryEndpoint(context, endpointUri);
     }
@@ -222,26 +242,6 @@ public class DefaultConsumerTemplate extends ServiceSupport implements ConsumerT
             }
         }
         return answer;
-    }
-
-    private static void doneUoW(Exchange exchange) {
-        try {
-            // The receiveBody method will get a null exchange
-            if (exchange == null) {
-                return;
-            }
-            if (exchange.getUnitOfWork() == null) {
-                // handover completions and done them manually to ensure they are being executed
-                List<Synchronization> synchronizations = exchange.handoverCompletions();
-                UnitOfWorkHelper.doneSynchronizations(exchange, synchronizations, LOG);
-            } else {
-                // done the unit of work
-                exchange.getUnitOfWork().done(exchange);
-            }
-        } catch (Throwable e) {
-            LOG.warn("Exception occurred during done UnitOfWork for Exchange: " + exchange
-                    + ". This exception will be ignored.", e);
-        }
     }
 
     private ConsumerCache getConsumerCache() {

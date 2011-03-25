@@ -27,21 +27,22 @@ import java.util.Set;
 import org.apache.camel.dataformat.bindy.util.AnnotationModelLoader;
 import org.apache.camel.spi.PackageScanClassResolver;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The {@link BindyAbstractFactory} implements what its common to all the formats
- * supported by camel bindy
+ * supported by Camel Bindy
  */
 public abstract class BindyAbstractFactory implements BindyFactory {
-    private static final transient Log LOG = LogFactory.getLog(BindyAbstractFactory.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(BindyAbstractFactory.class);
+    protected final Map<String, List<Field>> annotatedLinkFields = new LinkedHashMap<String, List<Field>>();
     protected Set<Class<?>> models;
-    protected Map<String, List<Field>> annotedLinkFields = new LinkedHashMap<String, List<Field>>();
     protected String crlf;
 
     private AnnotationModelLoader modelsLoader;
     private String[] packageNames;
+    private String locale;
 
     public BindyAbstractFactory(PackageScanClassResolver resolver, String... packageNames) throws Exception {
         this.modelsLoader = new AnnotationModelLoader(resolver);
@@ -49,7 +50,7 @@ public abstract class BindyAbstractFactory implements BindyFactory {
 
         if (LOG.isDebugEnabled()) {
             for (String str : this.packageNames) {
-                LOG.debug("Package name : " + str);
+                LOG.debug("Package name: " + str);
             }
         }
 
@@ -78,7 +79,7 @@ public abstract class BindyAbstractFactory implements BindyFactory {
     /**
      * Find fields annotated in each class of the model
      */
-    public abstract void initAnnotedFields() throws Exception;
+    public abstract void initAnnotatedFields() throws Exception;
 
     public abstract void bind(List<String> data, Map<String, Object> model, int line) throws Exception;
     
@@ -90,8 +91,8 @@ public abstract class BindyAbstractFactory implements BindyFactory {
     public void link(Map<String, Object> model) throws Exception {
 
         // Iterate class by class
-        for (String link : annotedLinkFields.keySet()) {
-            List<Field> linkFields = annotedLinkFields.get(link);
+        for (String link : annotatedLinkFields.keySet()) {
+            List<Field> linkFields = annotatedLinkFields.get(link);
 
             // Iterate through Link fields list
             for (Field field : linkFields) {
@@ -146,7 +147,7 @@ public abstract class BindyAbstractFactory implements BindyFactory {
             key2Formated = getNumberFormat().format((long) key2);
             keyGenerated = String.valueOf(key1) + key2Formated;
         } else {
-            throw new IllegalArgumentException("@Section and/or @KeyValuePairDataField have not been defined !");
+            throw new IllegalArgumentException("@Section and/or @KeyValuePairDataField have not been defined!");
         }
 
         return Integer.valueOf(keyGenerated);
@@ -195,28 +196,27 @@ public abstract class BindyAbstractFactory implements BindyFactory {
     
     /**
      * Format the object into a string according to the format rue defined
-     * 
-     * @param format
-     * @param value
-     * @return String
-     * @throws Exception
      */
+    @SuppressWarnings("unchecked")
     public String formatString(Format format, Object value) throws Exception {
-
         String strValue = "";
 
         if (value != null) {
-
-            // Format field value
             try {
                 strValue = format.format(value);
             } catch (Exception e) {
-                throw new IllegalArgumentException("Formatting error detected for the value : " + value, e);
+                throw new IllegalArgumentException("Formatting error detected for the value: " + value, e);
             }
-
         }
 
         return strValue;
+    }
 
+    public String getLocale() {
+        return locale;
+    }
+
+    public void setLocale(String locale) {
+        this.locale = locale;
     }
 }

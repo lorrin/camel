@@ -20,16 +20,16 @@ import org.apache.camel.Consume;
 import org.apache.camel.EndpointInject;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An example POJO which is injected with a CamelTemplate
  *
- * @version $Revision$
+ * @version 
  */
 public class MyConsumer {
-    private static final Log LOG = LogFactory.getLog(MyConsumer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MyConsumer.class);
     @EndpointInject(uri = "mock:result")
     private ProducerTemplate destination;
 

@@ -27,12 +27,12 @@ import org.apache.camel.spi.DataFormat;
 /**
  * Represents a CSV (Comma Separated Values) {@link org.apache.camel.spi.DataFormat}
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "csv")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class CsvDataFormat extends DataFormatDefinition {
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String delimiter;
 
     public CsvDataFormat() {

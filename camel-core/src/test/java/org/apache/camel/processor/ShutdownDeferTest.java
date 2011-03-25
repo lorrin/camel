@@ -23,7 +23,7 @@ import org.apache.camel.component.mock.MockEndpoint;
 import static org.apache.camel.ShutdownRoute.Defer;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class ShutdownDeferTest extends ContextTestSupport {
 
@@ -48,10 +48,12 @@ public class ShutdownDeferTest extends ContextTestSupport {
 
         assertMockEndpointsSatisfied();
 
+        Thread.sleep(50);
+
         context.stop();
 
-        // should route about 4 - 5 (in some rare cases it will only route 4)
-        assertTrue("Should complete all messages, was " + bar.getReceivedCounter(), bar.getReceivedCounter() >= 4);
+        // should route all 5
+        assertEquals(5, bar.getReceivedCounter());
     }
 
     @Override
@@ -62,7 +64,7 @@ public class ShutdownDeferTest extends ContextTestSupport {
             public void configure() throws Exception {
                 from("seda:foo")
                     .startupOrder(1)
-                    .delay(1000).to("file://target/deferred");
+                    .to("file://target/deferred");
 
                 // use file component to transfer files from route 1 -> route 2 as it
                 // will normally suspend, but by deferring this we can let route 1

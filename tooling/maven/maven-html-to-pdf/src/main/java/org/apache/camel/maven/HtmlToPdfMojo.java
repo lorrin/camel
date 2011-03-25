@@ -25,6 +25,13 @@ import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathFactory;
+
+import org.w3c.dom.Node;
+
+import org.apache.camel.converter.jaxp.XmlConverter;
 import org.apache.camel.dataformat.tagsoup.TidyMarkupDataFormat;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -35,8 +42,6 @@ import org.codehaus.plexus.util.cli.CommandLineUtils;
 import org.codehaus.plexus.util.cli.Commandline;
 import org.codehaus.plexus.util.cli.Commandline.Argument;
 import org.codehaus.plexus.util.cli.StreamConsumer;
-
-
 
 /**
  * Goal which extracts the content div from the html page and converts to PDF
@@ -51,7 +56,6 @@ public class HtmlToPdfMojo extends AbstractMojo {
      * The URL to the confluence page to convert.
      *
      * @parameter expression="${page}"
-     *            default-value="http://cwiki.apache.org/confluence/display/CAMEL/Index"
      * @required
      */
     private String page;
@@ -278,7 +282,6 @@ public class HtmlToPdfMojo extends AbstractMojo {
 
     private String downloadContent() throws MalformedURLException, MojoExecutionException {
         String contentTag = "<div class=\"" + contentDivClass + "\"";
-        String content = "";
 
         getLog().info("Downloading: " + page);
         URL url = new URL(page);        
@@ -286,7 +289,12 @@ public class HtmlToPdfMojo extends AbstractMojo {
         try {
             TidyMarkupDataFormat dataFormat = new TidyMarkupDataFormat();
             dataFormat.setMethod("html");
-            content = dataFormat.asStringTidyMarkup(new BufferedInputStream(url.openStream()));
+            Node doc = dataFormat.asNodeTidyMarkup(new BufferedInputStream(url.openStream()));
+            XPath xpath = XPathFactory.newInstance().newXPath();
+            Node nd = (Node)xpath.evaluate("//div[@class='" + contentDivClass + "']", doc, XPathConstants.NODE);
+            if (nd != null) {
+                return  new XmlConverter().toString(nd, null);
+            }
         } catch (Throwable e) {
             if (errorOnDownloadFailure) {
                 throw new MojoExecutionException("Download or validation of '" + page + "' failed: " + e);
@@ -294,18 +302,7 @@ public class HtmlToPdfMojo extends AbstractMojo {
                 getLog().error("Download or validation of '" + page + "' failed: " + e);
                 return null;
             }
-        }
-
-        int contentStart = content.indexOf(contentTag);
-        if (contentStart > 0) {
-            int contentEnd = content.indexOf(contentTag, contentStart + 1);
-            if (contentEnd > 0) {
-                return content.substring(contentStart, contentEnd);
-            } else {
-                return content.substring(contentStart);
-            }
-        }
-        
+        }        
         throw new MojoExecutionException("The '" + page + "' page did not have a " + contentTag + " element.");
     }
 

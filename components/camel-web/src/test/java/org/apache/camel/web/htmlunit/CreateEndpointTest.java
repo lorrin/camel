@@ -20,9 +20,10 @@ import java.util.List;
 
 import org.apache.camel.web.htmlunit.pages.EndpointsPage;
 import org.apache.camel.web.htmlunit.pages.SendMessagePage;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.openqa.selenium.WebElement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -34,10 +35,10 @@ import static org.openqa.selenium.lift.Matchers.atLeast;
 import static org.openqa.selenium.lift.Matchers.text;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class CreateEndpointTest extends HtmlTestSupport {
-    private static final transient Log LOG = LogFactory.getLog(CreateEndpointTest.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(CreateEndpointTest.class);
 
     protected String newEndpointUri = "mock:myNewlyCreatedEndpoint";
     protected String messageBody = "hello world!";

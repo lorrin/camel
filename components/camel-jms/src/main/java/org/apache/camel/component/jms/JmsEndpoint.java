@@ -18,7 +18,9 @@ package org.apache.camel.component.jms;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
 import javax.jms.ExceptionListener;
@@ -44,11 +46,13 @@ import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.impl.SynchronousDelegateProducer;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
-import org.apache.camel.spi.ManagementAware;
+import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.ServiceHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.jms.core.JmsOperations;
-import org.springframework.jms.listener.AbstractMessageListenerContainer;
+import org.springframework.jms.listener.DefaultMessageListenerContainer;
 import org.springframework.jms.support.converter.MessageConverter;
 import org.springframework.jms.support.destination.DestinationResolver;
 import org.springframework.jmx.export.annotation.ManagedAttribute;
@@ -58,10 +62,11 @@ import org.springframework.transaction.PlatformTransactionManager;
 /**
  * A <a href="http://activemq.apache.org/jms.html">JMS Endpoint</a>
  *
- * @version $Revision:520964 $
+ * @version 
  */
 @ManagedResource(description = "Managed JMS Endpoint")
-public class JmsEndpoint extends DefaultEndpoint implements HeaderFilterStrategyAware, ManagementAware<JmsEndpoint>, MultipleConsumersSupport, Service {
+public class JmsEndpoint extends DefaultEndpoint implements HeaderFilterStrategyAware, MultipleConsumersSupport, Service {
+    protected final Logger log = LoggerFactory.getLogger(getClass());
     private HeaderFilterStrategy headerFilterStrategy;
     private boolean pubSubDomain;
     private JmsBinding binding;
@@ -73,6 +78,7 @@ public class JmsEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
     private ReplyManager replyManager;
     // scheduled executor to check for timeout (reply not received)
     private ScheduledExecutorService replyManagerExecutorService;
+    private final AtomicBoolean running = new AtomicBoolean();
 
     public JmsEndpoint() {
         this(null, null);
@@ -147,15 +153,15 @@ public class JmsEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
     }
 
     public JmsConsumer createConsumer(Processor processor) throws Exception {
-        AbstractMessageListenerContainer listenerContainer = configuration.createMessageListenerContainer(this);
+        DefaultMessageListenerContainer listenerContainer = createMessageListenerContainer();
         return createConsumer(processor, listenerContainer);
     }
 
-    public AbstractMessageListenerContainer createMessageListenerContainer() {
+    public DefaultMessageListenerContainer createMessageListenerContainer() throws Exception {
         return configuration.createMessageListenerContainer(this);
     }
 
-    public void configureListenerContainer(AbstractMessageListenerContainer listenerContainer) {
+    public void configureListenerContainer(DefaultMessageListenerContainer listenerContainer, JmsConsumer consumer) {
         if (destinationName != null) {
             listenerContainer.setDestinationName(destinationName);
         } else if (destination != null) {
@@ -169,6 +175,29 @@ public class JmsEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
             }
         }
         listenerContainer.setPubSubDomain(pubSubDomain);
+
+        if (configuration.getTaskExecutor() != null) {
+            if (log.isDebugEnabled()) {
+                log.debug("Using custom TaskExecutor: " + configuration.getTaskExecutor() + " on listener container: " + listenerContainer);
+            }
+            listenerContainer.setTaskExecutor(configuration.getTaskExecutor());
+        } else {
+            // include destination name as part of thread name
+            String name = "JmsConsumer[" + getEndpointConfiguredDestinationName() + "]";
+            // use a cached pool as DefaultMessageListenerContainer will throttle pool sizing
+            ExecutorService executor = getCamelContext().getExecutorServiceStrategy().newCachedThreadPool(consumer, name);
+            listenerContainer.setTaskExecutor(executor);
+        }
+    }
+
+    /**
+     * Gets the destination name which was configured from the endpoint uri.
+     *
+     * @return the destination name resolved from the endpoint uri
+     */
+    public String getEndpointConfiguredDestinationName() {
+        String remainder = ObjectHelper.after(getEndpointKey(), "//");
+        return JmsMessageHelper.normalizeDestinationName(remainder);
     }
 
     /**
@@ -179,9 +208,10 @@ public class JmsEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
      * @return a newly created consumer
      * @throws Exception if the consumer cannot be created
      */
-    public JmsConsumer createConsumer(Processor processor, AbstractMessageListenerContainer listenerContainer) throws Exception {
-        configureListenerContainer(listenerContainer);
-        return new JmsConsumer(this, processor, listenerContainer);
+    public JmsConsumer createConsumer(Processor processor, DefaultMessageListenerContainer listenerContainer) throws Exception {
+        JmsConsumer consumer = new JmsConsumer(this, processor, listenerContainer);
+        configureListenerContainer(listenerContainer, consumer);
+        return consumer;
     }
 
     @Override
@@ -215,10 +245,6 @@ public class JmsEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
      */
     public JmsOperations createInOutTemplate() {
         return configuration.createInOutTemplate(this, pubSubDomain, destinationName, configuration.getRequestTimeout());
-    }
-
-    public Object getManagedObject(JmsEndpoint endpoint) {
-        return this;
     }
 
     public boolean isMultipleConsumersSupported() {
@@ -373,15 +399,28 @@ public class JmsEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
 
     protected synchronized ScheduledExecutorService getReplyManagerExecutorService() {
         if (replyManagerExecutorService == null) {
-            replyManagerExecutorService = getCamelContext().getExecutorServiceStrategy().newScheduledThreadPool(this, "JmsReplyManagerTimeoutChecker", 1);
+            String name = "JmsReplyManagerTimeoutChecker[" + getEndpointConfiguredDestinationName() + "]";
+            replyManagerExecutorService = getCamelContext().getExecutorServiceStrategy().newScheduledThreadPool(name, name, 1);
         }
         return replyManagerExecutorService;
     }
 
-    public void start() throws Exception {
+    /**
+     * State whether this endpoint is running (eg started)
+     */
+    protected boolean isRunning() {
+        return running.get();
     }
 
-    public void stop() throws Exception {
+    @Override
+    protected void doStart() throws Exception {
+        running.set(true);
+    }
+
+    @Override
+    protected void doStop() throws Exception {
+        running.set(false);
+
         if (replyManager != null) {
             ServiceHelper.stopService(replyManager);
             replyManager = null;
@@ -429,10 +468,6 @@ public class JmsEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
 
     public ConnectionFactory getConnectionFactory() {
         return getConfiguration().getConnectionFactory();
-    }
-
-    public ConsumerType getConsumerType() {
-        return getConfiguration().getConsumerType();
     }
 
     public DestinationResolver getDestinationResolver() {
@@ -511,10 +546,6 @@ public class JmsEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
 
     public TaskExecutor getTaskExecutor() {
         return getConfiguration().getTaskExecutor();
-    }
-
-    public Object getTaskExecutorSpring2() {
-        return getConfiguration().getTaskExecutorSpring2();
     }
 
     public ConnectionFactory getTemplateConnectionFactory() {
@@ -674,10 +705,6 @@ public class JmsEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
         getConfiguration().setConnectionFactory(connectionFactory);
     }
 
-    public void setConsumerType(ConsumerType consumerType) {
-        getConfiguration().setConsumerType(consumerType);
-    }
-
     @ManagedAttribute
     public void setDeliveryPersistent(boolean deliveryPersistent) {
         getConfiguration().setDeliveryPersistent(deliveryPersistent);
@@ -815,10 +842,6 @@ public class JmsEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
         getConfiguration().setTaskExecutor(taskExecutor);
     }
 
-    public void setTaskExecutorSpring2(Object taskExecutor) {
-        getConfiguration().setTaskExecutorSpring2(taskExecutor);
-    }
-
     public void setTemplateConnectionFactory(ConnectionFactory templateConnectionFactory) {
         getConfiguration().setTemplateConnectionFactory(templateConnectionFactory);
     }
@@ -901,6 +924,16 @@ public class JmsEndpoint extends DefaultEndpoint implements HeaderFilterStrategy
     @ManagedAttribute
     public void setTestConnectionOnStartup(boolean testConnectionOnStartup) {
         configuration.setTestConnectionOnStartup(testConnectionOnStartup);
+    }
+
+    @ManagedAttribute
+    public boolean isForceSendOriginalMessage() {
+        return configuration.isForceSendOriginalMessage();
+    }
+
+    @ManagedAttribute
+    public void setForceSendOriginalMessage(boolean forceSendOriginalMessage) {
+        configuration.setForceSendOriginalMessage(forceSendOriginalMessage);
     }
 
     @ManagedAttribute(description = "Camel id")

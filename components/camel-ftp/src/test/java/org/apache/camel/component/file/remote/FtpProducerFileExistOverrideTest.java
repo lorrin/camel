@@ -23,7 +23,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class FtpProducerFileExistOverrideTest extends FtpServerTestSupport {
 
@@ -35,8 +35,6 @@ public class FtpProducerFileExistOverrideTest extends FtpServerTestSupport {
     @Before
     public void setUp() throws Exception {
         super.setUp();
-        deleteDirectory("target/exist");
-
         template.sendBodyAndHeader(getFtpUrl(), "Hello World", Exchange.FILE_NAME, "hello.txt");
     }
 

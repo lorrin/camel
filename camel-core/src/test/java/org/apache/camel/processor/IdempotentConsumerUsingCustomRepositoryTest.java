@@ -29,7 +29,7 @@ import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.spi.IdempotentRepository;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class IdempotentConsumerUsingCustomRepositoryTest extends ContextTestSupport {
     protected Endpoint startEndpoint;
@@ -89,8 +89,7 @@ public class IdempotentConsumerUsingCustomRepositoryTest extends ContextTestSupp
     }
 
     private final class MyRepo implements IdempotentRepository<String> {
-
-        private Map<String, String> cache = new HashMap<String, String>();
+        private final Map<String, String> cache = new HashMap<String, String>();
 
         private MyRepo() {
             // pre start with 4 already in there
@@ -117,6 +116,14 @@ public class IdempotentConsumerUsingCustomRepositoryTest extends ContextTestSupp
         public boolean confirm(String key) {
             // noop
             return true;
+        }
+
+        public void start() throws Exception {
+            // noop
+        }
+
+        public void stop() throws Exception {
+            // noop
         }
     }
 

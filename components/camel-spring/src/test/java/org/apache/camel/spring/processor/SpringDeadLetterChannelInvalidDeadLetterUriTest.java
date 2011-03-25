@@ -23,7 +23,7 @@ import org.springframework.context.support.AbstractXmlApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class SpringDeadLetterChannelInvalidDeadLetterUriTest extends SpringTestSupport {
 
@@ -38,7 +38,7 @@ public class SpringDeadLetterChannelInvalidDeadLetterUriTest extends SpringTestS
             fail("Should have thrown an exception");
         } catch (Exception e) {
             NoSuchEndpointException cause = assertIsInstanceOf(NoSuchEndpointException.class, e.getCause().getCause());
-            assertEquals("No endpoint could be found for: xxx, please check your classpath contains the needed camel component jar.", cause.getMessage());
+            assertEquals("No endpoint could be found for: xxx, please check your classpath contains the needed Camel component jar.", cause.getMessage());
         }
     }
 

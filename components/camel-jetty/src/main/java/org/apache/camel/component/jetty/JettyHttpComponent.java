@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.management.MBeanServer;
+import javax.servlet.Filter;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
@@ -38,8 +39,6 @@ import org.apache.camel.util.CastUtils;
 import org.apache.camel.util.IntrospectionSupport;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.URISupport;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.eclipse.jetty.client.Address;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.jmx.MBeanContainer;
@@ -55,22 +54,25 @@ import org.eclipse.jetty.server.ssl.SslSelectChannelConnector;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.servlets.MultiPartFilter;
 import org.eclipse.jetty.util.component.LifeCycle;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.eclipse.jetty.util.thread.ThreadPool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An HttpComponent which starts an embedded Jetty for to handle consuming from
  * the http endpoints.
  *
- * @version $Revision$
+ * @version 
  */
 public class JettyHttpComponent extends HttpComponent {
     public static final String TMP_DIR = "CamelJettyTempDir";
     
     protected static final HashMap<String, ConnectorRef> CONNECTORS = new HashMap<String, ConnectorRef>();
    
-    private static final transient Log LOG = LogFactory.getLog(JettyHttpComponent.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(JettyHttpComponent.class);
     private static final String JETTY_SSL_KEYSTORE = "org.eclipse.jetty.ssl.keystore";
     private static final String JETTY_SSL_KEYPASSWORD = "org.eclipse.jetty.ssl.keypassword";
     private static final String JETTY_SSL_PASSWORD = "org.eclipse.jetty.ssl.password";
@@ -91,6 +93,9 @@ public class JettyHttpComponent extends HttpComponent {
     protected ThreadPool threadPool;
     protected MBeanContainer mbContainer;
     protected boolean enableJmx;
+    protected JettyHttpBinding jettyHttpBinding;
+    protected Long continuationTimeout;
+    protected boolean useContinuation = true;
 
     class ConnectorRef {
         Server server;
@@ -126,12 +131,17 @@ public class JettyHttpComponent extends HttpComponent {
         // must extract well known parameters before we create the endpoint
         List<Handler> handlerList = resolveAndRemoveReferenceListParameter(parameters, "handlers", Handler.class);
         HttpBinding binding = resolveAndRemoveReferenceParameter(parameters, "httpBindingRef", HttpBinding.class);
+        JettyHttpBinding jettyBinding = resolveAndRemoveReferenceParameter(parameters, "jettyHttpBindingRef", JettyHttpBinding.class);
         Boolean throwExceptionOnFailure = getAndRemoveParameter(parameters, "throwExceptionOnFailure", Boolean.class);
+        Boolean transferException = getAndRemoveParameter(parameters, "transferException", Boolean.class);
         Boolean bridgeEndpoint = getAndRemoveParameter(parameters, "bridgeEndpoint", Boolean.class);
         Boolean matchOnUriPrefix = getAndRemoveParameter(parameters, "matchOnUriPrefix", Boolean.class);
         Boolean enableJmx = getAndRemoveParameter(parameters, "enableJmx", Boolean.class);
         Boolean enableMultipartFilter = getAndRemoveParameter(parameters, "enableMultipartFilter",
                                                               Boolean.class, true);
+        Filter multipartFilter = resolveAndRemoveReferenceParameter(parameters, "multipartFilterRef", Filter.class);
+        Long continuationTimeout = getAndRemoveParameter(parameters, "continuationTimeout", Long.class);
+        Boolean useContinuation = getAndRemoveParameter(parameters, "useContinuation", Boolean.class);
 
         // configure http client if we have url configuration for it
         // http client is only used for jetty http producer (hence not very commonly used)
@@ -171,9 +181,21 @@ public class JettyHttpComponent extends HttpComponent {
         if (binding != null) {
             endpoint.setBinding(binding);
         }
+        // prefer to use endpoint configured over component configured
+        if (jettyBinding == null) {
+            // fallback to component configured
+            jettyBinding = getJettyHttpBinding();
+        }
+        if (jettyBinding != null) {
+            endpoint.setJettyBinding(jettyBinding);
+        }
         // should we use an exception for failed error codes?
         if (throwExceptionOnFailure != null) {
             endpoint.setThrowExceptionOnFailure(throwExceptionOnFailure);
+        }
+        // should we transfer exception as serialized object
+        if (transferException != null) {
+            endpoint.setTransferException(transferException);
         }
         if (bridgeEndpoint != null) {
             endpoint.setBridgeEndpoint(bridgeEndpoint);
@@ -190,6 +212,18 @@ public class JettyHttpComponent extends HttpComponent {
         }
         
         endpoint.setEnableMultipartFilter(enableMultipartFilter);
+        
+        if (multipartFilter != null) {
+            endpoint.setMultipartFilter(multipartFilter);
+            endpoint.setEnableMultipartFilter(true);
+        }
+
+        if (continuationTimeout != null) {
+            endpoint.setContinuationTimeout(continuationTimeout);
+        }
+        if (useContinuation != null) {
+            endpoint.setUseContinuation(useContinuation);
+        }
 
         setProperties(endpoint, parameters);
         return endpoint;
@@ -225,7 +259,7 @@ public class JettyHttpComponent extends HttpComponent {
                 }
                 server.addConnector(connector);
 
-                connectorRef = new ConnectorRef(server, connector, createServletForConnector(server, connector, endpoint.getHandlers()));
+                connectorRef = new ConnectorRef(server, connector, createServletForConnector(server, connector, endpoint.getHandlers(), endpoint));
                 // must enable session before we start
                 if (endpoint.isSessionSupport()) {
                     enableSessionSupport(connectorRef.server, connectorKey);
@@ -288,8 +322,13 @@ public class JettyHttpComponent extends HttpComponent {
             }
             context.setAttribute("javax.servlet.context.tempdir", file);
         }
-        filterHolder.setFilter(new CamelMultipartFilter());
-        // add the default MultiPartFilter filter for it
+        // if a filter ref was provided, use it.
+        Filter filter = ((JettyHttpEndpoint) endpoint).getMultipartFilter();
+        if (filter == null) {
+            // if no filter ref was provided, use the default filter
+            filter = new MultiPartFilter();
+        }
+        filterHolder.setFilter(new CamelMultipartFilter(filter));
         String pathSpec = endpoint.getPath();
         if (pathSpec == null || "".equals(pathSpec)) {
             pathSpec = "/";
@@ -298,6 +337,7 @@ public class JettyHttpComponent extends HttpComponent {
             pathSpec = pathSpec.endsWith("/") ? pathSpec + "*" : pathSpec + "/*";
         }
         context.addFilter(filterHolder, pathSpec, 0);
+        LOG.debug("using multipart filter implementation " + filter.getClass().getName() + " for path " + pathSpec);
     }
 
     /**
@@ -545,6 +585,14 @@ public class JettyHttpComponent extends HttpComponent {
     public boolean isEnableJmx() {
         return enableJmx;
     }
+    
+    public JettyHttpBinding getJettyHttpBinding() {
+        return jettyHttpBinding;
+    }
+
+    public void setJettyHttpBinding(JettyHttpBinding jettyHttpBinding) {
+        this.jettyHttpBinding = jettyHttpBinding;
+    }
 
     public synchronized MBeanContainer getMbContainer() {
         // If null, provide the default implementation.
@@ -602,9 +650,26 @@ public class JettyHttpComponent extends HttpComponent {
         sslSocketConnectorProperties.put(key, value);
     }
 
+    public Long getContinuationTimeout() {
+        return continuationTimeout;
+    }
+
+    public void setContinuationTimeout(Long continuationTimeout) {
+        this.continuationTimeout = continuationTimeout;
+    }
+
+    public boolean isUseContinuation() {
+        return useContinuation;
+    }
+
+    public void setUseContinuation(boolean useContinuation) {
+        this.useContinuation = useContinuation;
+    }
+
     // Implementation methods
     // -------------------------------------------------------------------------
-    protected CamelServlet createServletForConnector(Server server, Connector connector, List<Handler> handlers) throws Exception {
+    protected CamelServlet createServletForConnector(Server server, Connector connector,
+                                                     List<Handler> handlers, JettyHttpEndpoint endpoint) throws Exception {
         ServletContextHandler context = new ServletContextHandler(server, "/", ServletContextHandler.NO_SECURITY | ServletContextHandler.NO_SESSIONS);
         context.setConnectorNames(new String[] {connector.getName()});
 
@@ -622,8 +687,28 @@ public class JettyHttpComponent extends HttpComponent {
             }
         }
 
-        // use Jetty continuations
-        CamelServlet camelServlet = new CamelContinuationServlet();
+        CamelServlet camelServlet;
+        boolean jetty = endpoint.getUseContinuation() != null ? endpoint.getUseContinuation() : isUseContinuation();
+        if (jetty) {
+            // use Jetty continuations
+            CamelContinuationServlet jettyServlet = new CamelContinuationServlet();
+            // configure timeout and log it so end user know what we are using
+            Long timeout = endpoint.getContinuationTimeout() != null ? endpoint.getContinuationTimeout() : getContinuationTimeout();
+            if (timeout != null) {
+                LOG.info("Using Jetty continuation timeout: " + timeout + " millis for: " + endpoint);
+                jettyServlet.setContinuationTimeout(timeout);
+            } else {
+                LOG.info("Using default Jetty continuation timeout for: " + endpoint);
+            }
+
+            // use the jetty servlet
+            camelServlet = jettyServlet;
+        } else {
+            // do not use jetty so use a plain servlet
+            camelServlet = new CamelServlet();
+            LOG.info("Jetty continuation is disabled for: " + endpoint);
+        }
+
         ServletHolder holder = new ServletHolder();
         holder.setServlet(camelServlet);
         context.addServlet(holder, "/*");

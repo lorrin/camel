@@ -28,7 +28,7 @@ import static org.apache.camel.util.ObjectHelper.notNull;
 /**
  * A number of helper methods
  *
- * @version $Revision$
+ * @version 
  */
 public final class CamelContextHelper {
 
@@ -166,13 +166,15 @@ public final class CamelContextHelper {
      * @throws IllegalArgumentException is thrown if the property is illegal
      */
     public static int getMaximumCachePoolSize(CamelContext camelContext) throws IllegalArgumentException {
-        String s = camelContext.getProperties().get(Exchange.MAXIMUM_CACHE_POOL_SIZE);
-        if (s != null) {
-            Integer size = camelContext.getTypeConverter().convertTo(Integer.class, s);
-            if (size == null || size <= 0) {
-                throw new IllegalArgumentException("Property " + Exchange.MAXIMUM_CACHE_POOL_SIZE + " must be a positive number, was: " + s);
+        if (camelContext != null) {
+            String s = camelContext.getProperties().get(Exchange.MAXIMUM_CACHE_POOL_SIZE);
+            if (s != null) {
+                Integer size = camelContext.getTypeConverter().convertTo(Integer.class, s);
+                if (size == null || size <= 0) {
+                    throw new IllegalArgumentException("Property " + Exchange.MAXIMUM_CACHE_POOL_SIZE + " must be a positive number, was: " + s);
+                }
+                return size;
             }
-            return size;
         }
 
         // 1000 is the default fallback
@@ -236,6 +238,31 @@ public final class CamelContextHelper {
                     throw new IllegalArgumentException("Error parsing [" + s + "] as a Long.", e);
                 } else {
                     throw new IllegalArgumentException("Error parsing [" + s + "] from property " + text + " as a Long.", e);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Parses the given text and converts it to a Double and handling property placeholders as well
+     *
+     * @param camelContext the camel context
+     * @param text  the text
+     * @return the double vale, or <tt>null</tt> if the text was <tt>null</tt>
+     * @throws Exception is thrown if illegal argument or type conversion not possible
+     */
+    public static Double parseDouble(CamelContext camelContext, String text) throws Exception {
+        // ensure we support property placeholders
+        String s = camelContext.resolvePropertyPlaceholders(text);
+        if (s != null) {
+            try {
+                return camelContext.getTypeConverter().mandatoryConvertTo(Double.class, s);
+            } catch (NumberFormatException e) {
+                if (s.equals(text)) {
+                    throw new IllegalArgumentException("Error parsing [" + s + "] as an Integer.", e);
+                } else {
+                    throw new IllegalArgumentException("Error parsing [" + s + "] from property " + text + " as an Integer.", e);
                 }
             }
         }

@@ -39,26 +39,25 @@ import org.apache.camel.util.concurrent.ExecutorServiceHelper;
 /**
  * Represents an XML &lt;onCompletion/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "onCompletion")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class OnCompletionDefinition extends ProcessorDefinition<OnCompletionDefinition> implements ExecutorServiceAwareDefinition<OnCompletionDefinition> {
-
-    @XmlAttribute(required = false)
-    private Boolean onCompleteOnly = Boolean.FALSE;
-    @XmlAttribute(required = false)
-    private Boolean onFailureOnly = Boolean.FALSE;
-    @XmlElement(name = "onWhen", required = false)
+    @XmlAttribute
+    private Boolean onCompleteOnly;
+    @XmlAttribute
+    private Boolean onFailureOnly;
+    @XmlElement(name = "onWhen")
     private WhenDefinition onWhen;
+    @XmlAttribute
+    private String executorServiceRef;
+    @XmlAttribute(name = "useOriginalMessage")
+    private Boolean useOriginalMessagePolicy;
     @XmlElementRef
     private List<ProcessorDefinition> outputs = new ArrayList<ProcessorDefinition>();
     @XmlTransient
     private ExecutorService executorService;
-    @XmlAttribute(required = false)
-    private String executorServiceRef;
-    @XmlAttribute(name = "useOriginalMessage", required = false)
-    private Boolean useOriginalMessagePolicy;
 
     public OnCompletionDefinition() {
     }
@@ -85,7 +84,7 @@ public class OnCompletionDefinition extends ProcessorDefinition<OnCompletionDefi
 
     @Override
     public Processor createProcessor(RouteContext routeContext) throws Exception {
-        if (onCompleteOnly && onFailureOnly) {
+        if (isOnCompleteOnly() && isOnFailureOnly()) {
             throw new IllegalArgumentException("Both onCompleteOnly and onFailureOnly cannot be true. Only one of them can be true. On node: " + this);
         }
 
@@ -106,7 +105,7 @@ public class OnCompletionDefinition extends ProcessorDefinition<OnCompletionDefi
         // should be false by default
         boolean original = getUseOriginalMessagePolicy() != null ? getUseOriginalMessagePolicy() : false;
         OnCompletionProcessor answer = new OnCompletionProcessor(routeContext.getCamelContext(), childProcessor,
-                executorService, onCompleteOnly, onFailureOnly, when, original);
+                executorService, isOnCompleteOnly(), isOnFailureOnly(), when, original);
         return answer;
     }
 
@@ -141,6 +140,9 @@ public class OnCompletionDefinition extends ProcessorDefinition<OnCompletionDefi
      * @return the builder
      */
     public OnCompletionDefinition onCompleteOnly() {
+        if (isOnFailureOnly()) {
+            throw new IllegalArgumentException("Both onCompleteOnly and onFailureOnly cannot be true. Only one of them can be true. On node: " + this);
+        }
         // must define return type as OutputDefinition and not this type to avoid end user being able
         // to invoke onFailureOnly/onCompleteOnly more than once
         setOnCompleteOnly(Boolean.TRUE);
@@ -154,6 +156,9 @@ public class OnCompletionDefinition extends ProcessorDefinition<OnCompletionDefi
      * @return the builder
      */
     public OnCompletionDefinition onFailureOnly() {
+        if (isOnCompleteOnly()) {
+            throw new IllegalArgumentException("Both onCompleteOnly and onFailureOnly cannot be true. Only one of them can be true. On node: " + this);
+        }
         // must define return type as OutputDefinition and not this type to avoid end user being able
         // to invoke onFailureOnly/onCompleteOnly more than once
         setOnCompleteOnly(Boolean.FALSE);
@@ -219,6 +224,10 @@ public class OnCompletionDefinition extends ProcessorDefinition<OnCompletionDefi
         this.outputs = outputs;
     }
 
+    public boolean isOutputSupported() {
+        return true;
+    }
+
     public Boolean getOnCompleteOnly() {
         return onCompleteOnly;
     }
@@ -227,12 +236,20 @@ public class OnCompletionDefinition extends ProcessorDefinition<OnCompletionDefi
         this.onCompleteOnly = onCompleteOnly;
     }
 
+    public boolean isOnCompleteOnly() {
+        return onCompleteOnly != null && onCompleteOnly;
+    }
+
     public Boolean getOnFailureOnly() {
         return onFailureOnly;
     }
 
     public void setOnFailureOnly(Boolean onFailureOnly) {
         this.onFailureOnly = onFailureOnly;
+    }
+
+    public boolean isOnFailureOnly() {
+        return onFailureOnly != null && onFailureOnly;
     }
 
     public WhenDefinition getOnWhen() {

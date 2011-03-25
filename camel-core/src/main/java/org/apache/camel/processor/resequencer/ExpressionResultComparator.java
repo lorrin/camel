@@ -16,8 +16,6 @@
  */
 package org.apache.camel.processor.resequencer;
 
-import java.util.List;
-
 import org.apache.camel.Exchange;
 import org.apache.camel.Expression;
 
@@ -25,15 +23,15 @@ import org.apache.camel.Expression;
  * A {@link SequenceElementComparator} that compares {@link Exchange}s based on
  * the result of an expression evaluation.
  * 
- * @version $Revision$
+ * @version 
  */
 public interface ExpressionResultComparator extends SequenceElementComparator<Exchange> {
 
     /**
-     * Sets the list expressions used for comparing {@link Exchange}s.
+     * Set the expression sed for comparing {@link Exchange}s.
      * 
-     * @param expressions a list of {@link Expression} objects.
+     * @param expression the expression
      */
-    void setExpressions(List<Expression> expressions);
+    void setExpression(Expression expression);
 
 }

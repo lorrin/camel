@@ -21,7 +21,7 @@ import java.util.Map;
 import org.apache.camel.Endpoint;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.impl.DefaultComponent;
-import org.apache.camel.processor.Logger;
+import org.apache.camel.processor.CamelLogger;
 import org.apache.camel.processor.ThroughputLogger;
 import org.apache.camel.util.IntrospectionSupport;
 
@@ -29,22 +29,27 @@ import org.apache.camel.util.IntrospectionSupport;
  * The <a href="http://camel.apache.org/log.html">Log Component</a>
  * to log message exchanges to the underlying logging mechanism.
  *
- * @version $Revision$
+ * @version 
  */
 public class LogComponent extends DefaultComponent {
 
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
         LoggingLevel level = getLoggingLevel(parameters);
         Integer groupSize = getAndRemoveParameter(parameters, "groupSize", Integer.class);
+        Long groupInterval = getAndRemoveParameter(parameters, "groupInterval", Long.class);
 
-        Logger logger;
+        CamelLogger logger;
         if (groupSize != null) {
             logger = new ThroughputLogger(remaining, level, groupSize);
+        } else if (groupInterval != null) {
+            Boolean groupActiveOnly = getAndRemoveParameter(parameters, "groupActiveOnly", Boolean.class, Boolean.TRUE);
+            Long groupDelay = getAndRemoveParameter(parameters, "groupDelay", Long.class);
+            logger = new ThroughputLogger(this.getCamelContext(), remaining, level, groupInterval, groupDelay, groupActiveOnly);
         } else {
             LogFormatter formatter = new LogFormatter();
             IntrospectionSupport.setProperties(formatter, parameters);
 
-            logger = new Logger(remaining);
+            logger = new CamelLogger(remaining);
             logger.setLevel(level);
             logger.setFormatter(formatter);
         }

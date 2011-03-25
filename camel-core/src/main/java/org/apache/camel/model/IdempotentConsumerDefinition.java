@@ -28,11 +28,12 @@ import org.apache.camel.builder.ExpressionClause;
 import org.apache.camel.processor.idempotent.IdempotentConsumer;
 import org.apache.camel.spi.IdempotentRepository;
 import org.apache.camel.spi.RouteContext;
+import org.apache.camel.util.ObjectHelper;
 
 /**
  * Represents an XML &lt;idempotentConsumer/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "idempotentConsumer")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -65,7 +66,7 @@ public class IdempotentConsumerDefinition extends ExpressionNode {
     // Fluent API
     //-------------------------------------------------------------------------
     /**
-     * Set the expression that IdempotentConsumerType will use
+     * Set the expression that the idempotent consumer will use
      * @return the builder
      */
     public ExpressionClause<IdempotentConsumerDefinition> expression() {
@@ -84,7 +85,7 @@ public class IdempotentConsumerDefinition extends ExpressionNode {
     }
     
     /**
-     * Sets the the message id repository for the IdempotentConsumerType
+     * Sets the the message id repository for the idempotent consumer
      *
      * @param idempotentRepository  the repository instance of idempotent
      * @return builder
@@ -123,12 +124,17 @@ public class IdempotentConsumerDefinition extends ExpressionNode {
         this.idempotentRepository = idempotentRepository;
     }
 
-    public Boolean isEager() {
+    public Boolean getEager() {
         return eager;
     }
 
     public void setEager(Boolean eager) {
         this.eager = eager;
+    }
+
+    public boolean isEager() {
+        // defaults to true if not configured
+        return eager != null ? eager : true;
     }
 
     @Override
@@ -138,11 +144,14 @@ public class IdempotentConsumerDefinition extends ExpressionNode {
 
         IdempotentRepository<String> idempotentRepository =
             (IdempotentRepository<String>) resolveMessageIdRepository(routeContext);
+        ObjectHelper.notNull(idempotentRepository, "idempotentRepository", this);
+
+        // add as service to CamelContext so we can managed it and it ensures it will be shutdown when camel shutdowns
+        routeContext.getCamelContext().addService(idempotentRepository);
 
         Expression expression = getExpression().createExpression(routeContext);
-        // should be eager by default
-        boolean isEager = isEager() != null ? isEager() : true;
-        return new IdempotentConsumer(expression, idempotentRepository, isEager, childProcessor);
+
+        return new IdempotentConsumer(expression, idempotentRepository, isEager(), childProcessor);
     }
 
     /**
@@ -152,7 +161,7 @@ public class IdempotentConsumerDefinition extends ExpressionNode {
      * @return the repository
      */
     protected IdempotentRepository<?> resolveMessageIdRepository(RouteContext routeContext) {
-        if (idempotentRepository == null) {
+        if (idempotentRepository == null && messageIdRepositoryRef != null) {
             idempotentRepository = routeContext.lookup(messageIdRepositoryRef, IdempotentRepository.class);
         }
         return idempotentRepository;

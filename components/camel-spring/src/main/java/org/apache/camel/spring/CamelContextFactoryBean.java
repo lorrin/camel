@@ -36,7 +36,6 @@ import org.apache.camel.core.xml.CamelJMXAgentDefinition;
 import org.apache.camel.core.xml.CamelPropertyPlaceholderDefinition;
 import org.apache.camel.core.xml.CamelProxyFactoryDefinition;
 import org.apache.camel.core.xml.CamelServiceExporterDefinition;
-import org.apache.camel.impl.DefaultCamelContextNameStrategy;
 import org.apache.camel.model.ContextScanDefinition;
 import org.apache.camel.model.InterceptDefinition;
 import org.apache.camel.model.InterceptFromDefinition;
@@ -52,9 +51,8 @@ import org.apache.camel.model.config.PropertiesDefinition;
 import org.apache.camel.model.dataformat.DataFormatsDefinition;
 import org.apache.camel.spi.PackageScanFilter;
 import org.apache.camel.spi.Registry;
-import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
@@ -73,21 +71,21 @@ import static org.apache.camel.util.ObjectHelper.wrapRuntimeCamelException;
  * Spring XML or found by searching the classpath for Java classes which extend
  * {@link RouteBuilder} using the nested {@link #setPackages(String[])}.
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "camelContext")
 @XmlAccessorType(XmlAccessType.FIELD)
 @SuppressWarnings("unused")
 public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<SpringCamelContext>
         implements FactoryBean, InitializingBean, DisposableBean, ApplicationContextAware, ApplicationListener {
-    private static final Log LOG = LogFactory.getLog(CamelContextFactoryBean.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CamelContextFactoryBean.class);
 
     @XmlAttribute(name = "depends-on", required = false)
     private String dependsOn;
     @XmlAttribute(required = false)
     private String trace;
     @XmlAttribute(required = false)
-    private String streamCache = "false";
+    private String streamCache;
     @XmlAttribute(required = false)
     private String delayer;
     @XmlAttribute(required = false)
@@ -95,13 +93,15 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
     @XmlAttribute(required = false)
     private String errorHandlerRef;
     @XmlAttribute(required = false)
-    private String autoStartup = "true";
+    private String autoStartup;
+    @XmlAttribute(required = false)
+    private String useMDCLogging;
     @XmlAttribute(required = false)
     private ShutdownRoute shutdownRoute;
     @XmlAttribute(required = false)
     private ShutdownRunningTask shutdownRunningTask;
     @XmlAttribute(required = false)
-    private Boolean lazyLoadTypeConverters = Boolean.FALSE;
+    private Boolean lazyLoadTypeConverters;
     @XmlElement(name = "properties", required = false)
     private PropertiesDefinition properties;
     @XmlElement(name = "propertyPlaceholder", type = CamelPropertyPlaceholderDefinition.class, required = false)
@@ -115,7 +115,6 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
     @XmlElement(name = "jmxAgent", type = CamelJMXAgentDefinition.class, required = false)
     private CamelJMXAgentDefinition camelJMXAgent;
     @XmlElements({
-            @XmlElement(name = "beanPostProcessor", type = CamelBeanPostProcessor.class, required = false),
             @XmlElement(name = "template", type = CamelProducerTemplateFactoryBean.class, required = false),
             @XmlElement(name = "consumerTemplate", type = CamelConsumerTemplateFactoryBean.class, required = false),
             @XmlElement(name = "proxy", type = CamelProxyFactoryDefinition.class, required = false),
@@ -134,6 +133,8 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
     private List<CamelEndpointFactoryBean> endpoints;
     @XmlElement(name = "dataFormats", required = false)
     private DataFormatsDefinition dataFormats;
+    @XmlElement(name = "redeliveryPolicyProfile", required = false)
+    private List<CamelRedeliveryPolicyFactoryBean> redeliveryPolicies;
     @XmlElement(name = "onException", required = false)
     private List<OnExceptionDefinition> onExceptions = new ArrayList<OnExceptionDefinition>();
     @XmlElement(name = "onCompletion", required = false)
@@ -310,6 +311,14 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
         this.routes = routes;
     }
 
+    public List<CamelEndpointFactoryBean> getEndpoints() {
+        return endpoints;
+    }
+
+    public List<CamelRedeliveryPolicyFactoryBean> getRedeliveryPolicies() {
+        return redeliveryPolicies;
+    }
+
     public List<InterceptDefinition> getIntercepts() {
         return intercepts;
     }
@@ -441,6 +450,14 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
 
     public void setAutoStartup(String autoStartup) {
         this.autoStartup = autoStartup;
+    }
+
+    public String getUseMDCLogging() {
+        return useMDCLogging;
+    }
+
+    public void setUseMDCLogging(String useMDCLogging) {
+        this.useMDCLogging = useMDCLogging;
     }
 
     public Boolean getLazyLoadTypeConverters() {

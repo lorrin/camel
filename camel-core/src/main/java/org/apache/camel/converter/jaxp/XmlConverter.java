@@ -54,12 +54,13 @@ import org.xml.sax.XMLReader;
 
 import org.apache.camel.Converter;
 import org.apache.camel.Exchange;
+import org.apache.camel.util.IOHelper;
 import org.apache.camel.util.ObjectHelper;
 
 /**
  * A helper class to transform to and from various JAXB types such as {@link Source} and {@link Document}
  *
- * @version $Revision$
+ * @version 
  */
 @Converter
 public class XmlConverter {
@@ -123,7 +124,7 @@ public class XmlConverter {
             return;
         }
 
-        Transformer transformer = createTransfomer();
+        Transformer transformer = createTransformer();
         if (transformer == null) {
             throw new TransformerException("Could not create a transformer - JAXP is misconfigured!");
         }
@@ -286,7 +287,21 @@ public class XmlConverter {
         }
     }
 
-    
+    /**
+     * Converts the source instance to a {@link DOMSource} or returns null if the conversion is not
+     * supported (making it easy to derive from this class to add new kinds of conversion).
+     */
+    @Converter
+    public DOMSource toDOMSource(byte[] bytes) throws IOException, SAXException, ParserConfigurationException {
+        InputStream is = new ByteArrayInputStream(bytes);
+        try {
+            return toDOMSource(is);
+        } finally {
+            IOHelper.close(is);
+        }
+    }
+
+
     /**
      * Converts the source instance to a {@link SAXSource} or returns null if the conversion is not
      * supported (making it easy to derive from this class to add new kinds of conversion).
@@ -767,7 +782,15 @@ public class XmlConverter {
         this.transformerFactory = transformerFactory;
     }
 
+    /**
+     * @deprecated use {@link #createTransformer}, will be removed in Camel 3.0
+     */
+    @Deprecated
     public Transformer createTransfomer() throws TransformerConfigurationException {
+        return createTransformer();
+    }
+
+    public Transformer createTransformer() throws TransformerConfigurationException {
         TransformerFactory factory = getTransformerFactory();
         return factory.newTransformer();
     }

@@ -23,14 +23,14 @@ import java.net.URL;
 import org.apache.camel.impl.DefaultClassResolver;
 import org.apache.camel.util.CastUtils;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /* Using the bundle of CamelContext to load the class */
 public class OsgiClassResolver extends DefaultClassResolver {
-    private static final transient Log LOG = LogFactory.getLog(OsgiClassResolver.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(OsgiClassResolver.class);
 
     public BundleContext bundleContext;
     
@@ -59,7 +59,7 @@ public class OsgiClassResolver extends DefaultClassResolver {
             try {
                 answer = url.openStream();
             } catch (IOException ex) {
-                LOG.error("Cannot load resource: " + uri, ex);
+                throw new RuntimeException("Cannot load resource: " + uri, ex);
             }
         } 
         return answer;
@@ -79,7 +79,7 @@ public class OsgiClassResolver extends DefaultClassResolver {
                 answer = loader.loadClass(name);
             } catch (ClassNotFoundException e) {
                 if (LOG.isTraceEnabled()) {
-                    LOG.trace("Cannot load class: " + name + " using classloader: " + loader, e);
+                    LOG.trace("Cannot load class: " + name + " using classloader: " + loader + ". This exception will be ignored.", e);
                 }
             }
         }

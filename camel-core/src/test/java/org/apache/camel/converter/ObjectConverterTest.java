@@ -23,7 +23,7 @@ import java.util.Iterator;
 import junit.framework.TestCase;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class ObjectConverterTest extends TestCase {
 
@@ -46,6 +46,13 @@ public class ObjectConverterTest extends TestCase {
         assertEquals(Byte.valueOf("4"), ObjectConverter.toByte(Integer.valueOf("4")));
         assertEquals(Byte.valueOf("4"), ObjectConverter.toByte("4"));
         assertEquals(null, ObjectConverter.toByte(new Date()));
+    }
+    
+    public void testToClass() {
+        assertEquals(String.class, ObjectConverter.toClass(String.class, null));
+        assertEquals(String.class, ObjectConverter.toClass("java.lang.String", null));
+        assertEquals(null, ObjectConverter.toClass(new Integer(4), null));
+        assertEquals(null, ObjectConverter.toClass("foo.Bar", null));
     }
 
     public void testToShort() {

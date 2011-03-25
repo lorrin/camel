@@ -39,18 +39,18 @@ import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.processor.DelegateProcessor;
 import org.apache.camel.util.ExchangeHelper;
 import org.apache.camel.util.PredicateAssertHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Assert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A bunch of useful testing methods
  *
- * @version $Revision$
+ * @version 
  */
 public abstract class TestSupport extends Assert {
-    private static final Log LOG = LogFactory.getLog(TestSupport.class);    
-    protected transient Log log = LogFactory.getLog(getClass());    
+    private static final Logger LOG = LoggerFactory.getLogger(TestSupport.class);    
+    protected transient Logger log = LoggerFactory.getLogger(getClass());    
     
     // Builder methods for expressions used when testing
     // -------------------------------------------------------------------------
@@ -442,6 +442,14 @@ public abstract class TestSupport extends Assert {
         } else {
             assertEquals(expectedPath, actualPath);
         }
+    }
+
+    /**
+     * To be used to check is a file is found in the file system
+     */
+    public static void assertFileExists(String filename) {
+        File file = new File(filename).getAbsoluteFile();
+        assertTrue("File " + filename + " should exist", file.exists());
     }
 
     /**

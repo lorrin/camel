@@ -21,8 +21,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.camel.AsyncCallback;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A <code>SamplingThrottler</code> is a special kind of throttler. It also
@@ -35,11 +35,13 @@ import org.apache.commons.logging.LogFactory;
  * an exchange stream, rough consolidation of noisy and bursty exchange traffic
  * or where queuing of throttled exchanges is undesirable.
  *
- * @version $Revision$
+ * @version 
  */
 public class SamplingThrottler extends DelegateAsyncProcessor {
 
-    protected final transient Log log = LogFactory.getLog(getClass());
+    protected final transient Logger log = LoggerFactory.getLogger(getClass());
+    private long messageFrequency;
+    private long currentMessageCount;
     private long samplePeriod;
     private long periodInNanos;
     private TimeUnit units;
@@ -47,6 +49,15 @@ public class SamplingThrottler extends DelegateAsyncProcessor {
     private StopProcessor stopper = new StopProcessor();
     private Object calculationLock = new Object();
     private SampleStats sampled = new SampleStats();
+
+    public SamplingThrottler(Processor processor, long messageFrequency) {
+        super(processor);
+
+        if (messageFrequency <= 0) {
+            throw new IllegalArgumentException("A positive value is required for the sampling message frequency");
+        }
+        this.messageFrequency = messageFrequency;
+    }
 
     public SamplingThrottler(Processor processor, long samplePeriod, TimeUnit units) {
         super(processor);
@@ -64,11 +75,19 @@ public class SamplingThrottler extends DelegateAsyncProcessor {
 
     @Override
     public String toString() {
-        return "SamplingThrottler[1 exchange per: " + samplePeriod + " " + units.toString().toLowerCase() + " -> " + getProcessor() + "]";
+        if (messageFrequency > 0) {
+            return "SamplingThrottler[1 exchange per: " + messageFrequency + " messages received -> " + getProcessor() + "]";
+        } else {
+            return "SamplingThrottler[1 exchange per: " + samplePeriod + " " + units.toString().toLowerCase() + " -> " + getProcessor() + "]";
+        }
     }
 
     public String getTraceLabel() {
-        return "samplingThrottler[1 exchange per: " + samplePeriod + " " + units.toString().toLowerCase() + "]";
+        if (messageFrequency > 0) {
+            return "samplingThrottler[1 exchange per: " + messageFrequency + " messages received]";
+        } else {
+            return "samplingThrottler[1 exchange per: " + samplePeriod + " " + units.toString().toLowerCase() + "]";
+        }
     }
 
     @Override
@@ -76,16 +95,24 @@ public class SamplingThrottler extends DelegateAsyncProcessor {
         boolean doSend = false;
 
         synchronized (calculationLock) {
-            long now = System.nanoTime();
-            if (now >= timeOfLastExchange + periodInNanos) {
-                doSend = true;
-                if (log.isTraceEnabled()) {
-                    log.trace(sampled.sample());
+            
+            if (messageFrequency > 0) {
+                currentMessageCount++;
+                if (currentMessageCount % messageFrequency == 0) {
+                    doSend = true;
                 }
-                timeOfLastExchange = now;
             } else {
-                if (log.isTraceEnabled()) {
-                    log.trace(sampled.drop());
+                long now = System.nanoTime();
+                if (now >= timeOfLastExchange + periodInNanos) {
+                    doSend = true;
+                    if (log.isTraceEnabled()) {
+                        log.trace(sampled.sample());
+                    }
+                    timeOfLastExchange = now;
+                } else {
+                    if (log.isTraceEnabled()) {
+                        log.trace(sampled.drop());
+                    }
                 }
             }
         }

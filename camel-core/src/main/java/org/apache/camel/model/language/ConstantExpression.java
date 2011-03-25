@@ -16,14 +16,17 @@
  */
 package org.apache.camel.model.language;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  * For expressions and predicates using a constant
- *
  */
 @XmlRootElement(name = "constant")
+@XmlAccessorType(XmlAccessType.FIELD)
 public class ConstantExpression extends ExpressionDefinition {
+
     public ConstantExpression() {
     }
 

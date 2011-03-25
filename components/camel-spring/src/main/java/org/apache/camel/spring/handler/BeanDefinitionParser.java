@@ -29,20 +29,30 @@ import org.springframework.util.StringUtils;
 /**
  * A base class for a parser for a bean.
  *
- * @version $Revision$
+ * @version 
  */
-// TODO cannot use AbstractSimpleBeanDefinitionParser
-// as doParse() is final and isEligableAttribute does not allow us to filter out attributes
-// with the name "xmlns:"
 public class BeanDefinitionParser extends AbstractSingleBeanDefinitionParser {
-    private Class type;
-    
-    public BeanDefinitionParser(Class type) {
+    private final Class type;
+    private final boolean assignId;
+
+    /**
+     * Bean definition parser
+     *
+     * @param type     the type, can be null
+     * @param assignId whether to allow assigning id from the id attribute on the type
+     *                 (there must be getter/setter id on type class).
+     */
+    public BeanDefinitionParser(Class type, boolean assignId) {
         this.type = type;
+        this.assignId = assignId;
     }
-   
+
     protected Class getBeanClass(Element element) {
         return type;
+    }
+
+    protected boolean isAssignId() {
+        return assignId;
     }
 
     protected boolean isEligibleAttribute(String attributeName) {
@@ -50,34 +60,19 @@ public class BeanDefinitionParser extends AbstractSingleBeanDefinitionParser {
                 && !attributeName.equals("xmlns") && !attributeName.startsWith("xmlns:");
     }
 
-    // TODO the following code is copied from AbstractSimpleBeanDefinitionParser
-    // it can be removed if ever the doParse() method is not final!
-    // or the Spring bug http://jira.springframework.org/browse/SPR-4599 is resolved
-
-    /**
-     * Parse the supplied {@link Element} and populate the supplied
-     * {@link BeanDefinitionBuilder} as required.
-     * <p>This implementation maps any attributes present on the
-     * supplied element to {@link org.springframework.beans.PropertyValue}
-     * instances, and
-     * {@link BeanDefinitionBuilder#addPropertyValue(String, Object) adds them}
-     * to the
-     * {@link org.springframework.beans.factory.config.BeanDefinition builder}.
-     * <p>The {@link #extractPropertyName(String)} method is used to
-     * reconcile the name of an attribute with the name of a JavaBean
-     * property.
-     *
-     * @param element the XML element being parsed
-     * @param builder used to define the <code>BeanDefinition</code>
-     * @see #extractPropertyName(String)
-     */
-    protected final void doParse(Element element, BeanDefinitionBuilder builder) {
+    protected void doParse(Element element, BeanDefinitionBuilder builder) {
         NamedNodeMap attributes = element.getAttributes();
         for (int x = 0; x < attributes.getLength(); x++) {
             Attr attribute = (Attr) attributes.item(x);
             String name = attribute.getLocalName();
             String fullName = attribute.getName();
-            if (!fullName.startsWith("xmlns:") && !fullName.equals("xmlns") && isEligibleAttribute(name)) {
+            // assign id if we want them
+            if (fullName.equals("id") && isAssignId()) {
+                if (attribute.getValue() != null) {
+                    builder.addPropertyValue("id", attribute.getValue());
+                }
+            // assign other attributes if eligible
+            } else if (!fullName.startsWith("xmlns:") && !fullName.equals("xmlns") && isEligibleAttribute(name)) {
                 String propertyName = extractPropertyName(name);
                 Assert.state(StringUtils.hasText(propertyName),
                         "Illegal property name returned from 'extractPropertyName(String)': cannot be null or empty.");

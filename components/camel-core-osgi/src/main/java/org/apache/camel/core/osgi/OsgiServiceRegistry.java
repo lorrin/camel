@@ -40,9 +40,9 @@ import org.osgi.framework.ServiceReference;
  * The OsgiServiceRegistry support to get the service object from the bundle context
  */
 public class OsgiServiceRegistry implements Registry, LifecycleStrategy {
-    private BundleContext bundleContext;
-    private Map<String, Object> serviceCacheMap = new ConcurrentHashMap<String, Object>();
-    private ConcurrentLinkedQueue<ServiceReference> serviceReferenceQueue = new ConcurrentLinkedQueue<ServiceReference>();
+    private final BundleContext bundleContext;
+    private final Map<String, Object> serviceCacheMap = new ConcurrentHashMap<String, Object>();
+    private final ConcurrentLinkedQueue<ServiceReference> serviceReferenceQueue = new ConcurrentLinkedQueue<ServiceReference>();
     
     public OsgiServiceRegistry(BundleContext bc) {
         bundleContext = bc;
@@ -77,15 +77,15 @@ public class OsgiServiceRegistry implements Registry, LifecycleStrategy {
     }
 
     public void onComponentAdd(String name, Component component) {
-        // Do nothing here
+        // noop
     }
 
     public void onComponentRemove(String name, Component component) {
-        // Do nothing here
+        // noop
     }
 
     public void onContextStart(CamelContext context) {
-        // Do nothing here
+        // noop
     }
 
     public void onContextStop(CamelContext context) {
@@ -100,39 +100,39 @@ public class OsgiServiceRegistry implements Registry, LifecycleStrategy {
     }
 
     public void onEndpointAdd(Endpoint endpoint) {
-        // Do nothing here
+        // noop
     }
 
     public void onEndpointRemove(Endpoint endpoint) {
-        // Do nothing here
+        // noop
     }
 
     public void onRouteContextCreate(RouteContext routeContext) {
-        // Do nothing here
+        // noop
     }
 
     public void onRoutesAdd(Collection<Route> routes) {
-        // Do nothing here
+        // noop
     }
 
     public void onRoutesRemove(Collection<Route> routes) {
-        // Do nothing here
+        // noop
     }
 
     public void onServiceAdd(CamelContext context, Service service, Route route) {
-        // Do nothing here
+        // noop
     }
 
     public void onServiceRemove(CamelContext context, Service service, Route route) {
-        // Do nothing here
+        // noop
     }
 
     public void onErrorHandlerAdd(RouteContext routeContext, Processor processor, ErrorHandlerBuilder errorHandlerBuilder) {
-        // Do nothing here
+        // noop
     }
 
-    public void onThreadPoolAdd(CamelContext camelContext, ThreadPoolExecutor threadPool) {
-        // Do nothing here
+    public void onThreadPoolAdd(CamelContext camelContext, ThreadPoolExecutor threadPoolExecutor,
+                                String id, String sourceId, String routeId, String threadPoolProfileId) {
+        // noop
     }
-
 }

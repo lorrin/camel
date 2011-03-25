@@ -26,12 +26,12 @@ import org.apache.camel.model.DataFormatDefinition;
 /**
  * Represents the XMLBeans XML {@link org.apache.camel.spi.DataFormat}
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "xmlBeans")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class XMLBeansDataFormat extends DataFormatDefinition {
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Boolean prettyPrint;
 
     public XMLBeansDataFormat() {

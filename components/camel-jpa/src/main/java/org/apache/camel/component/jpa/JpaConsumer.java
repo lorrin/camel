@@ -35,16 +35,16 @@ import org.apache.camel.impl.ScheduledPollConsumer;
 import org.apache.camel.spi.ShutdownAware;
 import org.apache.camel.util.CastUtils;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.orm.jpa.JpaCallback;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JpaConsumer extends ScheduledPollConsumer implements BatchConsumer, ShutdownAware {
 
-    private static final transient Log LOG = LogFactory.getLog(JpaConsumer.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(JpaConsumer.class);
     private final JpaEndpoint endpoint;
     private final TransactionStrategy template;
     private QueryFactory queryFactory;
@@ -52,6 +52,7 @@ public class JpaConsumer extends ScheduledPollConsumer implements BatchConsumer,
     private String query;
     private String namedQuery;
     private String nativeQuery;
+    private Class resultClass;
     private int maxMessagesPerPoll;
     private volatile ShutdownRunningTask shutdownRunningTask;
     private volatile int pendingExchanges;
@@ -71,12 +72,12 @@ public class JpaConsumer extends ScheduledPollConsumer implements BatchConsumer,
     }
 
     @Override
-    protected void poll() throws Exception {
+    protected int poll() throws Exception {
         // must reset for each poll
         shutdownRunningTask = null;
         pendingExchanges = 0;
 
-        template.execute(new JpaCallback() {
+        Object messagePolled = template.execute(new JpaCallback() {
             public Object doInJpa(EntityManager entityManager) throws PersistenceException {
                 Queue<DataHolder> answer = new LinkedList<DataHolder>();
 
@@ -91,27 +92,26 @@ public class JpaConsumer extends ScheduledPollConsumer implements BatchConsumer,
                     answer.add(holder);
                 }
 
+                int messagePolled;
                 try {
-                    processBatch(CastUtils.cast(answer));
+                    messagePolled = processBatch(CastUtils.cast(answer));
                 } catch (Exception e) {
                     throw new PersistenceException(e);
                 }
 
                 entityManager.flush();
-                return null;
+                return messagePolled;
             }
         });
+
+        return endpoint.getCamelContext().getTypeConverter().convertTo(int.class, messagePolled);
     }
 
     public void setMaxMessagesPerPoll(int maxMessagesPerPoll) {
         this.maxMessagesPerPoll = maxMessagesPerPoll;
     }
 
-    public void processBatch(Queue<Object> exchanges) throws Exception {
-        if (exchanges.isEmpty()) {
-            return;
-        }
-
+    public int processBatch(Queue<Object> exchanges) throws Exception {
         int total = exchanges.size();
 
         // limit if needed
@@ -148,6 +148,8 @@ public class JpaConsumer extends ScheduledPollConsumer implements BatchConsumer,
                 getDeleteHandler().deleteObject(entityManager, result);
             }
         }
+
+        return total;
     }
 
     public boolean deferShutdown(ShutdownRunningTask shutdownRunningTask) {
@@ -164,6 +166,10 @@ public class JpaConsumer extends ScheduledPollConsumer implements BatchConsumer,
         } else {
             return 0;
         }
+    }
+
+    public void prepareShutdown() {
+        // noop
     }
 
     public boolean isBatchAllowed() {
@@ -237,6 +243,14 @@ public class JpaConsumer extends ScheduledPollConsumer implements BatchConsumer,
     public void setQuery(String query) {
         this.query = query;
     }
+    
+    public Class getResultClass() {
+        return resultClass;
+    }
+
+    public void setResultClass(Class resultClass) {
+        this.resultClass = resultClass;
+    }    
 
     // Implementation methods
     // -------------------------------------------------------------------------
@@ -273,7 +287,11 @@ public class JpaConsumer extends ScheduledPollConsumer implements BatchConsumer,
         } else if (namedQuery != null) {
             return QueryBuilder.namedQuery(namedQuery);
         } else if (nativeQuery != null) {
-            return QueryBuilder.nativeQuery(nativeQuery);
+            if (resultClass != null) {
+                return QueryBuilder.nativeQuery(nativeQuery, resultClass);
+            } else {
+                return QueryBuilder.nativeQuery(nativeQuery);                
+            }
         } else {
             Class<?> entityType = endpoint.getEntityType();
             

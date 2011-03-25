@@ -17,6 +17,7 @@
 package org.apache.camel.processor.exceptionpolicy;
 
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -26,8 +27,8 @@ import org.apache.camel.model.OnExceptionDefinition;
 import org.apache.camel.model.ProcessorDefinitionHelper;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The default strategy used in Camel to resolve the {@link org.apache.camel.model.OnExceptionDefinition} that should
@@ -55,23 +56,35 @@ import org.apache.commons.logging.LogFactory;
  */
 public class DefaultExceptionPolicyStrategy implements ExceptionPolicyStrategy {
 
-    private static final transient Log LOG = LogFactory.getLog(DefaultExceptionPolicyStrategy.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(DefaultExceptionPolicyStrategy.class);
 
     public OnExceptionDefinition getExceptionPolicy(Map<ExceptionPolicyKey, OnExceptionDefinition> exceptionPolicies,
                                                     Exchange exchange, Throwable exception) {
 
         Map<Integer, OnExceptionDefinition> candidates = new TreeMap<Integer, OnExceptionDefinition>();
+        Map<ExceptionPolicyKey, OnExceptionDefinition> routeScoped = new LinkedHashMap<ExceptionPolicyKey, OnExceptionDefinition>();
+        Map<ExceptionPolicyKey, OnExceptionDefinition> contextScoped = new LinkedHashMap<ExceptionPolicyKey, OnExceptionDefinition>();
 
+        // split policies into route and context scoped
+        initRouteAndContextScopedExceptionPolicies(exceptionPolicies, routeScoped, contextScoped);
+
+        // at first check route scoped as we prefer them over context scoped
         // recursive up the tree using the iterator
         boolean exactMatch = false;
         Iterator<Throwable> it = createExceptionIterator(exception);
         while (!exactMatch && it.hasNext()) {
             // we should stop looking if we have found an exact match
-            exactMatch = findMatchedExceptionPolicy(exceptionPolicies, exchange, it.next(), candidates);
+            exactMatch = findMatchedExceptionPolicy(routeScoped, exchange, it.next(), candidates);
+        }
+
+        // fallback to check context scoped (only do this if there was no exact match)
+        it = createExceptionIterator(exception);
+        while (!exactMatch && it.hasNext()) {
+            // we should stop looking if we have found an exact match
+            exactMatch = findMatchedExceptionPolicy(contextScoped, exchange, it.next(), candidates);
         }
 
         // now go through the candidates and find the best
-
         if (LOG.isTraceEnabled()) {
             LOG.trace("Found " + candidates.size() + " candidates");
         }
@@ -80,8 +93,23 @@ public class DefaultExceptionPolicyStrategy implements ExceptionPolicyStrategy {
             // no type found
             return null;
         } else {
-            // return the first in the map as its sorted and
+            // return the first in the map as its sorted and we checked route scoped first, which we prefer
             return candidates.values().iterator().next();
+        }
+    }
+
+    private void initRouteAndContextScopedExceptionPolicies(Map<ExceptionPolicyKey, OnExceptionDefinition> exceptionPolicies,
+                                                            Map<ExceptionPolicyKey, OnExceptionDefinition> routeScoped,
+                                                            Map<ExceptionPolicyKey, OnExceptionDefinition> contextScoped) {
+
+        // loop through all the entries and split into route and context scoped
+        Set<Map.Entry<ExceptionPolicyKey, OnExceptionDefinition>> entries = exceptionPolicies.entrySet();
+        for (Map.Entry<ExceptionPolicyKey, OnExceptionDefinition> entry : entries) {
+            if (entry.getKey().getRouteId() != null) {
+                routeScoped.put(entry.getKey(), entry.getValue());
+            } else {
+                contextScoped.put(entry.getKey(), entry.getValue());
+            }
         }
     }
 
@@ -157,6 +185,7 @@ public class DefaultExceptionPolicyStrategy implements ExceptionPolicyStrategy {
                 candidates.put(candidateDiff, candidate);
             } else {
                 // we have an existing candidate already which we should prefer to use
+                // for example we check route scope before context scope (preferring route scopes)
                 if (LOG.isTraceEnabled()) {
                     LOG.trace("Existing candidate " + candidates.get(candidateDiff)
                         + " takes precedence over " + candidate + " at level " + candidateDiff);

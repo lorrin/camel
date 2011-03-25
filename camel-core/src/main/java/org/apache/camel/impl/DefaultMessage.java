@@ -35,7 +35,7 @@ import org.apache.camel.util.MessageHelper;
  * as they do not have to be worried about using exact keys.
  * See more details at {@link org.apache.camel.util.CaseInsensitiveMap}.
  *
- * @version $Revision$
+ * @version 
  */
 public class DefaultMessage extends MessageSupport {
     private boolean fault;
@@ -62,7 +62,11 @@ public class DefaultMessage extends MessageSupport {
     }
 
     public Object getHeader(String name) {
-        return getHeaders().get(name);
+        if (hasHeaders()) {
+            return getHeaders().get(name);
+        } else {
+            return null;
+        }
     }
 
     public Object getHeader(String name, Object defaultValue) {
@@ -128,6 +132,10 @@ public class DefaultMessage extends MessageSupport {
     }
 
     public boolean removeHeaders(String pattern) {
+        return removeHeaders(pattern, (String[]) null);
+    }
+
+    public boolean removeHeaders(String pattern, String... excludePatterns) {
         if (!hasHeaders()) {
             return false;
         }
@@ -136,9 +144,13 @@ public class DefaultMessage extends MessageSupport {
         for (Map.Entry<String, Object> entry : headers.entrySet()) {
             String key = entry.getKey();
             if (EndpointHelper.matchPattern(key, pattern)) {
+                if (excludePatterns != null && isExcludePatternMatch(key, excludePatterns)) {
+                    continue;
+                }
                 matches = true;
                 headers.remove(entry.getKey());
             }
+
         }
         return matches;
     }
@@ -270,4 +282,14 @@ public class DefaultMessage extends MessageSupport {
     public String createExchangeId() {
         return null;
     }
+
+    private static boolean isExcludePatternMatch(String key, String... excludePatterns) {
+        for (String pattern : excludePatterns) {
+            if (EndpointHelper.matchPattern(key, pattern)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 }

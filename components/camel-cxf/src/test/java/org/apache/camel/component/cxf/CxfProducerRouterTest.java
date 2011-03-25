@@ -16,10 +16,17 @@
  */
 package org.apache.camel.component.cxf;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+
+import org.w3c.dom.Document;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
@@ -27,8 +34,6 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.test.junit4.CamelTestSupport;
 import org.apache.camel.util.URISupport;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.bus.CXFBusFactory;
 import org.apache.cxf.endpoint.Client;
 import org.apache.cxf.frontend.ServerFactoryBean;
@@ -36,14 +41,18 @@ import org.apache.cxf.helpers.CastUtils;
 import org.apache.cxf.message.MessageContentsList;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CxfProducerRouterTest extends CamelTestSupport {
-    private static final transient Log LOG = LogFactory.getLog(CxfProducerRouterTest.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(CxfProducerRouterTest.class);
     private static final String SIMPLE_SERVER_ADDRESS = "http://localhost:28080/test";
     private static final String REQUEST_MESSAGE = "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">"
             + "<soap:Body><ns1:echo xmlns:ns1=\"http://cxf.component.camel.apache.org/\">"
             + "<arg0 xmlns=\"http://cxf.component.camel.apache.org/\">Hello World!</arg0>"
             + "</ns1:echo></soap:Body></soap:Envelope>";
+    private static final String REQUEST_PAYLOAD = "<ns1:echo xmlns:ns1=\"http://cxf.component.camel.apache.org/\">"
+        + "<arg0 xmlns=\"http://cxf.component.camel.apache.org/\">Hello World!</arg0></ns1:echo>";
 
     private static final String ECHO_OPERATION = "echo";
     private static final String TEST_MESSAGE = "Hello World!";
@@ -65,6 +74,7 @@ public class CxfProducerRouterTest extends CamelTestSupport {
             public void configure() {
                 from("direct:EndpointA").to(getSimpleEndpointUri());
                 from("direct:EndpointB").to(getSimpleEndpointUri() + "&dataFormat=MESSAGE");
+                from("direct:EndpointC").to(getSimpleEndpointUri() + "&dataFormat=PAYLOAD");
             }
         };
     }
@@ -114,6 +124,29 @@ public class CxfProducerRouterTest extends CamelTestSupport {
         String response = out.getBody(String.class);
         assertTrue("It should has the echo message", response.indexOf("echo " + TEST_MESSAGE) > 0);
         assertTrue("It should has the echoResponse tag", response.indexOf("echoResponse") > 0);
+
+    }
+    
+    @Test
+    public void testInvokingSimpleServerWithPayLoadDataFormat() throws Exception {
+        Exchange senderExchange = new DefaultExchange(context, ExchangePattern.InOut);
+        senderExchange.getIn().setBody(REQUEST_PAYLOAD);
+        // We need to specify the operation name to help CxfProducer to look up the BindingOperationInfo
+        senderExchange.getIn().setHeader(CxfConstants.OPERATION_NAME, "echo");
+        Exchange exchange = template.send("direct:EndpointC", senderExchange);
+
+        org.apache.camel.Message out = exchange.getOut();
+        String response = out.getBody(String.class);
+        assertTrue("It should has the echo message", response.indexOf("echo " + TEST_MESSAGE) > 0);
+        assertTrue("It should has the echoResponse tag", response.indexOf("echoResponse") > 0);
+        
+        senderExchange = new DefaultExchange(context, ExchangePattern.InOut);
+        senderExchange.getIn().setBody(REQUEST_PAYLOAD);
+        // Don't specify operation information here
+        exchange = template.send("direct:EndpointC", senderExchange);
+        
+        assertNotNull("Expect exception here.", exchange.getException());
+        assertTrue(exchange.getException() instanceof IllegalArgumentException);
 
     }
 

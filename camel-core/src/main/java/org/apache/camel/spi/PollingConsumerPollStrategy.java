@@ -26,7 +26,7 @@ import org.apache.camel.Endpoint;
  * do in case the polling goes wrong. This can be handled in the
  * {@link #rollback(org.apache.camel.Consumer , org.apache.camel.Endpoint , int, Exception) rollback} method.
  *
- * @version $Revision$
+ * @version 
  */
 public interface PollingConsumerPollStrategy {
 
@@ -44,8 +44,9 @@ public interface PollingConsumerPollStrategy {
      *
      * @param consumer the consumer
      * @param endpoint the endpoint being consumed
+     * @param polledMessages number of messages polled, will be <tt>0</tt> if no message was polled at all.
      */
-    void commit(Consumer consumer, Endpoint endpoint);
+    void commit(Consumer consumer, Endpoint endpoint, int polledMessages);
 
     /**
      * Called when poll failed

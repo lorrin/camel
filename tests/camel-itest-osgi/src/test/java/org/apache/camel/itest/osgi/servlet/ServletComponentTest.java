@@ -34,11 +34,13 @@ import static org.ops4j.pax.exam.container.def.PaxRunnerOptions.workingDirectory
 @RunWith(JUnit4TestRunner.class)
 public class ServletComponentTest extends OSGiIntegrationSpringTestSupport {
     
+    private static final String CONTEXT_PATH = "/org/apache/camel/itest/osgi/servlet/ServletComponentTest-context.xml";
+
     @Test
     public void testSendMessage() {
         String endpointURI = "http://localhost:9080/camel/services/hello";
         String response = template.requestBody(endpointURI, "Hello World", String.class);
-        assertEquals("response is " , "Echo Hello World", response);
+        assertEquals("Echo Hello World", response);
     }
     
     @Configuration
@@ -58,19 +60,18 @@ public class ServletComponentTest extends OSGiIntegrationSpringTestSupport {
             // using the features to install the camel components             
             scanFeatures(getCamelKarafFeatureUrl(),                         
                           "camel-core", "camel-spring", "camel-test", "camel-http", "camel-servlet"),
-          
-                
+
             workingDirectory("target/paxrunner/"),
 
-            felix(), equinox());
+            felix(),
+            equinox());
         
         return options;
     }
     
     @Override
     protected OsgiBundleXmlApplicationContext createApplicationContext() {
-        return new OsgiBundleXmlApplicationContext(new String[]{"org/apache/camel/itest/osgi/servlet/ServletService.xml",
-                                                                "org/apache/camel/itest/osgi/servlet/CamelServletContext.xml"});
+        return new OsgiBundleXmlApplicationContext(new String[] {CONTEXT_PATH});
     }
 
 }

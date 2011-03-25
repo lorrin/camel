@@ -22,7 +22,7 @@ import org.apache.camel.spi.IdempotentRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JdbcIdempotentRepository implements IdempotentRepository<String> {
 
@@ -55,6 +55,16 @@ public class JdbcIdempotentRepository implements IdempotentRepository<String> {
     public boolean confirm(String key) {
         // noop
         return true;
+    }
+
+    public void start() throws Exception {
+        // noop
+        
+    }
+
+    public void stop() throws Exception {
+        // noop
+        
     }
 }
 

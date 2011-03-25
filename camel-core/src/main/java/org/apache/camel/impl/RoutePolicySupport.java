@@ -24,17 +24,17 @@ import org.apache.camel.Route;
 import org.apache.camel.spi.ExceptionHandler;
 import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.util.ServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A base class for developing custom {@link RoutePolicy} implementations.
  *
- * @version $Revision$
+ * @version 
  */
 public abstract class RoutePolicySupport extends ServiceSupport implements RoutePolicy {
 
-    protected final transient Log log = LogFactory.getLog(getClass());
+    protected final transient Logger log = LoggerFactory.getLogger(getClass());
     private ExceptionHandler exceptionHandler;
 
     public void onInit(Route route) {

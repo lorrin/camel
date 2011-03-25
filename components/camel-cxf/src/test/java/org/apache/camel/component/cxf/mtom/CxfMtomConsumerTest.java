@@ -53,6 +53,8 @@ public class CxfMtomConsumerTest extends CamelTestSupport {
                     @SuppressWarnings("unchecked")
                     public void process(final Exchange exchange) throws Exception {
                         Message in = exchange.getIn();
+                        assertEquals("We should not get any attachements here.", 0, in.getAttachments().size());
+                        assertEquals("Get a wrong Content-Type header", "application/xop+xml", in.getHeader("Content-Type"));
                         // Get the parameter list
                         List<?> parameter = in.getBody(List.class);
                         // Get the operation name
@@ -105,7 +107,7 @@ public class CxfMtomConsumerTest extends CamelTestSupport {
         port.detail(photo, image);
 
         assertEquals("ResponseFromCamel", new String(photo.value, "UTF-8"));
-        assertNotNull(image.value);        
+        assertNotNull(image.value);
         
     }
 

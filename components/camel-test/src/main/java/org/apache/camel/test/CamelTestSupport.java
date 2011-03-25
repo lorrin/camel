@@ -39,6 +39,7 @@ import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.impl.BreakpointSupport;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.DefaultDebugger;
+import org.apache.camel.impl.InterceptSendToMockEndpointStrategy;
 import org.apache.camel.impl.JndiRegistry;
 import org.apache.camel.management.JmxSystemPropertyKeys;
 import org.apache.camel.model.ProcessorDefinition;
@@ -49,7 +50,7 @@ import org.apache.camel.spring.CamelBeanPostProcessor;
  * A useful base class which creates a {@link org.apache.camel.CamelContext} with some routes
  * along with a {@link org.apache.camel.ProducerTemplate} for use in the test case
  *
- * @version $Revision$
+ * @version 
  */
 public abstract class CamelTestSupport extends TestSupport {
     
@@ -60,8 +61,25 @@ public abstract class CamelTestSupport extends TestSupport {
     private Service camelContextService;
     private final DebugBreakpoint breakpoint = new DebugBreakpoint();
 
+    /**
+     * Use the RouteBuilder or not
+     * @return 
+     *  If the return value is true, the camel context will be started in the setup method.
+     *  If the return value is false, the camel context will not be started in the setup method.
+     */
     public boolean isUseRouteBuilder() {
         return useRouteBuilder;
+    }
+
+    /**
+     * Override to enable auto mocking endpoints based on the pattern.
+     * <p/>
+     * Return <tt>*</tt> to mock all endpoints.
+     *
+     * @see org.apache.camel.util.EndpointHelper#matchEndpoint(String, String)
+     */
+    public String isMockEndpoints() {
+        return null;
     }
 
     public void setUseRouteBuilder(boolean useRouteBuilder) {
@@ -109,6 +127,12 @@ public abstract class CamelTestSupport extends TestSupport {
         template.start();
         consumer = context.createConsumerTemplate();
         consumer.start();
+
+        // enable auto mocking if enabled
+        String pattern = isMockEndpoints();
+        if (pattern != null) {
+            context.addRegisterEndpointCallback(new InterceptSendToMockEndpointStrategy(pattern));
+        }
 
         postProcessTest();
         

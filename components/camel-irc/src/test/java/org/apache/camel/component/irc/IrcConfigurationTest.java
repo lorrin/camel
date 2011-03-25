@@ -16,20 +16,17 @@
  */
 package org.apache.camel.component.irc;
 
+import java.util.Dictionary;
 import java.util.List;
 
-import junit.framework.TestCase;
-import org.apache.camel.CamelContext;
-import org.apache.camel.impl.DefaultCamelContext;
+import org.apache.camel.test.junit4.CamelTestSupport;
 import org.junit.Test;
 
-public class IrcConfigurationTest extends TestCase {
+public class IrcConfigurationTest extends CamelTestSupport {
 
     @Test
     public void testConfigureFormat1() throws Exception {
-
-        CamelContext camel = new DefaultCamelContext();
-        IrcComponent component = new IrcComponent(camel);
+        IrcComponent component = context.getComponent("irc", IrcComponent.class);
 
         // irc:nick@host[:port]/#room[?options]
         IrcEndpoint endpoint = (IrcEndpoint) component.createEndpoint("irc://camelbot@irc.freenode.net/#camel");
@@ -43,9 +40,7 @@ public class IrcConfigurationTest extends TestCase {
 
     @Test
     public void testConfigureFormat2() throws Exception {
-
-        CamelContext camel = new DefaultCamelContext();
-        IrcComponent component = new IrcComponent(camel);
+        IrcComponent component = context.getComponent("irc", IrcComponent.class);
 
         // irc:nick@host[:port]/#room[?options]
         IrcEndpoint endpoint = (IrcEndpoint) component.createEndpoint("irc://camelbot@irc.freenode.net?channels=#camel");
@@ -60,9 +55,7 @@ public class IrcConfigurationTest extends TestCase {
 
     @Test
     public void testConfigureFormat3() throws Exception {
-
-        CamelContext camel = new DefaultCamelContext();
-        IrcComponent component = new IrcComponent(camel);
+        IrcComponent component = context.getComponent("irc", IrcComponent.class);
 
         // irc:nick@host[:port]/#room[?options]
         IrcEndpoint endpoint = (IrcEndpoint) component.createEndpoint("irc://irc.freenode.net?channels=#camel&nickname=camelbot");
@@ -77,9 +70,7 @@ public class IrcConfigurationTest extends TestCase {
 
     @Test
     public void testConfigureFormat4() throws Exception {
-
-        CamelContext camel = new DefaultCamelContext();
-        IrcComponent component = new IrcComponent(camel);
+        IrcComponent component = context.getComponent("irc", IrcComponent.class);
 
         // irc:nick@host[:port]/#room[?options]
         IrcEndpoint endpoint = (IrcEndpoint) component.createEndpoint("irc://irc.freenode.net?keys=,foo&channels=#camel,#smx&nickname=camelbot");
@@ -90,16 +81,14 @@ public class IrcConfigurationTest extends TestCase {
         List<String> channels = conf.getChannels();
         assertEquals(2, channels.size());
         assertEquals("#camel", channels.get(0));
-        List<String> keys = conf.getKeys();
+        Dictionary<String, String> keys = conf.getKeys();
         assertEquals(2, keys.size());
-        assertEquals("foo", keys.get(1));
+        assertEquals("foo", conf.getKey("#smx"));
     }
 
     @Test
     public void testConfigureFormat5() throws Exception {
-
-        CamelContext camel = new DefaultCamelContext();
-        IrcComponent component = new IrcComponent(camel);
+        IrcComponent component = context.getComponent("irc", IrcComponent.class);
 
         // irc:nick@host[:port]/#room[?options]
         IrcEndpoint  endpoint = (IrcEndpoint) component.
@@ -111,17 +100,15 @@ public class IrcConfigurationTest extends TestCase {
         List<String> channels = conf.getChannels();
         assertEquals(2, channels.size());
         assertEquals("#camel", channels.get(0));
-        List<String> keys = conf.getKeys();
+        Dictionary<String, String> keys = conf.getKeys();
         assertEquals(1, keys.size());
-        assertEquals("foo", keys.get(0));
+        assertEquals("foo", conf.getKey("#camel"));
         assertEquals("Camel Bot", conf.getRealname());
     }
 
     @Test
     public void testConfigureFormat6() throws Exception {
-
-        CamelContext camel = new DefaultCamelContext();
-        IrcComponent component = new IrcComponent(camel);
+        IrcComponent component = context.getComponent("irc", IrcComponent.class);
 
         // irc:nick@host[:port]/#room[?options]
         IrcEndpoint  endpoint = (IrcEndpoint) component.
@@ -133,10 +120,10 @@ public class IrcConfigurationTest extends TestCase {
         List<String> channels = conf.getChannels();
         assertEquals(2, channels.size());
         assertEquals("#camel", channels.get(0));
-        List<String> keys = conf.getKeys();
+        Dictionary<String, String> keys = conf.getKeys();
         assertEquals(2, keys.size());
-        assertEquals("foo", keys.get(0));
-        assertEquals("bar", keys.get(1));
+        assertEquals("foo", conf.getKey("#camel"));
+        assertEquals("bar", conf.getKey("#smx"));
         assertEquals("Camel Bot", conf.getRealname());
     }
 

@@ -19,6 +19,7 @@ package org.apache.camel.component.cxf;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
+
 import javax.xml.ws.WebFault;
 
 import org.w3c.dom.Element;
@@ -27,8 +28,6 @@ import org.apache.camel.AsyncCallback;
 import org.apache.camel.Processor;
 import org.apache.camel.impl.DefaultConsumer;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.continuations.Continuation;
 import org.apache.cxf.continuations.ContinuationProvider;
 import org.apache.cxf.endpoint.Server;
@@ -38,6 +37,8 @@ import org.apache.cxf.message.Exchange;
 import org.apache.cxf.message.Message;
 import org.apache.cxf.service.invoker.Invoker;
 import org.apache.cxf.service.model.BindingOperationInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A Consumer of exchanges for a service in CXF.  CxfConsumer acts a CXF
@@ -45,10 +46,10 @@ import org.apache.cxf.service.model.BindingOperationInfo;
  * route for processing. It is also responsible for converting and sending
  * back responses to CXF client.
  *
- * @version $Revision$
+ * @version 
  */
 public class CxfConsumer extends DefaultConsumer {
-    private static final Log LOG = LogFactory.getLog(CxfConsumer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CxfConsumer.class);
     private Server server;
 
     public CxfConsumer(final CxfEndpoint endpoint, Processor processor) throws Exception {
@@ -63,22 +64,36 @@ public class CxfConsumer extends DefaultConsumer {
                 if (LOG.isTraceEnabled()) {
                     LOG.trace("Received CXF Request: " + cxfExchange);
                 }                
-                Continuation continuation = getContinuation(cxfExchange);
-                if (continuation != null && !endpoint.isSynchronous()) {
+                Continuation continuation;
+                if (!endpoint.isSynchronous() && (continuation = getContinuation(cxfExchange)) != null) {
+                    if (LOG.isTraceEnabled()) {
+                        LOG.trace("Calling the Camel async processors.");
+                    }
                     return asyncInvoke(cxfExchange, continuation);
                 } else {
+                    if (LOG.isTraceEnabled()) {
+                        LOG.trace("Calling the Camel sync processors.");
+                    }
                     return syncInvoke(cxfExchange);
                 }
             }            
             
+            // NOTE this code cannot work with CXF 2.2.x
             private Object asyncInvoke(Exchange cxfExchange, final Continuation continuation) {
                 synchronized (continuation) {
                     if (continuation.isNew()) {
                         final org.apache.camel.Exchange camelExchange = perpareCamelExchange(cxfExchange);
-                        // TODO we need to use the CXF 2.3.0 new Continuation API in CAMEL 3.0.0
-                        // The below code should work for CXF 2.2.x and CXF 2.3.x at the same time
+                        
+                        // Now we don't set up the timeout value
+                        if (LOG.isTraceEnabled()) {
+                            LOG.trace("Suspending continuation of exchangeId: " + camelExchange.getExchangeId());
+                        }
+                        // TODO Support to set the timeout in case the Camel can't send the response back on time.
+                        // The continuation could be called before the suspend is called
+                        continuation.suspend(0);
+
                         // use the asynchronous API to process the exchange
-                        boolean sync = getAsyncProcessor().process(camelExchange, new AsyncCallback() {
+                        getAsyncProcessor().process(camelExchange, new AsyncCallback() {
                             public void done(boolean doneSync) {
                                 // make sure the continuation resume will not be called before the suspend method in other thread
                                 synchronized (continuation) {
@@ -92,26 +107,7 @@ public class CxfConsumer extends DefaultConsumer {
                                 }
                             }
                         });
-                        // just need to avoid the continuation.resume is called
-                        // before the continuation.suspend is called
-                        if (continuation.getObject() != camelExchange && !sync) {
-                            // Now we don't set up the timeout value
-                            if (LOG.isTraceEnabled()) {
-                                LOG.trace("Suspending continuation of exchangeId: "
-                                          + camelExchange.getExchangeId());
-                            }
-                            // The continuation could be called before the
-                            // suspend is called
-                            continuation.suspend(0);
-                        } else {
-                            // just set the response back, as the invoking
-                            // thread is not changed
-                            if (LOG.isTraceEnabled()) {
-                                LOG.trace("Processed the Exchange : " + camelExchange.getExchangeId());
-                            }
-                            setResponseBack(cxfExchange, camelExchange);
-                        }
-
+                        
                     }
                     if (continuation.isResumed()) {
                         org.apache.camel.Exchange camelExchange = (org.apache.camel.Exchange)continuation

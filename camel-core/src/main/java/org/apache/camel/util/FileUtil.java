@@ -23,15 +23,15 @@ import java.util.Locale;
 import java.util.Random;
 import java.util.Stack;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * File utilities
  */
 public final class FileUtil {
     
-    private static final transient Log LOG = LogFactory.getLog(FileUtil.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(FileUtil.class);
     private static final int RETRY_SLEEP_MILLIS = 10;
     private static File defaultTempDir;
 
@@ -42,11 +42,17 @@ public final class FileUtil {
      * Normalizes the path to cater for Windows and other platforms
      */
     public static String normalizePath(String path) {
-        // special handling for Windows where we need to convert / to \\
-        if (path != null && isWindows() && path.indexOf('/') >= 0) {
-            return path.replace('/', '\\');
+        if (path == null) {
+            return null;
         }
-        return path;
+
+        if (isWindows()) {
+            // special handling for Windows where we need to convert / to \\
+            return path.replace('/', '\\');
+        } else {
+            // for other systems make sure we use / as separators
+            return path.replace('\\', '/');
+        }
     }
     
     public static boolean isWindows() {
@@ -135,10 +141,10 @@ public final class FileUtil {
         if (name == null) {
             return null;
         }
-        int pos = name.lastIndexOf('/');
-        if (pos == -1) {
-            pos = name.lastIndexOf(File.separator);
-        }
+        int posUnix = name.lastIndexOf('/');
+        int posWin = name.lastIndexOf('\\');
+        int pos = Math.max(posUnix, posWin);
+
         if (pos != -1) {
             return name.substring(pos + 1);
         }
@@ -163,10 +169,11 @@ public final class FileUtil {
         if (name == null) {
             return null;
         }
-        int pos = name.lastIndexOf('/');
-        if (pos == -1) {
-            pos = name.lastIndexOf(File.separator);
-        }
+
+        int posUnix = name.lastIndexOf('/');
+        int posWin = name.lastIndexOf('\\');
+        int pos = Math.max(posUnix, posWin);
+
         if (pos > 0) {
             return name.substring(0, pos);
         } else if (pos == 0) {

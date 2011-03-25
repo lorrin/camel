@@ -16,9 +16,8 @@
  */
 package org.apache.camel.component.seda;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -36,18 +35,19 @@ import org.apache.camel.processor.MulticastProcessor;
 import org.apache.camel.spi.ExceptionHandler;
 import org.apache.camel.spi.ShutdownAware;
 import org.apache.camel.util.AsyncProcessorHelper;
-import org.apache.camel.util.ServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A Consumer for the SEDA component.
  *
- * @version $Revision$
+ * @version 
  */
 public class SedaConsumer extends ServiceSupport implements Consumer, Runnable, ShutdownAware {
-    private static final transient Log LOG = LogFactory.getLog(SedaConsumer.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(SedaConsumer.class);
 
+    private CountDownLatch latch;
+    private volatile boolean shutdownPending;
     private SedaEndpoint endpoint;
     private AsyncProcessor processor;
     private ExecutorService executor;
@@ -93,20 +93,30 @@ public class SedaConsumer extends ServiceSupport implements Consumer, Runnable, 
         return endpoint.getQueue().size();
     }
 
+    public void prepareShutdown() {
+        // signal we want to shutdown
+        shutdownPending = true;
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Preparing to shutdown, waiting for " + latch.getCount() + " consumer threads to complete.");
+        }
+
+        // wait for all threads to end
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            // ignore
+        }
+    }
+
     public void run() {
         BlockingQueue<Exchange> queue = endpoint.getQueue();
-        while (queue != null && isRunAllowed()) {
-            final Exchange exchange;
+        // loop while we are allowed, or if we are stopping loop until the queue is empty
+        while (queue != null && (isRunAllowed())) {
+            Exchange exchange = null;
             try {
                 exchange = queue.poll(1000, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Sleep interrupted, are we stopping? " + (isStopping() || isStopped()));
-                }
-                continue;
-            }
-            if (exchange != null) {
-                if (isRunAllowed()) {
+                if (exchange != null) {
                     try {
                         sendToConsumers(exchange);
 
@@ -117,20 +127,30 @@ public class SedaConsumer extends ServiceSupport implements Consumer, Runnable, 
                     } catch (Exception e) {
                         getExceptionHandler().handleException("Error processing exchange", exchange, e);
                     }
+                } else if (shutdownPending && queue.isEmpty()) {
+                    if (LOG.isTraceEnabled()) {
+                        LOG.trace("Shutdown is pending, so this consumer thread is breaking out because the task queue is empty.");
+                    }
+                    // we want to shutdown so break out if there queue is empty
+                    break;
+                }
+            } catch (InterruptedException e) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Sleep interrupted, are we stopping? " + (isStopping() || isStopped()));
+                }
+                continue;
+            } catch (Throwable e) {
+                if (exchange != null) {
+                    getExceptionHandler().handleException("Error processing exchange", exchange, e);
                 } else {
-                    if (LOG.isWarnEnabled()) {
-                        LOG.warn("This consumer is stopped during polling an exchange, so putting it back on the seda queue: " + exchange);
-                    }
-                    try {
-                        queue.put(exchange);
-                    } catch (InterruptedException e) {
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Sleep interrupted, are we stopping? " + (isStopping() || isStopped()));
-                        }
-                        continue;
-                    }
+                    getExceptionHandler().handleException(e);
                 }
             }
+        }
+
+        latch.countDown();
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Ending this polling consumer thread, there are still " + latch.getCount() + " consumer threads left.");
         }
     }
 
@@ -156,7 +176,7 @@ public class SedaConsumer extends ServiceSupport implements Consumer, Runnable, 
             }
            
             // use a multicast processor to process it
-            MulticastProcessor mp = endpoint.getConumserMulticastProcessor();
+            MulticastProcessor mp = endpoint.getConsumerMulticastProcessor();
 
             // and use the asynchronous routing engine to support it
             AsyncProcessorHelper.process(mp, exchange, new AsyncCallback() {
@@ -175,6 +195,9 @@ public class SedaConsumer extends ServiceSupport implements Consumer, Runnable, 
     }
 
     protected void doStart() throws Exception {
+        latch = new CountDownLatch(endpoint.getConcurrentConsumers());
+        shutdownPending = false;
+
         int poolSize = endpoint.getConcurrentConsumers();
         executor = endpoint.getCamelContext().getExecutorServiceStrategy()
                         .newFixedThreadPool(this, endpoint.getEndpointUri(), poolSize);
@@ -187,8 +210,12 @@ public class SedaConsumer extends ServiceSupport implements Consumer, Runnable, 
     protected void doStop() throws Exception {
         endpoint.onStopped(this);
         // must shutdown executor on stop to avoid overhead of having them running
-        endpoint.getCamelContext().getExecutorServiceStrategy().shutdown(executor);
-        executor = null;
+        // use shutdown now to force the tasks which are polling for new exchanges
+        // to stop immediately to avoid them picking up new exchanges arriving in the mean time
+        if (executor != null) {
+            endpoint.getCamelContext().getExecutorServiceStrategy().shutdownNow(executor);
+            executor = null;
+        }
     }
 
 }

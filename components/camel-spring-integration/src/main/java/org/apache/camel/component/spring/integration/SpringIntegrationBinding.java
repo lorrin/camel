@@ -21,11 +21,10 @@ import java.util.Map;
 import org.apache.camel.Exchange;
 import org.springframework.integration.message.GenericMessage;
 
-
 /**
- * The helper class for Mapping between the Spring Integration message and
- * the Camel Message
- * @version $Revision$
+ * The helper class for Mapping between the Spring Integration message and the Camel Message.
+ *
+ * @version 
  */
 public final class SpringIntegrationBinding {
 
@@ -33,22 +32,22 @@ public final class SpringIntegrationBinding {
         // Helper class
     }
 
-    public static org.springframework.integration.core.Message createSpringIntegrationMessage(Exchange exchange) {
+    public static org.springframework.integration.Message createSpringIntegrationMessage(Exchange exchange) {
         return createSpringIntegrationMessage(exchange, exchange.getIn().getHeaders());
     }
 
     @SuppressWarnings("unchecked")
-    public static org.springframework.integration.core.Message createSpringIntegrationMessage(Exchange exchange, Map<String, Object> headers) {
+    public static org.springframework.integration.Message createSpringIntegrationMessage(Exchange exchange, Map<String, Object> headers) {
         org.apache.camel.Message message = exchange.getIn();
         return new GenericMessage(message.getBody(), headers);
     }
 
     @SuppressWarnings("unchecked")
-    public static org.springframework.integration.core.Message storeToSpringIntegrationMessage(org.apache.camel.Message message) {
+    public static org.springframework.integration.Message storeToSpringIntegrationMessage(org.apache.camel.Message message) {
         return new GenericMessage(message.getBody());
     }
 
-    public static void storeToCamelMessage(org.springframework.integration.core.Message siMessage, org.apache.camel.Message cMessage) {
+    public static void storeToCamelMessage(org.springframework.integration.Message siMessage, org.apache.camel.Message cMessage) {
         cMessage.setBody(siMessage.getPayload());
         cMessage.setHeaders(siMessage.getHeaders());
     }

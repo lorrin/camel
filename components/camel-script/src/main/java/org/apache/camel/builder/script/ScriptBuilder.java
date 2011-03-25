@@ -33,8 +33,8 @@ import org.apache.camel.Expression;
 import org.apache.camel.Predicate;
 import org.apache.camel.Processor;
 import org.apache.camel.converter.ObjectConverter;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -43,10 +43,10 @@ import org.springframework.core.io.UrlResource;
  * A builder class for creating {@link Processor}, {@link Expression} and
  * {@link Predicate} objects using the JSR 223 scripting engine.
  *
- * @version $Revision$
+ * @version 
  */
 public class ScriptBuilder implements Expression, Predicate, Processor {
-    private static final transient Log LOG = LogFactory.getLog(ScriptBuilder.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(ScriptBuilder.class);
 
     private String scriptEngineName;
     private Resource scriptResource;
@@ -489,7 +489,7 @@ public class ScriptBuilder implements Expression, Predicate, Processor {
             }
         } catch (ScriptException e) {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Script compile failed: " + e, e);
+                LOG.debug("Script compile failed: " + e.getMessage(), e);
             }
             throw createScriptCompileException(e);
         } catch (IOException e) {
@@ -508,7 +508,7 @@ public class ScriptBuilder implements Expression, Predicate, Processor {
             return result;
         } catch (ScriptException e) {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Script evaluation failed: " + e, e);
+                LOG.debug("Script evaluation failed: " + e.getMessage(), e);
             }
             throw createScriptEvaluationException(e.getCause());
         } catch (IOException e) {
@@ -518,7 +518,7 @@ public class ScriptBuilder implements Expression, Predicate, Processor {
 
     protected Object runScript() throws ScriptException, IOException {
         checkInitialised();
-        Object result = null;
+        Object result;
         if (compiledScript != null) {
             result = compiledScript.eval();
         } else {

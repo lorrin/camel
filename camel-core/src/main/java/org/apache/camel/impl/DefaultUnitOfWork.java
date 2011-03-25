@@ -17,15 +17,18 @@
 package org.apache.camel.impl;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 
+import org.apache.camel.AsyncCallback;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
+import org.apache.camel.Processor;
 import org.apache.camel.Service;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.spi.Synchronization;
@@ -34,16 +37,16 @@ import org.apache.camel.spi.TracedRouteNodes;
 import org.apache.camel.spi.UnitOfWork;
 import org.apache.camel.util.EventHelper;
 import org.apache.camel.util.UnitOfWorkHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The default implementation of {@link org.apache.camel.spi.UnitOfWork}
  *
- * @version $Revision$
+ * @version 
  */
 public class DefaultUnitOfWork implements UnitOfWork, Service {
-    private static final transient Log LOG = LogFactory.getLog(DefaultUnitOfWork.class);
+    protected final transient Logger log = LoggerFactory.getLogger(getClass());
 
     private String id;
     private CamelContext context;
@@ -54,8 +57,8 @@ public class DefaultUnitOfWork implements UnitOfWork, Service {
     private final Stack<RouteContext> routeContextStack = new Stack<RouteContext>();
 
     public DefaultUnitOfWork(Exchange exchange) {
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("UnitOfWork created for ExchangeId: " + exchange.getExchangeId() + " with " + exchange);
+        if (log.isTraceEnabled()) {
+            log.trace("UnitOfWork created for ExchangeId: " + exchange.getExchangeId() + " with " + exchange);
         }
         tracedRouteNodes = new DefaultTracedRouteNodes();
         context = exchange.getContext();
@@ -70,6 +73,11 @@ public class DefaultUnitOfWork implements UnitOfWork, Service {
             // cannot copy headers with a JmsMessage as the underlying javax.jms.Message object goes nuts 
         } else {
             this.originalInMessage = exchange.getIn().copy();
+        }
+
+        // mark the creation time when this Exchange was created
+        if (exchange.getProperty(Exchange.CREATED_TIMESTAMP) == null) {
+            exchange.setProperty(Exchange.CREATED_TIMESTAMP, new Date());
         }
 
         // fire event
@@ -107,8 +115,8 @@ public class DefaultUnitOfWork implements UnitOfWork, Service {
         if (synchronizations == null) {
             synchronizations = new ArrayList<Synchronization>();
         }
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("Adding synchronization " + synchronization);
+        if (log.isTraceEnabled()) {
+            log.trace("Adding synchronization " + synchronization);
         }
         synchronizations.add(synchronization);
     }
@@ -135,45 +143,45 @@ public class DefaultUnitOfWork implements UnitOfWork, Service {
             }
 
             if (handover) {
-                if (LOG.isTraceEnabled()) {
-                    LOG.trace("Handover synchronization " + synchronization + " to: " + target);
+                if (log.isTraceEnabled()) {
+                    log.trace("Handover synchronization " + synchronization + " to: " + target);
                 }
                 target.addOnCompletion(synchronization);
                 // remove it if its handed over
                 it.remove();
             } else {
-                if (LOG.isTraceEnabled()) {
-                    LOG.trace("Handover not allow for synchronization " + synchronization);
+                if (log.isTraceEnabled()) {
+                    log.trace("Handover not allow for synchronization " + synchronization);
                 }
             }
         }
     }
    
     public void done(Exchange exchange) {
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("UnitOfWork done for ExchangeId: " + exchange.getExchangeId() + " with " + exchange);
+        if (log.isTraceEnabled()) {
+            log.trace("UnitOfWork done for ExchangeId: " + exchange.getExchangeId() + " with " + exchange);
         }
 
         boolean failed = exchange.isFailed();
 
-        // fire event to signal the exchange is done
+        // at first done the synchronizations
+        UnitOfWorkHelper.doneSynchronizations(exchange, synchronizations, log);
+
+        // then fire event to signal the exchange is done
         try {
             if (failed) {
                 EventHelper.notifyExchangeFailed(exchange.getContext(), exchange);
             } else {
                 EventHelper.notifyExchangeDone(exchange.getContext(), exchange);
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             // must catch exceptions to ensure synchronizations is also invoked
-            LOG.warn("Exception occurred during event notification. This exception will be ignored.", e);
-        }
-
-        // done the synchronizations
-        UnitOfWorkHelper.doneSynchronizations(exchange, synchronizations, LOG);
-
-        // unregister from inflight registry
-        if (exchange.getContext() != null) {
-            exchange.getContext().getInflightRepository().remove(exchange);
+            log.warn("Exception occurred during event notification. This exception will be ignored.", e);
+        } finally {
+            // unregister from inflight registry
+            if (exchange.getContext() != null) {
+                exchange.getContext().getInflightRepository().remove(exchange);
+            }
         }
     }
 
@@ -196,16 +204,16 @@ public class DefaultUnitOfWork implements UnitOfWork, Service {
         return transactedBy != null && !transactedBy.isEmpty();
     }
 
-    public boolean isTransactedBy(Object transactionDefinition) {
-        return getTransactedBy().contains(transactionDefinition);
+    public boolean isTransactedBy(Object key) {
+        return getTransactedBy().contains(key);
     }
 
-    public void beginTransactedBy(Object transactionDefinition) {
-        getTransactedBy().add(transactionDefinition);
+    public void beginTransactedBy(Object key) {
+        getTransactedBy().add(key);
     }
 
-    public void endTransactedBy(Object transactionDefinition) {
-        getTransactedBy().remove(transactionDefinition);
+    public void endTransactedBy(Object key) {
+        getTransactedBy().remove(key);
     }
 
     public RouteContext getRouteContext() {
@@ -226,10 +234,24 @@ public class DefaultUnitOfWork implements UnitOfWork, Service {
         return routeContextStack.pop();
     }
 
+    public AsyncCallback beforeProcess(Processor processor, Exchange exchange, AsyncCallback callback) {
+        // no wrapping needed
+        return callback;
+    }
+
+    public void afterProcess(Processor processor, Exchange exchange, AsyncCallback callback, boolean doneSync) {
+        // noop
+    }
+
     private Set<Object> getTransactedBy() {
         if (transactedBy == null) {
             transactedBy = new LinkedHashSet<Object>();
         }
         return transactedBy;
+    }
+
+    @Override
+    public String toString() {
+        return "DefaultUnitOfWork";
     }
 }

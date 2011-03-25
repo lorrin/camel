@@ -21,16 +21,16 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class HttpProducerJMXBeansIssueTest extends BaseJettyTest {
 
-    private static final Log LOG = LogFactory.getLog(HttpProducerJMXBeansIssueTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HttpProducerJMXBeansIssueTest.class);
 
     @Override
     public void setUp() throws Exception {

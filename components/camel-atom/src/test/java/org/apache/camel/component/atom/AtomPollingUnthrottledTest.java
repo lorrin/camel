@@ -22,7 +22,7 @@ import org.apache.camel.test.junit4.CamelTestSupport;
 import org.junit.Test;
 
 /**
- * Unit test for fast polling using a low delay
+ * @version 
  */
 public class AtomPollingUnthrottledTest extends CamelTestSupport {
 
@@ -31,7 +31,8 @@ public class AtomPollingUnthrottledTest extends CamelTestSupport {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(7);
         mock.setResultWaitTime(3000L);
-        mock.assertIsSatisfied();
+
+        assertMockEndpointsSatisfied();
     }
 
     protected RouteBuilder createRouteBuilder() throws Exception {
@@ -41,4 +42,5 @@ public class AtomPollingUnthrottledTest extends CamelTestSupport {
             }
         };
     }
+
 }

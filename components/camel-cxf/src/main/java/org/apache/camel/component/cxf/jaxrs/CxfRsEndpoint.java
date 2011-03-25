@@ -31,61 +31,63 @@ import org.apache.camel.component.cxf.spring.CxfRsServerFactoryBeanDefinitionPar
 import org.apache.camel.impl.DefaultEndpoint;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.helpers.CastUtils;
 import org.apache.cxf.jaxrs.JAXRSServerFactoryBean;
 import org.apache.cxf.jaxrs.client.JAXRSClientFactoryBean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CxfRsEndpoint extends DefaultEndpoint implements HeaderFilterStrategyAware {
-    private static final Log LOG = LogFactory.getLog(CxfRsEndpoint.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CxfRsEndpoint.class);
 
     private Map<String, String> parameters;
-    private List<Class<?>> resourceClasses;    
+    private List<Class<?>> resourceClasses;
     private HeaderFilterStrategy headerFilterStrategy;
     private CxfRsBinding binding;
     private boolean httpClientAPI = true;
     private String address;
-
-    private AtomicBoolean bindingInitialized = new AtomicBoolean(false);
+    private boolean throwExceptionOnFailure = true;
+    private int maxClientCacheSize = 10;
     
+    private AtomicBoolean bindingInitialized = new AtomicBoolean(false);
+
     public CxfRsEndpoint(String endpointUri, CamelContext camelContext) {
         super(endpointUri, camelContext);
         setAddress(endpointUri);
     }
-    
+
     public CxfRsEndpoint(String endpointUri, Component component) {
         super(endpointUri, component);
         setAddress(endpointUri);
     }
-    
+
     // This method is for CxfRsComponent setting the EndpointUri
     protected void updateEndpointUri(String endpointUri) {
         super.setEndpointUri(endpointUri);
     }
-    
+
     public void setParameters(Map<String, String> param) {
         parameters = param;
     }
-    
+
     public Map<String, String> getParameters() {
         return parameters;
     }
-    
+
     public void setHttpClientAPI(boolean clientAPI) {
         httpClientAPI = clientAPI;
     }
-    
+
     public boolean isHttpClientAPI() {
         return httpClientAPI;
     }
-    
+
     @Override
     public boolean isLenientProperties() {
         return true;
     }
-    
-    public HeaderFilterStrategy getHeaderFilterStrategy() {    
+
+    public HeaderFilterStrategy getHeaderFilterStrategy() {
         if (headerFilterStrategy == null) {
             headerFilterStrategy = new CxfRsHeaderFilterStrategy();
             if (LOG.isDebugEnabled()) {
@@ -98,71 +100,73 @@ public class CxfRsEndpoint extends DefaultEndpoint implements HeaderFilterStrate
     public void setHeaderFilterStrategy(HeaderFilterStrategy strategy) {
         headerFilterStrategy = strategy;
         if (binding instanceof HeaderFilterStrategyAware) {
-            ((HeaderFilterStrategyAware)binding)
-                .setHeaderFilterStrategy(headerFilterStrategy);
+            ((HeaderFilterStrategyAware) binding).setHeaderFilterStrategy(headerFilterStrategy);
         }
     }
 
-    public Consumer createConsumer(Processor processor) throws Exception {        
+    public Consumer createConsumer(Processor processor) throws Exception {
         return new CxfRsConsumer(this, processor);
     }
 
-    public Producer createProducer() throws Exception {        
+    public Producer createProducer() throws Exception {
         return new CxfRsProducer(this);
     }
 
-    public boolean isSingleton() {        
+    public boolean isSingleton() {
         return false;
     }
-    
+
     public void setBinding(CxfRsBinding binding) {
         this.binding = binding;
         bindingInitialized.set(false);
-
     }
-    
-    public CxfRsBinding getBinding() {
+
+    public synchronized CxfRsBinding getBinding() {
         if (binding == null) {
             binding = new DefaultCxfRsBinding();
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Create default CXF Binding " + binding);
             }
-        } 
-        
-        if (!bindingInitialized.getAndSet(true) && binding instanceof HeaderFilterStrategyAware) {
-            ((HeaderFilterStrategyAware)binding).setHeaderFilterStrategy(getHeaderFilterStrategy());
         }
-        
+
+        if (!bindingInitialized.getAndSet(true) && binding instanceof HeaderFilterStrategyAware) {
+            ((HeaderFilterStrategyAware) binding).setHeaderFilterStrategy(getHeaderFilterStrategy());
+        }
+
         return binding;
     }
-    
-    protected void setupJAXRSServerFactoryBean(JAXRSServerFactoryBean sfb) {        
+
+    protected void setupJAXRSServerFactoryBean(JAXRSServerFactoryBean sfb) {
         // address
         sfb.setAddress(getAddress());
         sfb.setResourceClasses(CastUtils.cast(getResourceClasses(), Class.class));
         sfb.setStart(false);
     }
-    
-    protected void setupJAXRSClientFactoryBean(JAXRSClientFactoryBean cfb) {        
+
+    protected void setupJAXRSClientFactoryBean(JAXRSClientFactoryBean cfb, String address) {
         // address
-        cfb.setAddress(getAddress());
+        cfb.setAddress(address);
         if (getResourceClasses() != null) {
             cfb.setResourceClass(getResourceClasses().get(0));
-        }    
+        }
     }
-   
+
     public JAXRSServerFactoryBean createJAXRSServerFactoryBean() {
-        JAXRSServerFactoryBean answer = new SpringJAXRSServerFactoryBean();        
+        JAXRSServerFactoryBean answer = new SpringJAXRSServerFactoryBean();
         setupJAXRSServerFactoryBean(answer);
         return answer;
     }
-    
+
     public JAXRSClientFactoryBean createJAXRSClientFactoryBean() {
+        return createJAXRSClientFactoryBean(getAddress());
+    }
+    
+    public JAXRSClientFactoryBean createJAXRSClientFactoryBean(String address) {
         JAXRSClientFactoryBean answer = new SpringJAXRSClientFactoryBean();
-        setupJAXRSClientFactoryBean(answer);
+        setupJAXRSClientFactoryBean(answer, address);
         return answer;
     }
-       
+
     public List<Class<?>> getResourceClasses() {
         return resourceClasses;
     }
@@ -183,4 +187,25 @@ public class CxfRsEndpoint extends DefaultEndpoint implements HeaderFilterStrate
         return address;
     }
 
+    public boolean isThrowExceptionOnFailure() {
+        return throwExceptionOnFailure;
+    }
+
+    public void setThrowExceptionOnFailure(boolean throwExceptionOnFailure) {
+        this.throwExceptionOnFailure = throwExceptionOnFailure;
+    }
+
+    /**
+     * @param maxClientCacheSize the maxClientCacheSize to set
+     */
+    public void setMaxClientCacheSize(int maxClientCacheSize) {
+        this.maxClientCacheSize = maxClientCacheSize;
+    }
+
+    /**
+     * @return the maxClientCacheSize
+     */
+    public int getMaxClientCacheSize() {
+        return maxClientCacheSize;
+    }
 }

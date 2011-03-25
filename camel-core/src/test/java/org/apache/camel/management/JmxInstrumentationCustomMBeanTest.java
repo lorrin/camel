@@ -100,7 +100,7 @@ public class JmxInstrumentationCustomMBeanTest extends JmxInstrumentationUsingDe
         assertEquals("Could not find 1 context: " + s, 1, s.size());
 
         s = CastUtils.cast(mbsc.queryNames(new ObjectName(domainName + ":type=processors,*"), null));
-        assertEquals("Could not find 2 processors: " + s, 2, s.size());
+        assertEquals("Could not find 1 processors: " + s, 1, s.size());
 
         s = CastUtils.cast(mbsc.queryNames(new ObjectName(domainName + ":type=routes,*"), null));
         assertEquals("Could not find 1 route: " + s, 1, s.size());
@@ -120,7 +120,7 @@ public class JmxInstrumentationCustomMBeanTest extends JmxInstrumentationUsingDe
 
     private class CustomComponent extends DefaultComponent {
         protected Endpoint createEndpoint(final String uri, final String remaining, final Map<String, Object> parameters) throws Exception {
-            return new CustomEndpoint("custom", this);
+            return new CustomEndpoint(uri, this);
         }
     }
 }

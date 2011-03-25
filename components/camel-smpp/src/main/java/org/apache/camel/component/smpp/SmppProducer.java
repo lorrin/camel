@@ -17,11 +17,10 @@
 package org.apache.camel.component.smpp;
 
 import java.io.IOException;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.impl.DefaultProducer;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.jsmpp.DefaultPDUReader;
 import org.jsmpp.DefaultPDUSender;
 import org.jsmpp.SynchronizedPDUSender;
@@ -39,25 +38,28 @@ import org.jsmpp.session.BindParameter;
 import org.jsmpp.session.SMPPSession;
 import org.jsmpp.session.SessionStateListener;
 import org.jsmpp.util.DefaultComposer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of @{link Producer} which use the SMPP protocol
  * 
- * @version $Revision$
+ * @version 
  * @author muellerc
  */
 public class SmppProducer extends DefaultProducer {
 
-    private static final transient Log LOG = LogFactory.getLog(SmppProducer.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(SmppProducer.class);
 
     private SmppConfiguration configuration;
     private SMPPSession session;
     private SessionStateListener sessionStateListener;
+    private final ReentrantLock reconnectLock = new ReentrantLock();
 
     public SmppProducer(SmppEndpoint endpoint, SmppConfiguration config) {
         super(endpoint);
         this.configuration = config;
-        this.sessionStateListener = new SessionStateListener() { 
+        this.sessionStateListener = new SessionStateListener() {
             public void onStateChange(SessionState newState, SessionState oldState, Object source) {
                 if (newState.equals(SessionState.CLOSED)) {
                     LOG.warn("Loosing connection to: " + getEndpoint().getConnectionString() + " - trying to reconnect...");
@@ -179,38 +181,61 @@ public class SmppProducer extends DefaultProducer {
     private void closeSession(SMPPSession session) {
         if (session != null) {
             session.removeSessionStateListener(this.sessionStateListener);
-            session.close();
+            // remove this hack after http://code.google.com/p/jsmpp/issues/detail?id=93 is fixed
+            try {
+                Thread.sleep(1000);
+                session.unbindAndClose();
+            } catch (Exception e) {
+                LOG.warn("Could not close session " + session);
+            }
             session = null;
         }
     }
 
     private void reconnect(final long initialReconnectDelay) {
-        new Thread() {
-            @Override
-            public void run() {
-                LOG.info("Schedule reconnect after " + initialReconnectDelay + " millis");
-                try {
-                    Thread.sleep(initialReconnectDelay);
-                } catch (InterruptedException e) {
-                }
-
-                int attempt = 0;
-                while (!(isStopping() || isStopped()) && (session == null || session.getSessionState().equals(SessionState.CLOSED))) {
-                    try {
-                        LOG.info("Trying to reconnect to " + getEndpoint().getConnectionString() + " - attempt #" + (++attempt) + "...");
-                        session = createSession();
-                    } catch (IOException e) {
-                        LOG.info("Failed to reconnect to " + getEndpoint().getConnectionString());
-                        closeSession(session);
+        if (reconnectLock.tryLock()) {
+            try {
+                Runnable r = new Runnable() {
+                    public void run() {
+                        boolean reconnected = false;
+                        
+                        LOG.info("Schedule reconnect after " + initialReconnectDelay + " millis");
                         try {
-                            Thread.sleep(configuration.getReconnectDelay());
-                        } catch (InterruptedException ee) {
+                            Thread.sleep(initialReconnectDelay);
+                        } catch (InterruptedException e) {
+                        }
+
+                        int attempt = 0;
+                        while (!(isStopping() || isStopped()) && (session == null || session.getSessionState().equals(SessionState.CLOSED))) {
+                            try {
+                                LOG.info("Trying to reconnect to " + getEndpoint().getConnectionString() + " - attempt #" + (++attempt) + "...");
+                                session = createSession();
+                                reconnected = true;
+                            } catch (IOException e) {
+                                LOG.info("Failed to reconnect to " + getEndpoint().getConnectionString());
+                                closeSession(session);
+                                try {
+                                    Thread.sleep(configuration.getReconnectDelay());
+                                } catch (InterruptedException ee) {
+                                }
+                            }
+                        }
+                        
+                        if (reconnected) {
+                            LOG.info("Reconnected to " + getEndpoint().getConnectionString());                        
                         }
                     }
-                }
-                LOG.info("Reconnected to " + getEndpoint().getConnectionString());
+                };
+                
+                Thread t = new Thread(r);
+                t.start(); 
+                t.join();
+            } catch (InterruptedException e) {
+                // noop
+            }  finally {
+                reconnectLock.unlock();
             }
-        }.start();
+        }
     }
     
     @Override

@@ -28,16 +28,16 @@ import org.apache.camel.language.tokenizer.TokenizeLanguage;
 /**
  * For expressions and predicates using a body or header tokenizer
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "tokenize")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class TokenizerExpression extends ExpressionDefinition {
     @XmlAttribute(required = true)
     private String token;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String headerName;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Boolean regex;
 
     public TokenizerExpression() {

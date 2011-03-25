@@ -33,14 +33,14 @@ public class XMLSecurityDataFormat extends DataFormatDefinition {
 
     private static final transient String TRIPLEDES = "http://www.w3.org/2001/04/xmlenc#tripledes-cbc";
 
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String xmlCipherAlgorithm;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String passPhrase;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String secureTag;
-    @XmlAttribute(required = false)
-    private boolean secureTagContents;
+    @XmlAttribute
+    private Boolean secureTagContents;
 
     public XMLSecurityDataFormat() {
         super("secureXML");
@@ -90,7 +90,6 @@ public class XMLSecurityDataFormat extends DataFormatDefinition {
         }
     }
 
-
     public String getXmlCipherAlgorithm() {
         return xmlCipherAlgorithm;
     }
@@ -115,11 +114,15 @@ public class XMLSecurityDataFormat extends DataFormatDefinition {
         this.secureTag = secureTag;
     }
 
-    public boolean isSecureTagContents() {
+    public Boolean getSecureTagContents() {
         return secureTagContents;
     }
 
-    public void setSecureTagContents(boolean secureTagContents) {
+    public void setSecureTagContents(Boolean secureTagContents) {
         this.secureTagContents = secureTagContents;
+    }
+
+    public boolean isSecureTagContents() {
+        return secureTagContents != null && secureTagContents;
     }
 }

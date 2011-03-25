@@ -16,16 +16,16 @@
  */
 package org.apache.camel.util;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Some helper methods for working with Java packages and versioning.
  *
- * @version $Revision$
+ * @version 
  */
 public final class PackageHelper {
-    private static final transient Log LOG = LogFactory.getLog(PackageHelper.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(PackageHelper.class);
 
     private PackageHelper() {
         // Utility Class
@@ -60,13 +60,21 @@ public final class PackageHelper {
                         }
                         value = buffer.toString();
                     }
-                    double number = Double.parseDouble(value);
-                    return number >= minimumVersion;
+
+                    if (ObjectHelper.isNotEmpty(value)) {
+                        double number = Double.parseDouble(value);
+                        return number >= minimumVersion;
+                    } else {
+                        LOG.debug("Failed to find out version from package: " + packageName);
+                    }
                 }
             }
         } catch (Exception e) {
-            LOG.debug("Failed to find out " + packageName + " version: " + e, e);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Failed to find out version from package: " + packageName, e);
+            }
         }
+
         return true;
     }
 }

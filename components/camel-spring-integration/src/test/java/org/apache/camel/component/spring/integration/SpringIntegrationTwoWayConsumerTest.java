@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.camel.component.spring.integration;
 
 import java.util.HashMap;
@@ -23,24 +22,24 @@ import java.util.Map;
 import org.apache.camel.test.junit4.CamelSpringTestSupport;
 import org.junit.Test;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.integration.Message;
+import org.springframework.integration.MessageChannel;
+import org.springframework.integration.MessageHeaders;
 import org.springframework.integration.channel.DirectChannel;
-import org.springframework.integration.core.Message;
-import org.springframework.integration.core.MessageChannel;
-import org.springframework.integration.core.MessageHeaders;
+import org.springframework.integration.core.MessageHandler;
 import org.springframework.integration.message.GenericMessage;
-import org.springframework.integration.message.MessageHandler;
-
 
 public class SpringIntegrationTwoWayConsumerTest extends CamelSpringTestSupport {
     private static final String MESSAGE_BODY = "Request message";    
 
     @Test
     public void testSendingTwoWayMessage() throws Exception {
-        
         MessageChannel requestChannel = (MessageChannel) applicationContext.getBean("requestChannel");
         Map<String, Object> maps = new HashMap<String, Object>();
         maps.put(MessageHeaders.REPLY_CHANNEL, "responseChannel");
+
         Message<String> message = new GenericMessage<String>(MESSAGE_BODY, maps);
+
         DirectChannel responseChannel = (DirectChannel) applicationContext.getBean("responseChannel");
         responseChannel.subscribe(new MessageHandler() {
             public void handleMessage(Message<?> message) {
@@ -48,13 +47,11 @@ public class SpringIntegrationTwoWayConsumerTest extends CamelSpringTestSupport 
                 assertEquals("Get the wrong result", MESSAGE_BODY + " is processed",  result);                
             }             
         });
-        requestChannel.send(message);        
-        
+        requestChannel.send(message);
     }
 
     public ClassPathXmlApplicationContext createApplicationContext() {
         return new ClassPathXmlApplicationContext("org/apache/camel/component/spring/integration/twoWayConsumer.xml");
     }
-
 
 }

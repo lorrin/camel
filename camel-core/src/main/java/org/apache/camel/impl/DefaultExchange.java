@@ -34,7 +34,7 @@ import org.apache.camel.util.ObjectHelper;
 /**
  * A default implementation of {@link Exchange}
  *
- * @version $Revision$
+ * @version 
  */
 public final class DefaultExchange implements Exchange {
 
@@ -69,7 +69,7 @@ public final class DefaultExchange implements Exchange {
     public DefaultExchange(Endpoint fromEndpoint) {
         this(fromEndpoint, ExchangePattern.InOnly);
     }
-    
+
     public DefaultExchange(Endpoint fromEndpoint, ExchangePattern pattern) {
         this(fromEndpoint.getCamelContext(), pattern);
         this.fromEndpoint = fromEndpoint;
@@ -83,7 +83,9 @@ public final class DefaultExchange implements Exchange {
     public Exchange copy() {
         DefaultExchange exchange = new DefaultExchange(this);
 
-        exchange.setProperties(safeCopy(getProperties()));
+        if (hasProperties()) {
+            exchange.setProperties(safeCopy(getProperties()));
+        }
         safeCopy(exchange.getIn(), getIn());
         if (hasOut()) {
             safeCopy(exchange.getOut(), getOut());
@@ -111,16 +113,18 @@ public final class DefaultExchange implements Exchange {
 
     public Object getProperty(String name) {
         if (hasProperties()) {
+            // use intern String for properties which is Camel* properties
+            // this reduces memory allocations needed for those common properties
+            if (name.startsWith("Camel")) {
+                name = name.intern();
+            }
             return properties.get(name);
         }
         return null;
     }
 
     public Object getProperty(String name, Object defaultValue) {
-        Object answer = null;
-        if (hasProperties()) {
-            answer = properties.get(name);
-        }
+        Object answer = getProperty(name);
         return answer != null ? answer : defaultValue;
     }
 
@@ -149,6 +153,11 @@ public final class DefaultExchange implements Exchange {
     }
 
     public void setProperty(String name, Object value) {
+        // use intern String for properties which is Camel* properties
+        // this reduces memory allocations needed for those common properties
+        if (name != null && name.startsWith("Camel")) {
+            name = name.intern();
+        }
         if (value != null) {
             // avoid the NullPointException
             getProperties().put(name, value);

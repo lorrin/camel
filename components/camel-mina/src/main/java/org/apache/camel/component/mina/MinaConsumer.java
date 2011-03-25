@@ -23,36 +23,34 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.converter.IOConverter;
 import org.apache.camel.impl.DefaultConsumer;
-import org.apache.camel.processor.Logger;
+import org.apache.camel.processor.CamelLogger;
 import org.apache.camel.util.ExchangeHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.mina.common.IoAcceptor;
 import org.apache.mina.common.IoHandler;
 import org.apache.mina.common.IoHandlerAdapter;
 import org.apache.mina.common.IoSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link org.apache.camel.Consumer Consumer} implementation for Apache MINA.
  *
- * @version $Revision$
+ * @version 
  */
 public class MinaConsumer extends DefaultConsumer {
-    private static final transient Log LOG = LogFactory.getLog(MinaConsumer.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(MinaConsumer.class);
 
-    private final MinaEndpoint endpoint;
     private final SocketAddress address;
     private final IoAcceptor acceptor;
     private boolean sync;
-    private Logger noReplyLogger;
+    private CamelLogger noReplyLogger;
 
     public MinaConsumer(final MinaEndpoint endpoint, Processor processor) {
         super(endpoint, processor);
-        this.endpoint = endpoint;
         this.address = endpoint.getAddress();
         this.acceptor = endpoint.getAcceptor();
         this.sync = endpoint.getConfiguration().isSync();
-        this.noReplyLogger = new Logger(LOG, endpoint.getConfiguration().getNoReplyLogLevel());
+        this.noReplyLogger = new CamelLogger(LOG, endpoint.getConfiguration().getNoReplyLogLevel());
     }
 
     @Override
@@ -63,7 +61,7 @@ public class MinaConsumer extends DefaultConsumer {
         }
 
         IoHandler handler = new ReceiveHandler();
-        acceptor.bind(address, handler, endpoint.getAcceptorConfig());
+        acceptor.bind(address, handler, getEndpoint().getAcceptorConfig());
     }
 
     @Override
@@ -73,6 +71,11 @@ public class MinaConsumer extends DefaultConsumer {
         }
         acceptor.unbind(address);
         super.doStop();
+    }
+    
+    @Override
+    public MinaEndpoint getEndpoint() {
+        return (MinaEndpoint) super.getEndpoint();
     }
 
     /**
@@ -99,15 +102,15 @@ public class MinaConsumer extends DefaultConsumer {
                 Object in = object;
                 if (in instanceof byte[]) {
                     // byte arrays is not readable so convert to string
-                    in = endpoint.getCamelContext().getTypeConverter().convertTo(String.class, in);
+                    in = getEndpoint().getCamelContext().getTypeConverter().convertTo(String.class, in);
                 }
                 LOG.debug("Received body: " + in);
             }
 
-            Exchange exchange = endpoint.createExchange(session, object);
+            Exchange exchange = getEndpoint().createExchange(session, object);
             //Set the exchange charset property for converting
-            if (endpoint.getConfiguration().getCharsetName() != null) {
-                exchange.setProperty(Exchange.CHARSET_NAME, IOConverter.normalizeCharset(endpoint.getConfiguration().getCharsetName()));
+            if (getEndpoint().getConfiguration().getCharsetName() != null) {
+                exchange.setProperty(Exchange.CHARSET_NAME, IOConverter.normalizeCharset(getEndpoint().getConfiguration().getCharsetName()));
             }
 
             try {
@@ -120,13 +123,13 @@ public class MinaConsumer extends DefaultConsumer {
             if (sync) {
                 Object body;
                 if (ExchangeHelper.isOutCapable(exchange)) {
-                    body = MinaPayloadHelper.getOut(endpoint, exchange);
+                    body = MinaPayloadHelper.getOut(getEndpoint(), exchange);
                 } else {
-                    body = MinaPayloadHelper.getIn(endpoint, exchange);
+                    body = MinaPayloadHelper.getIn(getEndpoint(), exchange);
                 }
 
                 boolean failed = exchange.isFailed();
-                if (failed && !endpoint.getConfiguration().isTransferExchange()) {
+                if (failed && !getEndpoint().getConfiguration().isTransferExchange()) {
                     if (exchange.getException() != null) {
                         body = exchange.getException();
                     } else {
@@ -137,7 +140,7 @@ public class MinaConsumer extends DefaultConsumer {
 
                 if (body == null) {
                     noReplyLogger.log("No payload to send as reply for exchange: " + exchange);
-                    if (endpoint.getConfiguration().isDisconnectOnNoReply()) {
+                    if (getEndpoint().getConfiguration().isDisconnectOnNoReply()) {
                         // must close session if no data to write otherwise client will never receive a response
                         // and wait forever (if not timing out)
                         if (LOG.isDebugEnabled()) {
@@ -163,7 +166,7 @@ public class MinaConsumer extends DefaultConsumer {
             }
 
             // should we disconnect, the header can override the configuration
-            boolean disconnect = endpoint.getConfiguration().isDisconnect();
+            boolean disconnect = getEndpoint().getConfiguration().isDisconnect();
             if (close != null) {
                 disconnect = close;
             }
@@ -175,6 +178,4 @@ public class MinaConsumer extends DefaultConsumer {
             }
         }
     }
-
 }
-

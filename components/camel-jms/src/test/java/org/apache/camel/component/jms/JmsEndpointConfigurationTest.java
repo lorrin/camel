@@ -21,13 +21,12 @@ import javax.jms.DeliveryMode;
 import javax.jms.ExceptionListener;
 import javax.jms.JMSException;
 
-import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.ResolveEndpointFailedException;
-import org.apache.camel.processor.Logger;
+import org.apache.camel.processor.CamelLogger;
 import org.apache.camel.test.junit4.CamelTestSupport;
 import org.junit.Test;
 import org.springframework.jms.connection.UserCredentialsConnectionFactoryAdapter;
@@ -37,10 +36,10 @@ import org.springframework.jms.listener.AbstractMessageListenerContainer;
 import org.springframework.jms.listener.DefaultMessageListenerContainer;
 import org.springframework.jms.support.converter.SimpleMessageConverter;
 
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentClientAcknowledge;
+import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmsEndpointConfigurationTest extends CamelTestSupport {
 
@@ -153,7 +152,7 @@ public class JmsEndpointConfigurationTest extends CamelTestSupport {
     public void testInvalidMaxConcurrentConsumers() throws Exception {
         JmsEndpoint endpoint = (JmsEndpoint) resolveMandatoryEndpoint("jms:queue:Foo?concurrentConsumers=5&maxConcurrentConsumers=2");
         try {
-            endpoint.createConsumer(new Logger());
+            endpoint.createConsumer(new CamelLogger());
             fail("Should have thrown exception");
         } catch (IllegalArgumentException e) {
             assertEquals("Property maxConcurrentConsumers: 2 must be higher than concurrentConsumers: 5", e.getMessage());
@@ -170,7 +169,6 @@ public class JmsEndpointConfigurationTest extends CamelTestSupport {
     public void testIdleTaskExecutionLimit() throws Exception {
         JmsEndpoint endpoint = (JmsEndpoint) resolveMandatoryEndpoint("jms:queue:Foo?idleTaskExecutionLimit=50");
         assertEquals(50, endpoint.getIdleTaskExecutionLimit());
-        assertEquals(ConsumerType.Default, endpoint.getConsumerType());
         assertEquals(true, endpoint.isAutoStartup());
     }
 
@@ -190,14 +188,13 @@ public class JmsEndpointConfigurationTest extends CamelTestSupport {
         assertEquals(-1, endpoint.getTimeToLive());
         assertEquals(-1, endpoint.getTransactionTimeout());
         assertEquals(null, endpoint.getAcknowledgementModeName());
-        assertEquals(2, endpoint.getAcknowledgementMode());
+        assertEquals(1, endpoint.getAcknowledgementMode());
         assertEquals(-1, endpoint.getCacheLevel());
         assertEquals(null, endpoint.getCacheLevelName());
         assertNotNull(endpoint.getCamelId());
         assertEquals(null, endpoint.getClientId());
         assertNotNull(endpoint.getConnectionFactory());
         assertEquals(1, endpoint.getConcurrentConsumers());
-        assertEquals(ConsumerType.Default, endpoint.getConsumerType());
         assertNull(endpoint.getDestination());
         assertEquals("Foo", endpoint.getDestinationName());
         assertNull(endpoint.getDestinationResolver());
@@ -278,9 +275,6 @@ public class JmsEndpointConfigurationTest extends CamelTestSupport {
 
         endpoint.setConcurrentConsumers(5);
         assertEquals(5, endpoint.getConcurrentConsumers());
-
-        endpoint.setConsumerType(ConsumerType.Default);
-        assertEquals(ConsumerType.Default, endpoint.getConsumerType());
 
         endpoint.setDeliveryPersistent(true);
         assertEquals(true, endpoint.isDeliveryPersistent());
@@ -407,8 +401,8 @@ public class JmsEndpointConfigurationTest extends CamelTestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
 
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false");
-        camelContext.addComponent("jms", jmsComponentClientAcknowledge(connectionFactory));
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
+        camelContext.addComponent("jms", jmsComponentAutoAcknowledge(connectionFactory));
 
         return camelContext;
     }

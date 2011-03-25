@@ -19,6 +19,7 @@ package org.apache.camel.component.mail;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.camel.CamelContext;
@@ -29,7 +30,7 @@ import org.apache.camel.util.ObjectHelper;
 /**
  * Component for JavaMail.
  *
- * @version $Revision:520964 $
+ * @version 
  */
 public class MailComponent extends DefaultComponent {
     private MailConfiguration configuration;
@@ -79,10 +80,11 @@ public class MailComponent extends DefaultComponent {
         // we cannot remove while iterating, as we will get a modification exception
         Set toRemove = new HashSet();
 
-        for (Object key : parameters.keySet()) {
-            if (key.toString().startsWith("mail.")) {
-                config.getAdditionalJavaMailProperties().put(key, parameters.get(key));
-                toRemove.add(key);
+        for (Object object : parameters.entrySet()) {
+            Entry entry = (Entry) object;
+            if (entry.getKey().toString().startsWith("mail.")) {
+                config.getAdditionalJavaMailProperties().put(entry.getKey(), entry.getValue());
+                toRemove.add(entry.getKey());
             }
         }
 

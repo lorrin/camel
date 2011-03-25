@@ -18,6 +18,7 @@ package org.apache.camel.itest.jms;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
 import javax.jms.ConnectionFactory;
 import javax.naming.Context;
 
@@ -26,18 +27,18 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.jms.JmsComponent;
 import org.apache.camel.test.junit4.CamelTestSupport;
 import org.apache.camel.util.jndi.JndiContext;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 /**
- * @version $Revision:520964 $
+ * @version 
  */
 public class JmsPerformanceTest extends CamelTestSupport {
-    private static final transient Log LOG = LogFactory.getLog(JmsPerformanceTest.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(JmsPerformanceTest.class);
     protected MyBean myBean = new MyBean();
     protected int messageCount = 1000;
     protected CountDownLatch receivedCountDown = new CountDownLatch(messageCount);
@@ -128,7 +129,7 @@ public class JmsPerformanceTest extends CamelTestSupport {
         answer.bind("myBean", myBean);
 
         // add ActiveMQ client
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("tcp://localhost:61617");
+        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://broker7");
         answer.bind("activemq", JmsComponent.jmsComponentAutoAcknowledge(connectionFactory));
 
         return answer;

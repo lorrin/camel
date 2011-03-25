@@ -22,11 +22,10 @@ import org.springframework.jmx.export.annotation.ManagedAttribute;
 import org.springframework.jmx.export.annotation.ManagedResource;
 
 /**
- * @version $Revision$
+ * @version 
  */
 @ManagedResource(description = "Managed Consumer")
 public class ManagedConsumer extends ManagedService {
-
     private final Consumer consumer;
 
     public ManagedConsumer(CamelContext context, Consumer consumer) {

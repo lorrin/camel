@@ -29,12 +29,11 @@ import org.apache.camel.util.ObjectHelper;
 /**
  * Represents an XML &lt;routeContextRef/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "routeContextRef")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class RouteContextRefDefinition {
-
     @XmlAttribute(required = true)
     private String ref;
 

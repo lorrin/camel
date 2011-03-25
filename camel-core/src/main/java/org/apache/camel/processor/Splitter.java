@@ -34,12 +34,12 @@ import org.apache.camel.Message;
 import org.apache.camel.Processor;
 import org.apache.camel.processor.aggregate.AggregationStrategy;
 import org.apache.camel.processor.aggregate.UseOriginalAggregationStrategy;
-import org.apache.camel.util.CollectionHelper;
+import org.apache.camel.spi.RouteContext;
 import org.apache.camel.util.ExchangeHelper;
 import org.apache.camel.util.IOHelper;
 import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.camel.util.ObjectHelper.notNull;
 
@@ -49,10 +49,10 @@ import static org.apache.camel.util.ObjectHelper.notNull;
  * where an expression is evaluated to iterate through each of the parts of a
  * message and then each part is then send to some endpoint.
  *
- * @version $Revision$
+ * @version 
  */
 public class Splitter extends MulticastProcessor implements AsyncProcessor, Traceable {
-    private static final transient Log LOG = LogFactory.getLog(Splitter.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(Splitter.class);
 
     private final Expression expression;
 
@@ -109,6 +109,10 @@ public class Splitter extends MulticastProcessor implements AsyncProcessor, Trac
     private Iterable<ProcessorExchangePair> createProcessorExchangePairsIterable(final Exchange exchange, final Object value) {
         final Iterator iterator = ObjectHelper.createIterator(value);
         return new Iterable() {
+            // create a copy which we use as master to copy during splitting
+            // this avoids any side effect reflected upon the incoming exchange
+            private final Exchange copy = ExchangeHelper.createCopy(exchange, true);
+            private final RouteContext routeContext = exchange.getUnitOfWork() != null ? exchange.getUnitOfWork().getRouteContext() : null;
 
             public Iterator iterator() {
                 return new Iterator() {
@@ -137,14 +141,16 @@ public class Splitter extends MulticastProcessor implements AsyncProcessor, Trac
 
                     public Object next() {
                         Object part = iterator.next();
-                        Exchange newExchange = exchange.copy();
+                        // create a correlated copy as the new exchange to be routed in the splitter from the copy
+                        // and do not share the unit of work
+                        Exchange newExchange = ExchangeHelper.createCorrelatedCopy(copy, false);
                         if (part instanceof Message) {
-                            newExchange.setIn((Message)part);
+                            newExchange.setIn((Message) part);
                         } else {
                             Message in = newExchange.getIn();
                             in.setBody(part);
                         }
-                        return createProcessorExchangePair(index++, getProcessors().iterator().next(), newExchange);
+                        return createProcessorExchangePair(index++, getProcessors().iterator().next(), newExchange, routeContext);
                     }
 
                     public void remove() {
@@ -176,13 +182,18 @@ public class Splitter extends MulticastProcessor implements AsyncProcessor, Trac
 
         exchange.setProperty(Exchange.SPLIT_INDEX, index);
         if (allPairs instanceof Collection) {
-            exchange.setProperty(Exchange.SPLIT_SIZE, ((Collection<?>)allPairs).size());
+            exchange.setProperty(Exchange.SPLIT_SIZE, ((Collection<?>) allPairs).size());
         }
         if (it.hasNext()) {
             exchange.setProperty(Exchange.SPLIT_COMPLETE, Boolean.FALSE);
         } else {
             exchange.setProperty(Exchange.SPLIT_COMPLETE, Boolean.TRUE);
         }
+    }
+
+    @Override
+    protected Integer getExchangeIndex(Exchange exchange) {
+        return exchange.getProperty(Exchange.SPLIT_INDEX, Integer.class);
     }
 
     public Expression getExpression() {

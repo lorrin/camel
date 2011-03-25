@@ -24,12 +24,11 @@ import org.springframework.jmx.export.annotation.ManagedAttribute;
 import org.springframework.jmx.export.annotation.ManagedResource;
 
 /**
- * @version $Revision$
+ * @version 
  */
 @ManagedResource(description = "Managed Scheduled Polling Consumer")
 public class ManagedScheduledPollConsumer extends ManagedConsumer {
-
-    private ScheduledPollConsumer consumer;
+    private final ScheduledPollConsumer consumer;
 
     public ManagedScheduledPollConsumer(CamelContext context, ScheduledPollConsumer consumer) {
         super(context, consumer);

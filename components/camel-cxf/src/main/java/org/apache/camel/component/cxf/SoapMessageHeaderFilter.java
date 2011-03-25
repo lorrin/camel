@@ -21,22 +21,22 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.camel.spi.HeaderFilterStrategy.Direction;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.binding.soap.SoapBindingConstants;
 import org.apache.cxf.binding.soap.SoapBindingFactory;
 import org.apache.cxf.binding.soap.SoapHeader;
 import org.apache.cxf.binding.soap.SoapVersion;
 import org.apache.cxf.binding.soap.SoapVersionFactory;
 import org.apache.cxf.headers.Header;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link MessageHeaderFilter} to drop all SOAP headers.
  *
- * @version $Revision$
+ * @version 
  */
 public class SoapMessageHeaderFilter implements MessageHeaderFilter {
-    private static final Log LOG = LogFactory.getLog(SoapMessageHeaderFilter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SoapMessageHeaderFilter.class);
 
     private static final List<String> ACTIVATION_NS = 
         Arrays.asList(SoapBindingConstants.SOAP11_BINDING_ID, 

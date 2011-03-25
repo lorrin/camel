@@ -30,7 +30,7 @@ import org.junit.Test;
 import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class JmsDeadLetterChannelInOutTest extends CamelTestSupport {
 
@@ -61,7 +61,7 @@ public class JmsDeadLetterChannelInOutTest extends CamelTestSupport {
 
         // must be persistent so the consumer can receive the message as we receive AFTER the message
         // has been published
-        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://localhost?broker.persistent=true");
+        ConnectionFactory connectionFactory = CamelJmsTestHelper.createPersistentConnectionFactory();
         camelContext.addComponent("activemq", jmsComponentAutoAcknowledge(connectionFactory));
 
         return camelContext;

@@ -19,66 +19,63 @@ package org.apache.camel.util;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import junit.framework.TestCase;
 import org.apache.camel.util.concurrent.ExecutorServiceHelper;
 
 /**
- * @version $Revision$
+ * @version 
  */
 public class DefaultTimeoutMapTest extends TestCase {
 
+    private ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(1);
+
     public void testDefaultTimeoutMap() {
-        DefaultTimeoutMap map = new DefaultTimeoutMap();
+        DefaultTimeoutMap map = new DefaultTimeoutMap(executor);
         assertTrue(map.currentTime() > 0);
 
         assertEquals(0, map.size());
     }
 
     public void testDefaultTimeoutMapPurge() throws Exception {
-        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>();
+        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>(executor, 100);
         assertTrue(map.currentTime() > 0);
 
         assertEquals(0, map.size());
 
-        map.put("A", 123, 500);
+        map.put("A", 123, 50);
         assertEquals(1, map.size());
 
-        Thread.sleep(2000);
-
-        // will purge and remove old entries
-        map.purge();
+        Thread.sleep(250);
 
         assertEquals(0, map.size());
     }
 
-    public void testDefaultTimeoutMapGetPurge() throws Exception {
-        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>();
+    public void testDefaultTimeoutMapForcePurge() throws Exception {
+        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>(executor, 100);
         assertTrue(map.currentTime() > 0);
 
         assertEquals(0, map.size());
 
-        map.put("A", 123, 500);
+        map.put("A", 123, 50);
         assertEquals(1, map.size());
 
-        Thread.sleep(2000);
-
-        assertEquals(123, (int)map.get("A"));
+        Thread.sleep(250);
 
         // will purge and remove old entries
         map.purge();
 
-        // but we just used get to get it so its refreshed
-        assertEquals(1, map.size());
+        assertEquals(0, map.size());
     }
 
     public void testDefaultTimeoutMapGetRemove() throws Exception {
-        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>();
+        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>(executor, 100);
         assertTrue(map.currentTime() > 0);
 
         assertEquals(0, map.size());
 
-        map.put("A", 123, 500);
+        map.put("A", 123, 50);
         assertEquals(1, map.size());
 
         assertEquals(123, (int)map.get("A"));
@@ -90,13 +87,13 @@ public class DefaultTimeoutMapTest extends TestCase {
     }
 
     public void testDefaultTimeoutMapGetKeys() throws Exception {
-        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>();
+        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>(executor, 100);
         assertTrue(map.currentTime() > 0);
 
         assertEquals(0, map.size());
 
-        map.put("A", 123, 500);
-        map.put("B", 456, 500);
+        map.put("A", 123, 50);
+        map.put("B", 456, 50);
         assertEquals(2, map.size());
 
         Object[] keys = map.getKeys();
@@ -107,15 +104,15 @@ public class DefaultTimeoutMapTest extends TestCase {
     public void testExecutor() throws Exception {
         ScheduledExecutorService e = ExecutorServiceHelper.newScheduledThreadPool(2, null, "foo", true);
 
-        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>(e, 500);
-        assertEquals(500, map.getPurgePollTime());
+        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>(e, 50);
+        assertEquals(50, map.getPurgePollTime());
 
-        map.put("A", 123, 1000);
+        map.put("A", 123, 100);
         assertEquals(1, map.size());
 
-        Thread.sleep(2000);
+        Thread.sleep(250);
 
-        // should be gone now
+        // should have been timed out now
         assertEquals(0, map.size());
 
         assertSame(e, map.getExecutor());
@@ -125,7 +122,7 @@ public class DefaultTimeoutMapTest extends TestCase {
         final List<String> keys = new ArrayList<String>();
         final List<Integer> values = new ArrayList<Integer>();
 
-        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>() {
+        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>(executor, 100) {
             @Override
             public boolean onEviction(String key, Integer value) {
                 keys.add(key);
@@ -135,15 +132,15 @@ public class DefaultTimeoutMapTest extends TestCase {
         };
         assertEquals(0, map.size());
 
-        map.put("A", 1, 500);
-        map.put("B", 2, 300);
-        map.put("C", 3, 400);
-        map.put("D", 4, 200);
-        map.put("E", 5, 400);
+        map.put("A", 1, 50);
+        map.put("B", 2, 30);
+        map.put("C", 3, 40);
+        map.put("D", 4, 20);
+        map.put("E", 5, 40);
         // is not expired
-        map.put("F", 6, 8000);
+        map.put("F", 6, 800);
 
-        Thread.sleep(2000);
+        Thread.sleep(250);
 
         // force purge
         map.purge();
@@ -166,7 +163,7 @@ public class DefaultTimeoutMapTest extends TestCase {
         final List<String> keys = new ArrayList<String>();
         final List<Integer> values = new ArrayList<Integer>();
 
-        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>() {
+        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>(executor, 100) {
             @Override
             public boolean onEviction(String key, Integer value) {
                 // do not evict special key
@@ -180,12 +177,12 @@ public class DefaultTimeoutMapTest extends TestCase {
         };
         assertEquals(0, map.size());
 
-        map.put("A", 1, 900);
-        map.put("B", 2, 1000);
-        map.put("gold", 9, 1100);
-        map.put("C", 3, 1200);
+        map.put("A", 1, 90);
+        map.put("B", 2, 100);
+        map.put("gold", 9, 110);
+        map.put("C", 3, 120);
 
-        Thread.sleep(2000);
+        Thread.sleep(250);
 
         // force purge
         map.purge();
@@ -200,6 +197,29 @@ public class DefaultTimeoutMapTest extends TestCase {
         // and keep the gold in the map
         assertEquals(1, map.size());
         assertEquals(Integer.valueOf(9), map.get("gold"));
+    }
+
+    public void testDefaultTimeoutMapStopStart() throws Exception {
+        DefaultTimeoutMap<String, Integer> map = new DefaultTimeoutMap<String, Integer>(executor, 100);
+        map.put("A", 1, 500);
+
+        assertEquals(1, map.size());
+        map.stop();
+
+        assertEquals(0, map.size());
+        map.put("A", 1, 50);
+
+        // should not timeout as the scheduler doesn't run
+        Thread.sleep(250);
+        assertEquals(1, map.size());
+
+        // start
+        map.start();
+
+        // start and wait for scheduler to purge
+        Thread.sleep(250);
+        // now it should be gone
+        assertEquals(0, map.size());
     }
 
 }

@@ -16,11 +16,15 @@
  */
 package org.apache.camel.blueprint;
 
-import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.apache.aries.blueprint.ExtendedBeanMetadata;
+import org.apache.aries.blueprint.mutable.MutableReferenceMetadata;
 import org.apache.camel.spi.Registry;
+import org.osgi.framework.Bundle;
 import org.osgi.service.blueprint.container.BlueprintContainer;
+import org.osgi.service.blueprint.container.NoSuchComponentException;
 
 public class BlueprintContainerRegistry implements Registry {
 
@@ -35,11 +39,50 @@ public class BlueprintContainerRegistry implements Registry {
     }
 
     public <T> T lookup(String name, Class<T> type) {
-        return null;
+        try {
+            return type.cast(blueprintContainer.getComponentInstance(name));
+        } catch (NoSuchComponentException e) {
+            return null;
+        }
     }
 
     public <T> Map<String, T> lookupByType(Class<T> type) {
-        return Collections.emptyMap();
+        return lookupByType(blueprintContainer, type);
+    }
+
+    public static <T> Map<String, T> lookupByType(BlueprintContainer blueprintContainer, Class<T> type) {
+        Map<String, T> objects = new LinkedHashMap<String, T>();
+        for (ExtendedBeanMetadata metadata : blueprintContainer.getMetadata(ExtendedBeanMetadata.class)) {
+            try {
+                Class cl = metadata.getRuntimeClass();
+                if (cl == null && metadata.getClassName() != null) {
+                    Bundle bundle = (Bundle) blueprintContainer.getComponentInstance("blueprintBundle");
+                    cl = bundle.loadClass(metadata.getClassName());
+                }
+                if (cl == null || type.isAssignableFrom(cl)) {
+                    Object o = blueprintContainer.getComponentInstance(metadata.getId());
+                    objects.put(metadata.getId(), type.cast(o));
+                }
+            } catch (Throwable t) {
+                // ignore
+            }
+        }
+        for (MutableReferenceMetadata metadata : blueprintContainer.getMetadata(MutableReferenceMetadata.class)) {
+            try {
+                Class cl = metadata.getRuntimeInterface();
+                if (cl == null && metadata.getInterface() != null) {
+                    Bundle bundle = (Bundle) blueprintContainer.getComponentInstance("blueprintBundle");
+                    cl = bundle.loadClass(metadata.getInterface());
+                }
+                if (cl == null || type.isAssignableFrom(cl)) {
+                    Object o = blueprintContainer.getComponentInstance(metadata.getId());
+                    objects.put(metadata.getId(), type.cast(o));
+                }
+            } catch (Throwable t) {
+                // ignore
+            }
+        }
+        return objects;
     }
 
 }

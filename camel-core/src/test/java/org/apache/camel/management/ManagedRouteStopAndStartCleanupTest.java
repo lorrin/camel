@@ -27,17 +27,12 @@ import org.apache.camel.component.mock.MockEndpoint;
 /**
  * Extended test to see if mbeans is removed and stats are correct
  *
- * @version $Revision$
+ * @version 
  */
 public class ManagedRouteStopAndStartCleanupTest extends ManagedRouteStopAndStartTest {
 
-    @Override
-    protected boolean useJmx() {
-        return true;
-    }
-
     public void testStopAndStartRoute() throws Exception {
-        MBeanServer mbeanServer = context.getManagementStrategy().getManagementAgent().getMBeanServer();
+        MBeanServer mbeanServer = getMBeanServer();
         ObjectName on = getRouteObjectName(mbeanServer);
 
         MockEndpoint mock = getMockEndpoint("mock:result");
@@ -66,7 +61,9 @@ public class ManagedRouteStopAndStartCleanupTest extends ManagedRouteStopAndStar
         assertEquals("Should be 1 processor", 1, set.size());
 
         // stop
+        log.info(">>>>>>>>>>>>>>>>>> invoking stop <<<<<<<<<<<<<<<<<<<<<");
         mbeanServer.invoke(on, "stop", null, null);
+        log.info(">>>>>>>>>>>>>>>>>> invoking stop DONE <<<<<<<<<<<<<<<<<<<<<");
 
         state = (String) mbeanServer.getAttribute(on, "State");
         assertEquals("Should be stopped", ServiceStatus.Stopped.name(), state);
@@ -93,7 +90,9 @@ public class ManagedRouteStopAndStartCleanupTest extends ManagedRouteStopAndStar
         mock.expectedBodiesReceived("Bye World");
 
         // start
+        log.info(">>>>>>>>>>>>>>>>> invoking start <<<<<<<<<<<<<<<<<<");
         mbeanServer.invoke(on, "start", null, null);
+        log.info(">>>>>>>>>>>>>>>>> invoking start DONE <<<<<<<<<<<<<<<<<<");
 
         state = (String) mbeanServer.getAttribute(on, "State");
         assertEquals("Should be started", ServiceStatus.Started.name(), state);

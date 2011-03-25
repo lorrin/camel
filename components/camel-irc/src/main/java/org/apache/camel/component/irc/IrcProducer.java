@@ -16,24 +16,25 @@
  */
 package org.apache.camel.component.irc;
 
-import java.util.List;
-
 import org.apache.camel.Exchange;
+import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.impl.DefaultProducer;
-import org.apache.camel.util.ObjectHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.schwering.irc.lib.IRCConnection;
+import org.schwering.irc.lib.IRCEventAdapter;
+import org.schwering.irc.lib.IRCUser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class IrcProducer extends DefaultProducer {
 
     public static final String[] COMMANDS = new String[]{"AWAY", "INVITE", "ISON", "JOIN", "KICK", "LIST", "NAMES",
         "PRIVMSG", "MODE", "NICK", "NOTICE", "PART", "PONG", "QUIT", "TOPIC", "WHO", "WHOIS", "WHOWAS", "USERHOST"};
 
-    private static final transient Log LOG = LogFactory.getLog(IrcProducer.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(IrcProducer.class);
 
     private IRCConnection connection;
     private IrcEndpoint endpoint;
+    private IRCEventAdapter listener;
 
     public IrcProducer(IrcEndpoint endpoint, IRCConnection connection) {
         super(endpoint);
@@ -44,6 +45,11 @@ public class IrcProducer extends DefaultProducer {
     public void process(Exchange exchange) throws Exception {
         final String msg = exchange.getIn().getBody(String.class);
         final String targetChannel = exchange.getIn().getHeader(IrcConstants.IRC_TARGET, String.class);
+
+        if (!connection.isConnected()) {
+            throw new RuntimeCamelException("Lost connection to " + connection.getHost());
+        }
+
         if (isMessageACommand(msg)) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Sending command: " + msg);
@@ -67,33 +73,11 @@ public class IrcProducer extends DefaultProducer {
     @Override
     protected void doStart() throws Exception {
         super.doStart();
-
-        List<String> channels = endpoint.getConfiguration().getChannels();
-        for (String channel : endpoint.getConfiguration().getChannels()) {
-
-            // find key for channel
-            int ndx = channels.indexOf(channel);
-            String key = null;
-            if (ndx >= 0) {
-                List<String> keys = endpoint.getConfiguration().getKeys();
-                if (keys.size() > 0 && ndx < keys.size()) {
-                    key = keys.get(ndx);
-                }
-            }
-
-            if (ObjectHelper.isNotEmpty(key)) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Joining: " + channel + " using " + connection.getClass().getName() + " with key " + key);
-                }
-                connection.doJoin(channel, key);
-            } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Joining: " + channel + " using " + connection.getClass().getName());
-                }
-                connection.doJoin(channel);
-            }
-        }
+        listener = getListener();
+        connection.addIRCEventListener(listener);
+        endpoint.joinChannels();
     }
+
 
     @Override
     protected void doStop() throws Exception {
@@ -104,6 +88,7 @@ public class IrcProducer extends DefaultProducer {
                 }
                 connection.doPart(channel);
             }
+            connection.removeIRCEventListener(listener);
         }
         super.doStop();
     }
@@ -115,6 +100,36 @@ public class IrcProducer extends DefaultProducer {
             }
         }
         return false;
+    }
+
+    public IRCEventAdapter getListener() {
+        if (listener == null) {
+            listener = new FilteredIRCEventAdapter();
+        }
+        return listener;
+    }
+
+    public void setListener(IRCEventAdapter listener) {
+        this.listener = listener;
+    }
+
+    class FilteredIRCEventAdapter extends IRCEventAdapter {
+
+        @Override
+        public void onKick(String channel, IRCUser user, String passiveNick, String msg) {
+
+            // check to see if I got kick and if so rejoin if autoRejoin is on
+            if (passiveNick.equals(connection.getNick()) && endpoint.getConfiguration().isAutoRejoin()) {
+                endpoint.joinChannel(channel);
+            }
+        }
+
+
+        @Override
+        public void onError(int num, String msg) {
+            IrcProducer.this.endpoint.handleIrcError(num, msg);
+        }
+
     }
 
 }

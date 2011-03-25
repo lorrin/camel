@@ -27,28 +27,32 @@ import org.apache.camel.spi.DataFormat;
 /**
  * Represents a <a href="http://camel.apache.org/castor.html">Castor</a> {@link org.apache.camel.spi.DataFormat}.
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "castor")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class CastorDataFormat extends DataFormatDefinition {
-
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String mappingFile;
-    @XmlAttribute(required = false)
-    private Boolean validation = Boolean.TRUE;
-    @XmlAttribute(required = false)
+    @XmlAttribute
+    private Boolean validation;
+    @XmlAttribute
     private String encoding;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String[] packages;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String[] classes;
 
     public CastorDataFormat() {
         super("castor");
     }
 
-    public Boolean isValidation() {
+    public boolean isValidation() {
+        // defaults to true if not configured
+        return validation != null ? validation : true;
+    }
+
+    public Boolean getValidation() {
         return validation;
     }
 
@@ -93,9 +97,8 @@ public class CastorDataFormat extends DataFormatDefinition {
         if (mappingFile != null) {
             setProperty(dataFormat, "mappingFile", mappingFile);
         }
-        if (validation != null) {
-            setProperty(dataFormat, "validation", validation);
-        }
+        setProperty(dataFormat, "validation", isValidation());
+
         if (encoding != null) {
             setProperty(dataFormat, "encoding", encoding);
         }

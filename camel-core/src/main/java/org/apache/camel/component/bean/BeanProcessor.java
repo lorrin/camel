@@ -30,17 +30,17 @@ import org.apache.camel.impl.ServiceSupport;
 import org.apache.camel.util.AsyncProcessorHelper;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.ServiceHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Processor} which converts the inbound exchange to a method
  * invocation on a POJO
  *
- * @version $Revision$
+ * @version 
  */
 public class BeanProcessor extends ServiceSupport implements AsyncProcessor {
-    private static final transient Log LOG = LogFactory.getLog(BeanProcessor.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(BeanProcessor.class);
 
     private boolean multiParameterArray;
     private Method methodObject;
@@ -78,8 +78,16 @@ public class BeanProcessor extends ServiceSupport implements AsyncProcessor {
         // do we have an explicit method name we always should invoke
         boolean isExplicitMethod = ObjectHelper.isNotEmpty(method);
 
-        Object bean = beanHolder.getBean();
-        BeanInfo beanInfo = beanHolder.getBeanInfo();
+        Object bean;
+        BeanInfo beanInfo;
+        try {
+            bean = beanHolder.getBean();
+            beanInfo = beanHolder.getBeanInfo();
+        } catch (Throwable e) {
+            exchange.setException(e);
+            callback.done(true);
+            return true;
+        }
 
         // do we have a custom adapter for this POJO to a Processor
         // should not be invoked if an explicit method has been set
@@ -209,6 +217,10 @@ public class BeanProcessor extends ServiceSupport implements AsyncProcessor {
 
     protected Processor getProcessor() {
         return beanHolder.getProcessor();
+    }
+
+    public Object getBean() {
+        return beanHolder.getBean();
     }
 
     // Properties

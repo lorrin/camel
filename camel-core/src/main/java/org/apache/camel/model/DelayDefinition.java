@@ -36,15 +36,17 @@ import org.apache.camel.util.concurrent.ExecutorServiceHelper;
 /**
  * Represents an XML &lt;delay/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "delay")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class DelayDefinition extends ExpressionNode implements ExecutorServiceAwareDefinition<DelayDefinition> {
 
+    // TODO: Camel 3.0 Should extend NoOutputExpressionNode
+
     @XmlTransient
     private ExecutorService executorService;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String executorServiceRef;
     @XmlAttribute
     private Boolean asyncDelayed;

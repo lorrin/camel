@@ -20,13 +20,14 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Component;
 import org.apache.camel.core.osgi.OsgiComponentResolver;
 import org.apache.camel.spi.ComponentResolver;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.camel.util.CamelContextHelper;
 import org.osgi.framework.BundleContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BlueprintComponentResolver extends OsgiComponentResolver {
 
-    private static final transient Log LOG = LogFactory.getLog(BlueprintComponentResolver.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(BlueprintComponentResolver.class);
 
     public BlueprintComponentResolver(BundleContext bundleContext) {
         super(bundleContext);
@@ -34,6 +35,24 @@ public class BlueprintComponentResolver extends OsgiComponentResolver {
 
     @Override
     public Component resolveComponent(String name, CamelContext context) throws Exception {
+        try {
+            Object bean = context.getRegistry().lookup(name);
+            if (bean instanceof Component) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Found component: " + name + " in registry: " + bean);
+                }
+                return (Component) bean;
+            } else {
+                // lets use Camel's type conversion mechanism to convert things like CamelContext
+                // and other types into a valid Component
+                Component component = CamelContextHelper.convertTo(context, Component.class, bean);
+                if (component != null) {
+                    return component;
+                }
+            }
+        } catch (Exception e) {
+            LOG.debug("Ignored error looking up bean: " + name + ". Error: " + e);
+        }
         try {
             Object bean = context.getRegistry().lookup(".camelBlueprint.componentResolver." + name);
             if (bean instanceof ComponentResolver) {
@@ -45,7 +64,7 @@ public class BlueprintComponentResolver extends OsgiComponentResolver {
         } catch (Exception e) {
             LOG.debug("Ignored error looking up bean: " + name + ". Error: " + e);
         }
-        return super.resolveComponent(name, context);
+        return getComponent(name, context);
     }
 
 }

@@ -37,7 +37,6 @@ import org.apache.camel.util.ObjectHelper;
 @XmlType(name = "loadBalancer")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class LoadBalancerDefinition extends IdentifiedType implements LoadBalancer {
-
     @XmlTransient
     private LoadBalancer loadBalancer;
     @XmlTransient
@@ -144,4 +143,12 @@ public class LoadBalancerDefinition extends IdentifiedType implements LoadBalanc
         });
     }
 
+    @Override
+    public String toString() {
+        if (loadBalancer != null) {
+            return loadBalancer.toString();
+        } else {
+            return loadBalancerTypeName;
+        }
+    }
 }

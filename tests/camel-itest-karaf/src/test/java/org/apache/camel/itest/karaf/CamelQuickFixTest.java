@@ -24,10 +24,10 @@ import org.ops4j.pax.exam.junit.Configuration;
 import org.ops4j.pax.exam.junit.JUnit4TestRunner;
 
 @RunWith(JUnit4TestRunner.class)
-@Ignore("No quickfix feature exists")
+@Ignore("Requires Karaf 2.2 which has slf4j logger improved")
 public class CamelQuickFixTest extends AbstractFeatureTest {
 
-    public static final String COMPONENT = extractName(CamelQuickFixTest.class);
+    public static final String COMPONENT = "quickfix";
 
     @Test
     public void test() throws Exception {

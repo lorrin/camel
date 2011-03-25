@@ -34,10 +34,12 @@ import org.apache.camel.management.mbean.ManagedThreadPool;
 import org.apache.camel.management.mbean.ManagedTracer;
 import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.spi.ManagementAgent;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+
 import org.fusesource.commons.management.Statistic;
 import org.fusesource.commons.management.basic.StatisticImpl;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A JMX capable {@link org.apache.camel.spi.ManagementStrategy} that Camel by default uses if possible.
@@ -47,11 +49,11 @@ import org.fusesource.commons.management.basic.StatisticImpl;
  *
  * @see org.apache.camel.spi.ManagementStrategy
  * @see org.apache.camel.management.DefaultManagementStrategy
- * @version $Revision$
+ * @version 
  */
 public class ManagedManagementStrategy extends DefaultManagementStrategy {
 
-    private static final transient Log LOG = LogFactory.getLog(ManagedManagementStrategy.class);
+    private static final transient Logger LOG = LoggerFactory.getLogger(ManagedManagementStrategy.class);
 
     public ManagedManagementStrategy() {
     }
@@ -117,10 +119,14 @@ public class ManagedManagementStrategy extends DefaultManagementStrategy {
             objectName = getManagementNamingStrategy().getObjectNameForEventNotifier(men.getContext(), men.getEventNotifier());
         } else if (managedObject instanceof ManagedThreadPool) {
             ManagedThreadPool mes = (ManagedThreadPool) managedObject;
-            objectName = getManagementNamingStrategy().getObjectNameForThreadPool(mes.getContext(), mes.getThreadPool());
+            objectName = getManagementNamingStrategy().getObjectNameForThreadPool(mes.getContext(), mes.getThreadPool(), mes.getId(), mes.getSourceId());
         } else if (managedObject instanceof ManagedService) {
             // check for managed service should be last
             ManagedService ms = (ManagedService) managedObject;
+            // skip endpoints as they are already managed
+            if (ms.getService() instanceof Endpoint) {
+                return null;
+            }
             objectName = getManagementNamingStrategy().getObjectNameForService(ms.getContext(), ms.getService());
         }
 

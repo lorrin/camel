@@ -16,61 +16,54 @@
  */
 package org.apache.camel.component.servlet;
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 
 import org.apache.camel.component.http.CamelServlet;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.springframework.context.support.AbstractApplicationContext;
-import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.apache.camel.component.http.HttpConsumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * Camel HTTP servlet which can be used in Camel routes to route servlet invocations in routes.
+ */
 public class CamelHttpTransportServlet extends CamelServlet {
-    private static final transient Log LOG = LogFactory.getLog(CamelHttpTransportServlet.class);
-    private static final Map<String, CamelServlet> CAMEL_SERVLET_MAP = new ConcurrentHashMap<String, CamelServlet>();
-    private String servletName;
-    private AbstractApplicationContext applicationContext;
-    
+    private static final long serialVersionUID = -1797014782158930490L;
+    private static final transient Logger LOG = LoggerFactory.getLogger(CamelHttpTransportServlet.class);
+
+    private HttpRegistry httpRegistry;
+
+    @Override
     public void init(ServletConfig config) throws ServletException {
         super.init(config);
-        servletName = config.getServletName();
-        // parser the servlet init parameters
-        CAMEL_SERVLET_MAP.put(servletName, this);
-        String contextConfigLocation = config.getInitParameter("contextConfigLocation");
-        if (contextConfigLocation != null) {
-            //Create a spring application context for it
-            applicationContext = new ClassPathXmlApplicationContext(contextConfigLocation.split(","));
-            LOG.info("Started the application context rightly");
+        if (httpRegistry == null) {
+            httpRegistry = DefaultHttpRegistry.getSingletonHttpRegistry();
+        }
+        httpRegistry.register(this);
+        LOG.info("Initialized CamelHttpTransportServlet[{}]", getServletName());
+    }
+    
+    @Override
+    public void destroy() {
+        httpRegistry.unregister(this);
+        LOG.info("Destroyed CamelHttpTransportServlet[{}]", getServletName());
+    }
+    
+    private ServletEndpoint getServletEndpoint(HttpConsumer consumer) {
+        if (!(consumer.getEndpoint() instanceof ServletEndpoint)) {
+            throw new RuntimeException("Invalid consumer type. Must be ServletEndpoint but is " 
+                    + consumer.getClass().getName());
+        }
+        return (ServletEndpoint)consumer.getEndpoint();
+    }
+
+    @Override
+    public void connect(HttpConsumer consumer) {
+        ServletEndpoint endpoint = getServletEndpoint(consumer);
+        if (endpoint.getServletName() != null && endpoint.getServletName().equals(getServletName())) {
+            super.connect(consumer);
         }
     }
-    
-    public void destroy() {        
-        if (applicationContext != null) {
-            applicationContext.stop();
-        }
-        // Need to remove the servlet from map after 
-        // the ApplicationContext is removed
-        CAMEL_SERVLET_MAP.remove(servletName);
-    }
-    
-    public static CamelServlet getCamelServlet(String servletName) {
-        CamelServlet answer = null;
-        if (servletName != null) {
-            answer = CAMEL_SERVLET_MAP.get(servletName);
-        } else {
-            if (CAMEL_SERVLET_MAP.size() > 0) {
-                // return the first one servlet
-                Iterator<CamelServlet> iterator = CAMEL_SERVLET_MAP.values().iterator();
-                answer = iterator.next();
-                LOG.info("Since no servlet name is specified, using the first element of camelServlet map [" + answer.getServletName() + "]");
-            }
-        }        
-        return answer;
-    }
-    
+
 }
 

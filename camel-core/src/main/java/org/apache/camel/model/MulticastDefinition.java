@@ -34,28 +34,30 @@ import org.apache.camel.util.concurrent.ExecutorServiceHelper;
 /**
  * Represents an XML &lt;multicast/&gt; element
  *
- * @version $Revision$
+ * @version 
  */
 @XmlRootElement(name = "multicast")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class MulticastDefinition extends OutputDefinition<MulticastDefinition> implements ExecutorServiceAwareDefinition<MulticastDefinition> {
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Boolean parallelProcessing;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String strategyRef;
     @XmlTransient
     private ExecutorService executorService;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private String executorServiceRef;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Boolean streaming;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Boolean stopOnException;
-    @XmlAttribute(required = false)
+    @XmlAttribute
     private Long timeout;
     @XmlTransient
     private AggregationStrategy aggregationStrategy;
 
+    public MulticastDefinition() {
+    }
 
     @Override
     public String toString() {
@@ -117,8 +119,13 @@ public class MulticastDefinition extends OutputDefinition<MulticastDefinition> i
     }
 
     /**
-     * Will now stop further processing if an exception occurred during processing of an
+     * Will now stop further processing if an exception or failure occurred during processing of an
      * {@link org.apache.camel.Exchange} and the caused exception will be thrown.
+     * <p/>
+     * Will also stop if processing the exchange failed (has a fault message) or an exception
+     * was thrown and handled by the error handler (such as using onException). In all situations
+     * the multicast will stop further processing. This is the same behavior as in pipeline, which
+     * is used by the routing engine.
      * <p/>
      * The default behavior is to <b>not</b> stop but continue processing till the end
      *
@@ -181,28 +188,40 @@ public class MulticastDefinition extends OutputDefinition<MulticastDefinition> i
         return this;
     }
 
+    public Boolean getParallelProcessing() {
+        return parallelProcessing;
+    }
+
+    public void setParallelProcessing(Boolean parallelProcessing) {
+        this.parallelProcessing = parallelProcessing;
+    }
+
     public boolean isParallelProcessing() {
-        return parallelProcessing != null ? parallelProcessing : false;
+        return parallelProcessing != null && parallelProcessing;
     }
 
-    public void setParallelProcessing(boolean parallelProcessing) {
-        this.parallelProcessing = parallelProcessing;        
+    public Boolean getStreaming() {
+        return streaming;
     }
 
-    public boolean isStreaming() {
-        return streaming != null ? streaming : false;
-    }
-
-    public void setStreaming(boolean streaming) {
+    public void setStreaming(Boolean streaming) {
         this.streaming = streaming;
     }
 
-    public Boolean isStopOnException() {
-        return stopOnException != null ? stopOnException : false;
+    public boolean isStreaming() {
+        return streaming != null && streaming;
+    }
+
+    public Boolean getStopOnException() {
+        return stopOnException;
     }
 
     public void setStopOnException(Boolean stopOnException) {
         this.stopOnException = stopOnException;
+    }
+
+    public Boolean isStopOnException() {
+        return stopOnException != null && stopOnException;
     }
 
     public ExecutorService getExecutorService() {
